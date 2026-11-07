@@ -480,7 +480,7 @@ function ProjectTaskRow({
 
 // ---------------------------------------------------------------- 页面
 
-export function ProjectPage({ state, projectId }) {
+export function ProjectPage({ state, projectId, onAssistant }) {
   const snapshotProjectId = getActiveProjectId();
   const currentId = projectId ?? snapshotProjectId;
   const data = (state && state.data) || {};
@@ -1060,6 +1060,7 @@ export function ProjectPage({ state, projectId }) {
       data,
       today,
       now: (state && state.serverTime) || null,
+      onAssistant,
     }),
   );
 }

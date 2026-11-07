@@ -92,10 +92,15 @@ registerCopy("assignment", {
     examStart: "开始考试",
     examStop: "停笔",
     examTitle: "考试",
-    examStartHint: "开始考试前需要助手已确认打印，且只能在考试安排当天开始。",
+    examStartHint: "开始考试前需要确认打印，且只能在考试安排当天开始。",
     examRunning: "考试进行中，停笔后才能上传答题卡。",
     examStopped: "已停笔，可以上传答题卡并提交。",
     examNotPrinted: "试卷尚未确认打印，现在开始会被 core 拒绝。",
+    examConfirmPrinted: "确认打印",
+    examConfirming: "确认中…",
+    examPrinted: "已确认打印",
+    examPrintedAt: "已确认打印于 {time}",
+    goGrade: "去批改",
     examStartedAt: "开始于 {time}",
     examStoppedAt: "停笔于 {time}",
     lessonProgress: "学习进度",
@@ -171,12 +176,17 @@ registerCopy("assignment", {
     examStop: "Stop writing",
     examTitle: "Exam",
     examStartHint:
-      "The assistant must confirm printing first, and the exam can only start on its scheduled day.",
+      "Confirm printing first; the exam can only start on its scheduled day.",
     examRunning:
       "Exam in progress; stop writing before uploading answer sheets.",
     examStopped: "Stopped — you can upload answer sheets and submit.",
     examNotPrinted:
       "Printing has not been confirmed; core will reject a start.",
+    examConfirmPrinted: "Confirm printing",
+    examConfirming: "Confirming…",
+    examPrinted: "Printing confirmed",
+    examPrintedAt: "Printing confirmed {time}",
+    goGrade: "Grade now",
     examStartedAt: "Started {time}",
     examStoppedAt: "Stopped {time}",
     lessonProgress: "Study progress",
@@ -254,10 +264,15 @@ registerCopy("assignment", {
     examStop: "筆記終了",
     examTitle: "試験",
     examStartHint:
-      "開始前にアシスタントの印刷確認が必要で、開始できるのは試験当日だけです。",
+      "開始前に印刷の確認が必要で、開始できるのは試験当日だけです。",
     examRunning: "試験中です。筆記終了後に答案をアップロードしてください。",
     examStopped: "筆記終了。答案をアップロードして提出できます。",
     examNotPrinted: "印刷が未確認です。いま開始すると core に拒否されます。",
+    examConfirmPrinted: "印刷を確認",
+    examConfirming: "確認中…",
+    examPrinted: "印刷を確認しました",
+    examPrintedAt: "{time} に印刷を確認",
+    goGrade: "採点へ",
     examStartedAt: "{time} に開始",
     examStoppedAt: "{time} に終了",
     lessonProgress: "学習進捗",
@@ -576,6 +591,32 @@ function newSubmissionId() {
   return `submission-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * 与 core 的 confirmPrinted 命令逐字段对齐：COMMAND_KEYS 只允许 op 与 id，
+ * printedAt 由 core 按收到命令的时刻写入，客户端不能自己填。
+ */
+export function confirmPrintedCommand(assessmentId) {
+  return {
+    type: "education",
+    command: { op: "confirmPrinted", id: String(assessmentId) },
+  };
+}
+
+/**
+ * 「去批改」交给学习助手的参数：与教育页行内批改入口同一套记录标识，
+ * 由 app/main.js 的 openAssistant 生成提示词并保留既有草稿。
+ */
+export function gradingRequest(assessment, submission) {
+  return {
+    projectId:
+      assessment && typeof assessment.projectId === "string"
+        ? assessment.projectId
+        : "",
+    assessmentId: assessment ? String(assessment.id) : "",
+    submissionId: submission ? String(submission.id) : "",
+  };
+}
+
 export function AssignmentDialog({
   open = false,
   onClose,
@@ -584,6 +625,7 @@ export function AssignmentDialog({
   data = null,
   today = "",
   now = null,
+  onAssistant = null,
 }) {
   const education = (data && data.education) || {};
   const assessments = asArray(education.assessments);
@@ -647,6 +689,7 @@ export function AssignmentDialog({
   const [pendingId, setPendingId] = useState(null);
   const [examBusy, setExamBusy] = useState(false);
   const [examError, setExamError] = useState(null);
+  const [printBusy, setPrintBusy] = useState(false);
   const [preview, setPreview] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
@@ -669,6 +712,7 @@ export function AssignmentDialog({
     setSubmitError(null);
     setPendingId(null);
     setExamError(null);
+    setPrintBusy(false);
     setPreview(null);
     setPickerOpen(false);
     setPickerQuery("");
@@ -1000,6 +1044,21 @@ export function AssignmentDialog({
     if (!result.ok) setExamError(result.error || t("common.writeFailed"));
   };
 
+  // 打印确认只能由人在这里点：core 的 confirmPrinted 是唯一写 printedAt 的入口，
+  // 成功后排队的快照会立刻把「开始考试」从灰变亮。
+  const confirmPrinted = async () => {
+    if (printBusy || !assessment) return;
+    setPrintBusy(true);
+    setExamError(null);
+    const result = await tryDispatch(confirmPrintedCommand(assessment.id));
+    setPrintBusy(false);
+    if (!result.ok) {
+      notify(result.error || t("common.writeFailed"), "danger");
+      return;
+    }
+    notify(t("assignment.examPrinted"), "brand");
+  };
+
   const saveProgress = async () => {
     if (progressBusy || !lesson) return;
     if (progressDraft.trim() === "") {
@@ -1268,6 +1327,33 @@ export function AssignmentDialog({
               ? t("assignment.examRunning")
               : t("assignment.examStopped"),
         ),
+        // 确认打印是 core 唯一写 printedAt 的入口，工作台必须自己给按钮；
+        // 确认过就只留一行时间，避免重复写入同一个事实。
+        !examPrintable
+          ? h(
+              "div",
+              null,
+              h(
+                Btn,
+                {
+                  variant: "soft",
+                  size: "md",
+                  icon: "check",
+                  disabled: printBusy,
+                  onClick: confirmPrinted,
+                },
+                printBusy
+                  ? t("assignment.examConfirming")
+                  : t("assignment.examConfirmPrinted"),
+              ),
+            )
+          : h(
+              "div",
+              { style: MUTED },
+              t("assignment.examPrintedAt", {
+                time: fmtDateTime(assessment.printedAt),
+              }),
+            ),
         !examPrintable && !examStarted
           ? errorBlock(t("assignment.examNotPrinted"))
           : null,
@@ -1411,6 +1497,24 @@ export function AssignmentDialog({
           : h("div", null, attachmentRows.map(resourceRow)),
       ),
       h("div", { style: MUTED }, t("assignment.lockedHint")),
+      // 交完卷的下一步是批改：只把请求递给学习助手，提示词与草稿沿用教育页那套。
+      grade === null && typeof onAssistant === "function"
+        ? h(
+            "div",
+            null,
+            h(
+              Btn,
+              {
+                variant: "soft",
+                size: "md",
+                icon: "arrowRight",
+                onClick: () =>
+                  onAssistant("grade", gradingRequest(assessment, submission)),
+              },
+              t("assignment.goGrade"),
+            ),
+          )
+        : null,
       errorBlock(submitError),
     );
   } else if (assessment) {
@@ -1790,4 +1894,11 @@ function continuationGrade(grade) {
       ? h(Chip, { tone: "sun", icon: "bell" }, t("assignment.needsReview"))
       : null,
   );
+}
+
+// 冒烟测试（scripts/smoke-client.mjs）在无浏览器环境下只能 SSR，事件不会执行；
+// 这里把点击处理器实际使用的两个纯函数暴露出来，断言派发的 action 与记录标识
+// 形状和 core、教育页一致。只在测试页显式置位时挂载，生产不写全局对象。
+if (typeof window !== "undefined" && window.__TOMATO_TEST__) {
+  window.__tomatoAssignmentParts = { confirmPrintedCommand, gradingRequest };
 }

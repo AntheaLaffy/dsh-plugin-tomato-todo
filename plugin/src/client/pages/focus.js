@@ -2345,6 +2345,7 @@ export function FocusPage(props = {}) {
       data,
       today,
       now: (state && state.serverTime) || null,
+      onAssistant: props.onAssistant,
     }),
   );
 }
