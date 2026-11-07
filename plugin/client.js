@@ -29249,6 +29249,10 @@ ${JSON.stringify(refs, null, 2)}`;
       activeStrict: "严格",
       activeStrictHint: "严格模式下不能提前结束，到点自动解除。",
       activeHint: "锁机期间不能修改任务或计时；到点自动解除。",
+      suppressedTitle: "本次休息已解除",
+      suppressedBody: "到 {time} 之前不会再自动锁机；需要现在就休息，点「重新锁机」。",
+      rearm: "重新锁机",
+      rearmed: "已重新进入锁机",
       unnamed: "未命名时段",
       total: "共 {time}",
       quickTitle: "现在休息一会儿",
@@ -29307,6 +29311,10 @@ ${JSON.stringify(refs, null, 2)}`;
       activeStrict: "Strict",
       activeStrictHint: "Strict mode cannot end early; it releases when the timer runs out.",
       activeHint: "Tasks and the timer cannot be changed during a lock; it releases automatically.",
+      suppressedTitle: "This rest was ended",
+      suppressedBody: "No automatic lock starts before {time}. Use “Lock again” to rest now.",
+      rearm: "Lock again",
+      rearmed: "Lock re-armed",
       unnamed: "Untitled block",
       total: "{time} total",
       quickTitle: "Take a break now",
@@ -29635,6 +29643,16 @@ ${JSON.stringify(refs, null, 2)}`;
     const activeTotal = active2 ? Math.max(0, Number(active2.endsAt) - Number(active2.startedAt)) : 0;
     const activeProgress = activeTotal > 0 ? Math.max(0, Math.min(1, (now - Number(active2.startedAt)) / activeTotal)) : 0;
     const activeName = active2 && typeof active2.name === "string" && active2.name !== "" ? active2.name : t("schedule.unnamed");
+    const suppressedUntil = Number(lock.suppressedUntil) || 0;
+    const suppressed = !active2 && suppressedUntil > now;
+    async function rearm() {
+      const result = await tryDispatch({ type: "rearmLock" });
+      if (!result.ok) {
+        notify(result.error, "danger");
+        return;
+      }
+      notify(t("schedule.rearmed"), "brand");
+    }
     async function startQuick() {
       if (!quickValid) {
         notify(t("schedule.quickInvalid"), "danger");
@@ -29859,6 +29877,41 @@ ${JSON.stringify(refs, null, 2)}`;
               }
             },
             active2.strict ? t("schedule.activeStrictHint") : t("schedule.activeHint")
+          )
+        ) : null,
+        // ---- 本次休息已解除（抑制仍在，时段不会再触发）----
+        suppressed ? h(
+          Card,
+          null,
+          h(SectionTitle, {
+            icon: "unlock",
+            title: t("schedule.suppressedTitle")
+          }),
+          h(
+            "div",
+            {
+              style: {
+                fontSize: 12.5,
+                color: "var(--tomato-ink-2)",
+                lineHeight: 1.65,
+                marginTop: 4
+              }
+            },
+            t("schedule.suppressedBody", { time: clockOf2(suppressedUntil) })
+          ),
+          h(
+            "div",
+            { style: { marginTop: 12 } },
+            h(
+              Btn,
+              {
+                size: "sm",
+                variant: "primary",
+                icon: "lock",
+                onClick: rearm
+              },
+              t("schedule.rearm")
+            )
           )
         ) : null,
         // ---- 现在休息一会儿 ----

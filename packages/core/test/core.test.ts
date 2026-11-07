@@ -293,6 +293,32 @@ describe("crates/core/src/tests.rs 移植", () => {
     expect(e.data.sessions).toHaveLength(0);
   });
 
+  it("saving_a_schedule_or_rearm_clears_the_suppression_left_by_ending_a_lock", () => {
+    const e = engine();
+    e.dispatch(
+      { type: "saveLockSchedule", schedule: sleepSchedule(false) },
+      friday(22, 0),
+    );
+    expect(e.snapshot(friday(23, 0)).data.protected()).toBe(true);
+    // 「结束并解锁」只把抑制推到时段末，时段本身仍然启用。
+    e.dispatch({ type: "emergencyUnlock" }, friday(23, 1));
+    expect(e.snapshot(friday(23, 2)).data.protected()).toBe(false);
+    expect(e.data.lock.suppressedUntil).toBeGreaterThan(friday(23, 2));
+    // 关掉再打开同一个时段 = 重新武装：抑制清空，立刻按当前时段重新判定。
+    e.dispatch(
+      { type: "saveLockSchedule", schedule: sleepSchedule(false) },
+      friday(23, 3),
+    );
+    expect(e.data.lock.suppressedUntil).toBe(0);
+    expect(e.snapshot(friday(23, 4)).data.protected()).toBe(true);
+    // 主动结束一次之后，也有显式的「重新锁机」入口回到锁机状态。
+    e.dispatch({ type: "emergencyUnlock" }, friday(23, 5));
+    expect(e.snapshot(friday(23, 6)).data.protected()).toBe(false);
+    e.dispatch({ type: "rearmLock" }, friday(23, 7));
+    expect(e.snapshot(friday(23, 8)).data.protected()).toBe(true);
+    expect(e.data.sessions).toHaveLength(0);
+  });
+
   it("invalid_schedules_are_atomic_and_restoring_backups_does_not_arm_locks", () => {
     const e = engine();
     const now = friday(22, 0);

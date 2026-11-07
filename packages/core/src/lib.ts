@@ -926,6 +926,13 @@ export class AppData {
         releaseLock(this.lock, at);
         break;
       }
+      case "rearmLock": {
+        // 「结束并解锁」只抑制当前时段，不删时段；用户想回到锁机状态时得
+        // 有个显式入口，否则只能等到时段结束或去改时段配置。
+        this.lock.suppressedUntil = 0;
+        this.tick(at);
+        break;
+      }
       case "completeFocus": {
         if (
           this.lock.active !== null ||
@@ -950,6 +957,10 @@ export class AppData {
           this.lock.schedules.push(action.schedule);
         }
         validateLock(this.lock);
+        // 动手改时段（含关掉再打开）就是重新武装：先清掉上一次「结束并解锁」
+        // 留下的抑制，否则 tick 里的 scheduledAt 仍会因 suppressedUntil 返回
+        // null——页面显示「已启用」，实际什么都不会发生。
+        this.lock.suppressedUntil = 0;
         this.tick(at);
         break;
       }
@@ -1923,6 +1934,7 @@ export type Action =
   | { type: "import"; data: AppData }
   | { type: "importPlan"; plan: PlanFile }
   | { type: "emergencyUnlock" }
+  | { type: "rearmLock" }
   | { type: "saveLockSchedule"; schedule: LockSchedule }
   | { type: "deleteLockSchedule"; id: string }
   | { type: "startQuickLock"; minutes: number; strict: boolean };
@@ -1979,6 +1991,7 @@ const ACTION_KEYS: Record<string, string[]> = {
   import: ["type", "data"],
   importPlan: ["type", "plan"],
   emergencyUnlock: ["type"],
+  rearmLock: ["type"],
   saveLockSchedule: ["type", "schedule"],
   deleteLockSchedule: ["type", "id"],
   startQuickLock: ["type", "minutes", "strict"],
@@ -2177,6 +2190,7 @@ export function parseAction(raw: unknown): Action {
     case "skipTimer":
     case "loadExample":
     case "emergencyUnlock":
+    case "rearmLock":
       return { type };
     case "setMode":
       return {

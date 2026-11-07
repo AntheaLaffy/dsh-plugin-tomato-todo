@@ -37,6 +37,11 @@ registerCopy("schedule", {
     activeStrict: "严格",
     activeStrictHint: "严格模式下不能提前结束，到点自动解除。",
     activeHint: "锁机期间不能修改任务或计时；到点自动解除。",
+    suppressedTitle: "本次休息已解除",
+    suppressedBody:
+      "到 {time} 之前不会再自动锁机；需要现在就休息，点「重新锁机」。",
+    rearm: "重新锁机",
+    rearmed: "已重新进入锁机",
     unnamed: "未命名时段",
     total: "共 {time}",
     quickTitle: "现在休息一会儿",
@@ -99,6 +104,11 @@ registerCopy("schedule", {
       "Strict mode cannot end early; it releases when the timer runs out.",
     activeHint:
       "Tasks and the timer cannot be changed during a lock; it releases automatically.",
+    suppressedTitle: "This rest was ended",
+    suppressedBody:
+      "No automatic lock starts before {time}. Use “Lock again” to rest now.",
+    rearm: "Lock again",
+    rearmed: "Lock re-armed",
     unnamed: "Untitled block",
     total: "{time} total",
     quickTitle: "Take a break now",
@@ -502,6 +512,19 @@ export function SchedulePage({ refresh }) {
     active && typeof active.name === "string" && active.name !== ""
       ? active.name
       : t("schedule.unnamed");
+  // 「结束并解锁」不会删时段，只把抑制推到时段结束；页面必须把这件事说出来，
+  // 否则一张「已启用」的时段看起来正常，实际整晚都不会再触发。
+  const suppressedUntil = Number(lock.suppressedUntil) || 0;
+  const suppressed = !active && suppressedUntil > now;
+
+  async function rearm() {
+    const result = await tryDispatch({ type: "rearmLock" });
+    if (!result.ok) {
+      notify(result.error, "danger");
+      return;
+    }
+    notify(t("schedule.rearmed"), "brand");
+  }
 
   async function startQuick() {
     if (!quickValid) {
@@ -742,6 +765,44 @@ export function SchedulePage({ refresh }) {
               active.strict
                 ? t("schedule.activeStrictHint")
                 : t("schedule.activeHint"),
+            ),
+          )
+        : null,
+
+      // ---- 本次休息已解除（抑制仍在，时段不会再触发）----
+      suppressed
+        ? h(
+            Card,
+            null,
+            h(SectionTitle, {
+              icon: "unlock",
+              title: t("schedule.suppressedTitle"),
+            }),
+            h(
+              "div",
+              {
+                style: {
+                  fontSize: 12.5,
+                  color: "var(--tomato-ink-2)",
+                  lineHeight: 1.65,
+                  marginTop: 4,
+                },
+              },
+              t("schedule.suppressedBody", { time: clockOf(suppressedUntil) }),
+            ),
+            h(
+              "div",
+              { style: { marginTop: 12 } },
+              h(
+                Btn,
+                {
+                  size: "sm",
+                  variant: "primary",
+                  icon: "lock",
+                  onClick: rearm,
+                },
+                t("schedule.rearm"),
+              ),
             ),
           )
         : null,
