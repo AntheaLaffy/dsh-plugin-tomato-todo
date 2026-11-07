@@ -14,7 +14,8 @@
 | 位置 | slot / API | 用途 |
 | --- | --- | --- |
 | 主视图 | `main` keyed，register key `tomato` | 番茄应用页（九页导航）占据中央栏，像 DSH 自带的插件页 |
-| 侧栏左下角入口 | `sidebar.footer.action` id=`tomato-progress`（owner props `{wide}`） | 「番茄 Todo + 今日 N / 目标 + →」，点击进入主视图；面板列表顶部不再放番茄图标 |
+| 侧栏底部入口 | `sidebar.footer.action` id=`tomato-progress`（owner props `{wide}`） | 「番茄 Todo + 今日 N / 目标 + →」，点击进入主视图；计数只在这里显示 |
+| 面板列表图标 | `sidebar.panellist` id=`tomato`（owner props `{size, active}`） | 与 DSH 自带面板图标同排的番茄图标，点击进入主视图；id 即 main 的 key，保持安静不带计数 |
 | 会话内常驻 | `shell.overlay`（list，order 升序） | 背景氛围层、专注 HUD、沉浸层、toast |
 | 输入框上方 | `conversation.composer.dock` | 极简「今日专注」入口卡（保留，不做主界面） |
 | 主题 | `ctx.theme.register({id, colorScheme, tokens})` + `ctx.theme.setTheme(id)` | 全 DSH 皮肤：注册 `tomato`（light）/`tomato-night`（dark），插件加载时按当前色彩方案选中对应项 |
@@ -196,11 +197,14 @@
 
 ### 4.2 对话中的常驻组件
 
-- **番茄预计/实际 / 入口**：左侧栏只有**一处**——工作区/会话列表下方的左下角条目
-  （`sidebar.footer.action`）：与面板内「学习助手」行同一种克制样式——番茄图标 +
-  「番茄 Todo」+ 右侧浅底计数（N / 目标，专注中为倒计时）+ →；hover 只给 surface-2
-  浅底，不做卡片/描边/投影（用户反馈卡片过于显眼）。侧栏收起成窄条时只留图标 + 计数。
-  点击进入番茄页；面板列表顶部的番茄条目与页头胶囊都已移除（用户要求）。
+- **番茄预计/实际 / 入口**：左侧栏有**两个**入口，按用户要求同时保留——
+  - 面板列表顶部的图标（`sidebar.panellist` id `tomato`）：与 DSH 自带面板图标同排，
+    只表达「有这个面板」，不带计数；
+  - 工作区/会话列表下方的左下角条目（`sidebar.footer.action`）：与面板内「学习助手」
+    行同一种克制样式——番茄图标 +「番茄 Todo」+ 右侧浅底计数（N / 目标，专注中为
+    倒计时）+ →；hover 只给 surface-2 浅底，不做卡片/描边/投影（用户反馈卡片过于显眼）；
+    侧栏收起成窄条时只留图标 + 计数。
+  两处都点进同一个番茄页，计数只在左下角那处出现；页头胶囊已移除。
   番茄页导航底部同样显示进度。右上角 HUD 空闲时不出现，只在专注/暂停/保护生效时显示倒计时。
 - **到点提醒 + 开始专注**：对话页放在**顶栏正中**（`shell.overlay` id `tomato-top-reminder`，
   fixed 居中、高度 28 的细长条）：`现在 09:40 · 项目 · 任务名 · [开始专注]`；

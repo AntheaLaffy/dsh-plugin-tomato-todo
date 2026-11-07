@@ -8112,6 +8112,16 @@ ${JSON.stringify(refs, null, 2)}`;
       wide ? h(Icon, { name: "arrowRight", size: 13, style: { opacity: 0.4, flex: "none" } }) : null
     );
   }
+  function SidebarTomatoIcon({ size = 18, active: active2 = false }) {
+    return h(Icon, {
+      name: "tomato",
+      size,
+      stroke: 1.5,
+      style: {
+        color: active2 ? "var(--tomato-brand-deep)" : "var(--tomato-brand)"
+      }
+    });
+  }
 
   // plugin/src/client/app/reminders.js
   registerCopy("reminder", {
@@ -31519,6 +31529,16 @@ ${JSON.stringify(refs, null, 2)}`;
       "main",
       { name: "main", key: "tomato" },
       () => h(AppShell, pageProps)
+    );
+    safeInject2(
+      "sidebar.panellist",
+      {
+        name: "sidebar.panellist",
+        id: "tomato",
+        order: 10,
+        label: () => t("side.label")
+      },
+      SidebarTomatoIcon
     );
     safeInject2(
       "sidebar.footer.action",

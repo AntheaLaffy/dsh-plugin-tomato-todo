@@ -29,7 +29,10 @@ import {
 import { AppOverlay } from "./overlay.js";
 import { AgendaDialog } from "./immersive.js";
 import { DockCard } from "./dock.js";
-import { SidebarTomatoProgress } from "./sidebar-progress.js";
+import {
+  SidebarTomatoIcon,
+  SidebarTomatoProgress,
+} from "./sidebar-progress.js";
 import { ReminderStrip } from "./reminders.js";
 import { notify } from "../shared/ui.js";
 import { PersonaBackdrop } from "./persona.js";
@@ -259,8 +262,21 @@ export function registerApp(ctx) {
     h(AppShell, pageProps),
   );
 
-  // 番茄入口只有左下角这一条（面板列表里的顶部图标按用户要求移除）：
-  // 工作区/会话列表下方、设置按钮旁，展开态是「图标 + 番茄 Todo + N / 目标 + →」。
+  // 两个入口都保留（用户明确要求）：面板列表顶部的图标负责「像 DSH 自带面板一样
+  // 存在」，左下角的进度行负责「今天还剩多少番茄」；两者打开同一个主视图，计数
+  // 只放在进度行，顶部图标保持安静。
+  safeInject(
+    "sidebar.panellist",
+    {
+      name: "sidebar.panellist",
+      id: "tomato",
+      order: 10,
+      label: () => t("side.label"),
+    },
+    SidebarTomatoIcon,
+  );
+
+  // 工作区/会话列表下方、设置按钮旁：展开态是「图标 + 番茄 Todo + N / 目标 + →」。
   safeInject(
     "sidebar.footer.action",
     { name: "sidebar.footer.action", id: "tomato-progress", order: 5 },

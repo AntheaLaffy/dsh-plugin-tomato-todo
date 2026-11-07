@@ -283,6 +283,7 @@ const expectedSlots = [
   "conversation.hero.brand.mark",
   "settings.general.item",
   "sidebar.footer.action",
+  "sidebar.panellist",
 ];
 const got = new Set(slotRegistrations.map((r) => r.key));
 for (const key of expectedSlots) {
@@ -297,14 +298,11 @@ const tomatoEntry = slotRegistrations.find(
     r.registration?.options?.id === "tomato-progress",
 );
 if (!tomatoEntry) failures.push("左下角没有注册番茄入口");
-if (
-  slotRegistrations.some(
-    (r) =>
-      r.key === "sidebar.panellist" && r.registration?.options?.id === "tomato",
-  )
-) {
-  failures.push("番茄入口又回到了面板列表顶部（只保留左下角一条）");
-}
+const tomatoIcon = slotRegistrations.find(
+  (r) =>
+    r.key === "sidebar.panellist" && r.registration?.options?.id === "tomato",
+);
+if (!tomatoIcon) failures.push("面板列表顶部没有注册番茄图标");
 if (!head.children.some((n) => n.id === "tomato-skin-style"))
   failures.push("没有注入皮肤样式表");
 if (!body.children.some((n) => n.id === "tomato-ambient"))
@@ -1250,6 +1248,9 @@ if (tomatoEntry) {
     failures.push("DSH 侧栏番茄入口没有跟随日语");
   }
 }
+if (tomatoIcon && tomatoIcon.registration.options.label() !== "トマト Todo") {
+  failures.push("面板列表番茄图标没有跟随日语");
+}
 const japaneseMarkers = {
   focus: "今日は、ゆっくりと進みましょう。",
   tasks: "少しずつ、物事を終わらせよう。",
@@ -1332,6 +1333,9 @@ if (!process.env.SMOKE_LIVE) {
     failures.push("番茄预计/实际又回到了最下面那条面板");
   if (!(renderedBy["sidebar.footer.action"] || "").includes("番茄 Todo")) {
     failures.push("侧栏左下角没有渲染番茄入口");
+  }
+  if (!(renderedBy["sidebar.panellist"] || "").includes("svg")) {
+    failures.push("侧栏面板列表没有番茄图标");
   }
 }
 if (!(renderedBy["conversation.composer.dock"] || "").includes("现在专注"))

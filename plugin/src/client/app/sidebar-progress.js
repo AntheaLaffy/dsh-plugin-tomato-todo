@@ -1,4 +1,9 @@
-// 左侧栏底部的番茄入口 + 今日番茄预计/实际。
+// 左侧栏的两个番茄入口：
+// - `sidebar.panellist` 的图标（`SidebarTomatoIcon`）——面板列表里的常规入口，
+//   owner props `{size, active}`，与 DSH 自带面板图标同排；
+// - `sidebar.footer.action` 的进度行（`SidebarTomatoProgress`）——工作区/会话
+//   列表下方、设置按钮旁，owner props `{wide}`，展开态带「今日 N / 目标」。
+// 两处都点进同一个主视图；计数只在进度行显示，顶部图标保持安静。
 //
 // 和番茄面板里的「学习助手」入口保持一致：同样是「图标 + 文案 + 右侧计数」的
 // 条目样式（面板里是 chat 图标 + 学习助手 + →；这里是番茄图标 + 番茄 Todo + 0/8）。
@@ -143,4 +148,16 @@ export function SidebarTomatoProgress({ wide = true, openPanel }) {
       ? h(Icon, { name: "arrowRight", size: 13, style: { opacity: 0.4, flex: "none" } })
       : null,
   );
+}
+
+/** 面板列表里的番茄图标：owner props `{ size, active }`。 */
+export function SidebarTomatoIcon({ size = 18, active = false }) {
+  return h(Icon, {
+    name: "tomato",
+    size,
+    stroke: 1.5,
+    style: {
+      color: active ? "var(--tomato-brand-deep)" : "var(--tomato-brand)",
+    },
+  });
 }
