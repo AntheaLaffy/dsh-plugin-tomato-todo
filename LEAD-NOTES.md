@@ -35,7 +35,7 @@
 - 皮肤：`skin/theme.js` 覆盖 134 个 `--dsw-alias-*`（overrideTokens，不动用户明暗偏好）；
   `skin/ambient.js` 两层氛围（body 地面层 + `shell.overlay` order −1000 天空层，因 AppFrame 不透明）；
   品牌位（sidebar.brand.mark/name、hero.mark）番茄化。
-- 主视图：`main` panel key `tomato`（`app/frame.js` 九页导航）+ `sidebar.panellist` 入口 +
+- 主视图：`main` panel key `tomato`（`app/frame.js` 九页导航）+ `sidebar.footer.action` 左下角入口 +
   `shell.overlay` HUD/沉浸（order 900）+ `conversation.composer.dock` 入口卡。
 - 数据面：`GET /api/state`（默认裁剪 identities/资源明细，228KB/gzip52KB；`?full=1` 全量）+
   `POST /api/dispatch`（core Action）+ `GET /api/export/{plan,backup}`；runtime engine 换成 core 适配层。

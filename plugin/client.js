@@ -7997,18 +7997,120 @@ ${JSON.stringify(refs, null, 2)}`;
 
   // plugin/src/client/app/sidebar-progress.js
   registerCopy("side", {
-    zh: { label: "番茄 Todo", open: "打开番茄 Todo 主视图" },
-    en: { label: "Tomato Todo", open: "Open the Tomato Todo view" }
+    zh: {
+      label: "番茄 Todo",
+      pomodoro: "今日番茄 {done} / {goal}",
+      running: "专注中 {time}",
+      sub: "今日 {done} / {goal} 颗番茄",
+      subRunning: "专注中 · 第 {round} 轮",
+      open: "打开番茄 Todo 主视图"
+    },
+    en: {
+      label: "Tomato Todo",
+      pomodoro: "Today {done} / {goal} pomodoros",
+      running: "Focusing {time}",
+      sub: "Today {done} / {goal} pomodoros",
+      subRunning: "Focusing · round {round}",
+      open: "Open the Tomato Todo view"
+    }
   });
-  function SidebarTomatoIcon({ size = 18, active: active2 = false }) {
-    return h(Icon, {
-      name: "tomato",
-      size,
-      stroke: 1.5,
-      style: {
-        color: active2 ? "var(--tomato-brand-deep)" : "var(--tomato-brand)"
-      }
-    });
+  function SidebarTomatoProgress({ wide = true, openPanel }) {
+    const state = useSnapshot();
+    const data = state && state.data || {};
+    const settings = data.settings || {};
+    const stats = state && state.stats || {};
+    const goal = Number(settings.dailyGoal) || 8;
+    const done = Number(stats.todayPomodoros) || 0;
+    const view = timerView(state);
+    const title = view.running ? t("side.running", { time: fmtClock(view.remainingSecs) }) : t("side.pomodoro", { done, goal });
+    return h(
+      "button",
+      {
+        type: "button",
+        onClick: () => openPanel?.(),
+        title: `${title} · ${t("side.open")}`,
+        "aria-label": t("side.label"),
+        className: "t-root",
+        style: wide ? {
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          height: 34,
+          width: "calc(100% - 12px)",
+          margin: "2px 6px 4px",
+          padding: "0 8px",
+          border: "none",
+          borderRadius: 9,
+          background: "transparent",
+          color: "var(--tomato-ink-2)",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          textAlign: "left",
+          minWidth: 0,
+          flex: "1 1 100%"
+        } : {
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          padding: 0,
+          border: "none",
+          borderRadius: 8,
+          background: "transparent",
+          color: "var(--tomato-ink-2)",
+          cursor: "pointer",
+          flex: "none"
+        },
+        onMouseEnter: (e) => {
+          e.currentTarget.style.background = "var(--tomato-surface-2)";
+          e.currentTarget.style.color = "var(--tomato-ink)";
+        },
+        onMouseLeave: (e) => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "var(--tomato-ink-2)";
+        }
+      },
+      h(Icon, {
+        name: "tomato",
+        size: 17,
+        stroke: 1.5,
+        style: { color: "var(--tomato-brand)", flex: "none" }
+      }),
+      wide ? h(
+        "span",
+        {
+          style: {
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: 13,
+            fontWeight: 550,
+            color: "var(--tomato-ink)"
+          }
+        },
+        t("side.label")
+      ) : null,
+      wide ? h(
+        "span",
+        {
+          className: "t-mono",
+          style: {
+            flex: "none",
+            fontSize: 10.5,
+            fontWeight: 600,
+            color: view.running ? "var(--tomato-brand-deep)" : "var(--tomato-ink-3)",
+            background: "var(--tomato-surface-2)",
+            borderRadius: 6,
+            padding: "1px 6px"
+          }
+        },
+        view.running ? fmtClock(view.remainingSecs) : `${done} / ${goal}`
+      ) : null,
+      wide ? h(Icon, { name: "arrowRight", size: 13, style: { opacity: 0.4, flex: "none" } }) : null
+    );
   }
 
   // plugin/src/client/app/reminders.js
@@ -31419,14 +31521,9 @@ ${JSON.stringify(refs, null, 2)}`;
       () => h(AppShell, pageProps)
     );
     safeInject2(
-      "sidebar.panellist",
-      {
-        name: "sidebar.panellist",
-        id: "tomato",
-        order: 10,
-        label: () => t("side.label")
-      },
-      SidebarTomatoIcon
+      "sidebar.footer.action",
+      { name: "sidebar.footer.action", id: "tomato-progress", order: 5 },
+      (props) => h(SidebarTomatoProgress, { ...props, openPanel })
     );
     safeInject2(
       "shell.overlay",

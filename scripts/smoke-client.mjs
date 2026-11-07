@@ -282,7 +282,7 @@ const expectedSlots = [
   "sidebar.brand.name",
   "conversation.hero.brand.mark",
   "settings.general.item",
-  "sidebar.panellist",
+  "sidebar.footer.action",
 ];
 const got = new Set(slotRegistrations.map((r) => r.key));
 for (const key of expectedSlots) {
@@ -292,18 +292,18 @@ if (overrides.length === 0) failures.push("没有调用 theme.overrideTokens");
 if (!localeState.locales.some((item) => item.id === "ja"))
   failures.push("没有向 DSH 注册日语");
 const tomatoEntry = slotRegistrations.find(
-  (r) => r.key === "sidebar.panellist",
+  (r) =>
+    r.key === "sidebar.footer.action" &&
+    r.registration?.options?.id === "tomato-progress",
 );
-if (tomatoEntry?.registration?.options?.id !== "tomato")
-  failures.push("侧栏入口没有绑定番茄主面板");
+if (!tomatoEntry) failures.push("左下角没有注册番茄入口");
 if (
   slotRegistrations.some(
     (r) =>
-      r.key === "sidebar.footer.action" &&
-      r.registration?.options?.id === "tomato-progress",
+      r.key === "sidebar.panellist" && r.registration?.options?.id === "tomato",
   )
 ) {
-  failures.push("番茄侧栏入口重复注册");
+  failures.push("番茄入口又回到了面板列表顶部（只保留左下角一条）");
 }
 if (!head.children.some((n) => n.id === "tomato-skin-style"))
   failures.push("没有注入皮肤样式表");
@@ -1242,8 +1242,13 @@ if (
 ) {
   failures.push("番茄 Todo 主视图没有显示日语导航");
 }
-if (tomatoEntry && tomatoEntry.registration.options.label() !== "トマト Todo") {
-  failures.push("DSH 侧栏番茄入口没有跟随日语");
+if (tomatoEntry) {
+  const japaneseSide = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(tomatoEntry.registration.Component, {}),
+  );
+  if (!japaneseSide.includes("トマト Todo")) {
+    failures.push("DSH 侧栏番茄入口没有跟随日语");
+  }
 }
 const japaneseMarkers = {
   focus: "今日は、ゆっくりと進みましょう。",
@@ -1325,8 +1330,8 @@ if (!process.env.SMOKE_LIVE) {
   const dock = renderedBy["conversation.composer.dock"] || "";
   if (/[0-9]+ \/ 8 番茄/.test(dock))
     failures.push("番茄预计/实际又回到了最下面那条面板");
-  if (!(renderedBy["sidebar.panellist"] || "").includes("svg")) {
-    failures.push("侧栏面板列表没有番茄图标");
+  if (!(renderedBy["sidebar.footer.action"] || "").includes("番茄 Todo")) {
+    failures.push("侧栏左下角没有渲染番茄入口");
   }
 }
 if (!(renderedBy["conversation.composer.dock"] || "").includes("现在专注"))

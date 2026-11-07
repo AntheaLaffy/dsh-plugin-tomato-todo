@@ -14,7 +14,7 @@
 | 位置 | slot / API | 用途 |
 | --- | --- | --- |
 | 主视图 | `main` keyed，register key `tomato` | 番茄应用页（九页导航）占据中央栏，像 DSH 自带的插件页 |
-| 侧栏图标 | `sidebar.panellist` id=`tomato`（owner props `{size, active}`） | 点击进入主视图；id 即 main 的 key |
+| 侧栏左下角入口 | `sidebar.footer.action` id=`tomato-progress`（owner props `{wide}`） | 「番茄 Todo + 今日 N / 目标 + →」，点击进入主视图；面板列表顶部不再放番茄图标 |
 | 会话内常驻 | `shell.overlay`（list，order 升序） | 背景氛围层、专注 HUD、沉浸层、toast |
 | 输入框上方 | `conversation.composer.dock` | 极简「今日专注」入口卡（保留，不做主界面） |
 | 主题 | `ctx.theme.register({id, colorScheme, tokens})` + `ctx.theme.setTheme(id)` | 全 DSH 皮肤：注册 `tomato`（light）/`tomato-night`（dark），插件加载时按当前色彩方案选中对应项 |

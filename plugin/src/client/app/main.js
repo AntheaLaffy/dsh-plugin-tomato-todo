@@ -1,7 +1,7 @@
 // 应用装配：主视图（main panel `tomato`）、侧栏入口、焦点 HUD/沉浸层、输入框入口卡。
 //
 // 皮肤在 skin/main.js 里先跑；这里只保证「打开 DSH 就有番茄」：
-// - 侧栏一枚番茄图标 → 主视图（九页）
+// - 侧栏左下角一条「番茄 Todo + 今日进度」入口 → 主视图（九页）
 // - 对话右上角常驻专注 HUD + 沉浸层
 // - 输入框上方的今日入口卡
 import { h } from "../runtime.js";
@@ -29,7 +29,7 @@ import {
 import { AppOverlay } from "./overlay.js";
 import { AgendaDialog } from "./immersive.js";
 import { DockCard } from "./dock.js";
-import { SidebarTomatoIcon } from "./sidebar-progress.js";
+import { SidebarTomatoProgress } from "./sidebar-progress.js";
 import { ReminderStrip } from "./reminders.js";
 import { notify } from "../shared/ui.js";
 import { PersonaBackdrop } from "./persona.js";
@@ -259,16 +259,12 @@ export function registerApp(ctx) {
     h(AppShell, pageProps),
   );
 
-  // 与主面板共用 tomato ID，侧栏负责导航和选中态。
+  // 番茄入口只有左下角这一条（面板列表里的顶部图标按用户要求移除）：
+  // 工作区/会话列表下方、设置按钮旁，展开态是「图标 + 番茄 Todo + N / 目标 + →」。
   safeInject(
-    "sidebar.panellist",
-    {
-      name: "sidebar.panellist",
-      id: "tomato",
-      order: 10,
-      label: () => t("side.label"),
-    },
-    SidebarTomatoIcon,
+    "sidebar.footer.action",
+    { name: "sidebar.footer.action", id: "tomato-progress", order: 5 },
+    (props) => h(SidebarTomatoProgress, { ...props, openPanel }),
   );
 
   safeInject(
