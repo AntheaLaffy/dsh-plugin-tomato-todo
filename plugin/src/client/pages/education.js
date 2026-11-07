@@ -4410,6 +4410,7 @@ export function EducationPage({ onAssistant } = {}) {
       data,
       today,
       now: at,
+      onAssistant,
     }),
   );
 }

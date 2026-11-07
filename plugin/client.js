@@ -9532,10 +9532,15 @@ ${JSON.stringify(refs, null, 2)}`;
       examStart: "开始考试",
       examStop: "停笔",
       examTitle: "考试",
-      examStartHint: "开始考试前需要助手已确认打印，且只能在考试安排当天开始。",
+      examStartHint: "开始考试前需要确认打印，且只能在考试安排当天开始。",
       examRunning: "考试进行中，停笔后才能上传答题卡。",
       examStopped: "已停笔，可以上传答题卡并提交。",
       examNotPrinted: "试卷尚未确认打印，现在开始会被 core 拒绝。",
+      examConfirmPrinted: "确认打印",
+      examConfirming: "确认中…",
+      examPrinted: "已确认打印",
+      examPrintedAt: "已确认打印于 {time}",
+      goGrade: "去批改",
       examStartedAt: "开始于 {time}",
       examStoppedAt: "停笔于 {time}",
       lessonProgress: "学习进度",
@@ -9604,10 +9609,15 @@ ${JSON.stringify(refs, null, 2)}`;
       examStart: "Start exam",
       examStop: "Stop writing",
       examTitle: "Exam",
-      examStartHint: "The assistant must confirm printing first, and the exam can only start on its scheduled day.",
+      examStartHint: "Confirm printing first; the exam can only start on its scheduled day.",
       examRunning: "Exam in progress; stop writing before uploading answer sheets.",
       examStopped: "Stopped — you can upload answer sheets and submit.",
       examNotPrinted: "Printing has not been confirmed; core will reject a start.",
+      examConfirmPrinted: "Confirm printing",
+      examConfirming: "Confirming…",
+      examPrinted: "Printing confirmed",
+      examPrintedAt: "Printing confirmed {time}",
+      goGrade: "Grade now",
       examStartedAt: "Started {time}",
       examStoppedAt: "Stopped {time}",
       lessonProgress: "Study progress",
@@ -9676,10 +9686,15 @@ ${JSON.stringify(refs, null, 2)}`;
       examStart: "試験を開始",
       examStop: "筆記終了",
       examTitle: "試験",
-      examStartHint: "開始前にアシスタントの印刷確認が必要で、開始できるのは試験当日だけです。",
+      examStartHint: "開始前に印刷の確認が必要で、開始できるのは試験当日だけです。",
       examRunning: "試験中です。筆記終了後に答案をアップロードしてください。",
       examStopped: "筆記終了。答案をアップロードして提出できます。",
       examNotPrinted: "印刷が未確認です。いま開始すると core に拒否されます。",
+      examConfirmPrinted: "印刷を確認",
+      examConfirming: "確認中…",
+      examPrinted: "印刷を確認しました",
+      examPrintedAt: "{time} に印刷を確認",
+      goGrade: "採点へ",
       examStartedAt: "{time} に開始",
       examStoppedAt: "{time} に終了",
       lessonProgress: "学習進捗",
@@ -9939,6 +9954,19 @@ ${JSON.stringify(refs, null, 2)}`;
     }
     return `submission-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   }
+  function confirmPrintedCommand(assessmentId) {
+    return {
+      type: "education",
+      command: { op: "confirmPrinted", id: String(assessmentId) }
+    };
+  }
+  function gradingRequest(assessment, submission) {
+    return {
+      projectId: assessment && typeof assessment.projectId === "string" ? assessment.projectId : "",
+      assessmentId: assessment ? String(assessment.id) : "",
+      submissionId: submission ? String(submission.id) : ""
+    };
+  }
   function AssignmentDialog({
     open = false,
     onClose,
@@ -9946,7 +9974,8 @@ ${JSON.stringify(refs, null, 2)}`;
     lessonId = null,
     data = null,
     today = "",
-    now = null
+    now = null,
+    onAssistant = null
   }) {
     const education = data && data.education || {};
     const assessments = asArray(education.assessments);
@@ -9990,6 +10019,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const [pendingId, setPendingId] = useState(null);
     const [examBusy, setExamBusy] = useState(false);
     const [examError, setExamError] = useState(null);
+    const [printBusy, setPrintBusy] = useState(false);
     const [preview, setPreview] = useState(null);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [pickerQuery, setPickerQuery] = useState("");
@@ -10010,6 +10040,7 @@ ${JSON.stringify(refs, null, 2)}`;
       setSubmitError(null);
       setPendingId(null);
       setExamError(null);
+      setPrintBusy(false);
       setPreview(null);
       setPickerOpen(false);
       setPickerQuery("");
@@ -10270,6 +10301,18 @@ ${JSON.stringify(refs, null, 2)}`;
       setExamBusy(false);
       if (!result.ok) setExamError(result.error || t("common.writeFailed"));
     };
+    const confirmPrinted = async () => {
+      if (printBusy || !assessment) return;
+      setPrintBusy(true);
+      setExamError(null);
+      const result = await tryDispatch(confirmPrintedCommand(assessment.id));
+      setPrintBusy(false);
+      if (!result.ok) {
+        notify(result.error || t("common.writeFailed"), "danger");
+        return;
+      }
+      notify(t("assignment.examPrinted"), "brand");
+    };
     const saveProgress = async () => {
       if (progressBusy || !lesson) return;
       if (progressDraft.trim() === "") {
@@ -10484,6 +10527,29 @@ ${JSON.stringify(refs, null, 2)}`;
         { style: MUTED },
         !examStarted ? t("assignment.examStartHint") : !examStopped ? t("assignment.examRunning") : t("assignment.examStopped")
       ),
+      // 确认打印是 core 唯一写 printedAt 的入口，工作台必须自己给按钮；
+      // 确认过就只留一行时间，避免重复写入同一个事实。
+      !examPrintable ? h(
+        "div",
+        null,
+        h(
+          Btn,
+          {
+            variant: "soft",
+            size: "md",
+            icon: "check",
+            disabled: printBusy,
+            onClick: confirmPrinted
+          },
+          printBusy ? t("assignment.examConfirming") : t("assignment.examConfirmPrinted")
+        )
+      ) : h(
+        "div",
+        { style: MUTED },
+        t("assignment.examPrintedAt", {
+          time: fmtDateTime(assessment.printedAt)
+        })
+      ),
       !examPrintable && !examStarted ? errorBlock(t("assignment.examNotPrinted")) : null,
       examStarted && !examStopped ? h(
         "div",
@@ -10608,6 +10674,21 @@ ${JSON.stringify(refs, null, 2)}`;
           attachmentRows.length === 0 ? h("div", { style: MUTED }, t("assignment.attachmentsEmpty")) : h("div", null, attachmentRows.map(resourceRow))
         ),
         h("div", { style: MUTED }, t("assignment.lockedHint")),
+        // 交完卷的下一步是批改：只把请求递给学习助手，提示词与草稿沿用教育页那套。
+        grade === null && typeof onAssistant === "function" ? h(
+          "div",
+          null,
+          h(
+            Btn,
+            {
+              variant: "soft",
+              size: "md",
+              icon: "arrowRight",
+              onClick: () => onAssistant("grade", gradingRequest(assessment, submission))
+            },
+            t("assignment.goGrade")
+          )
+        ) : null,
         errorBlock(submitError)
       );
     } else if (assessment) {
@@ -10934,6 +11015,9 @@ ${JSON.stringify(refs, null, 2)}`;
       ),
       grade.needsReview === true ? h(Chip, { tone: "sun", icon: "bell" }, t("assignment.needsReview")) : null
     );
+  }
+  if (typeof window !== "undefined" && window.__TOMATO_TEST__) {
+    window.__tomatoAssignmentParts = { confirmPrintedCommand, gradingRequest };
   }
 
   // plugin/src/client/pages/search.js
@@ -13434,7 +13518,8 @@ ${JSON.stringify(refs, null, 2)}`;
         lessonId: assignment ? assignment.lessonId ?? null : null,
         data,
         today,
-        now: state && state.serverTime || null
+        now: state && state.serverTime || null,
+        onAssistant: props.onAssistant
       })
     );
   }
@@ -20394,7 +20479,7 @@ ${JSON.stringify(refs, null, 2)}`;
       )
     );
   }
-  function ProjectPage({ state, projectId }) {
+  function ProjectPage({ state, projectId, onAssistant }) {
     const snapshotProjectId = getActiveProjectId();
     const currentId = projectId ?? snapshotProjectId;
     const data = state && state.data || {};
@@ -20924,7 +21009,8 @@ ${JSON.stringify(refs, null, 2)}`;
         lessonId: assignment ? assignment.lessonId ?? null : null,
         data,
         today,
-        now: state && state.serverTime || null
+        now: state && state.serverTime || null,
+        onAssistant
       })
     );
   }
@@ -28303,7 +28389,8 @@ ${JSON.stringify(refs, null, 2)}`;
         lessonId: assignment ? assignment.lessonId ?? null : null,
         data,
         today,
-        now: at
+        now: at,
+        onAssistant
       })
     );
   }

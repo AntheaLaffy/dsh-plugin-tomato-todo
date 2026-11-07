@@ -665,6 +665,20 @@ if (!process.env.SMOKE_LIVE) {
         startedAt: null,
         stoppedAt: null,
       },
+      // 未确认打印的考试：工作台必须给「确认打印」按钮，并在确认前禁用开始。
+      {
+        id: "exam-unprinted",
+        projectId: "p1",
+        kind: "mockExam",
+        title: "未打印模拟考试",
+        startsAt: now - 600,
+        endsAt: now + 7200,
+        instructions: "计时 60 分钟。",
+        questions: [],
+        printedAt: null,
+        startedAt: null,
+        stoppedAt: null,
+      },
     ],
     submissions: [
       {
@@ -971,6 +985,8 @@ if (typeof AssignmentDialog !== "function") {
         data: sampleState.data,
         today: sampleState.today,
         now: sampleState.serverTime,
+        // 真实页面由 main.js 的 pageProps 注入；「去批改」只在有它时渲染。
+        onAssistant: () => {},
         ...props,
       }),
     );
@@ -1002,6 +1018,14 @@ if (typeof AssignmentDialog !== "function") {
       }
     }
   } else {
+    // 按钮标签定位：按钮里还有图标 SVG，所以用「标签 + </button>」切片，
+    // 不能整段 includes；「已确认打印于」本身也含「确认打印」子串。
+    const buttonMarkup = (markup, label) => {
+      const close = markup.indexOf(`${label}</button>`);
+      if (close < 0) return "";
+      const start = markup.lastIndexOf("<button", close);
+      return start < 0 ? "" : markup.slice(start, close);
+    };
     try {
       const homework = renderDialog({ assessmentId: "homework-to-submit" });
       renderedBy["dialog:assignment"] = homework;
@@ -1027,6 +1051,8 @@ if (typeof AssignmentDialog !== "function") {
         "已提交",
         "1-5: ABCCD",
         "答题卡模板",
+        // 已提交且未批改：下一步入口应是「去批改」。
+        "去批改",
       ]) {
         if (!submitted.includes(marker))
           failures.push(`已提交视图缺少「${marker}」`);
@@ -1037,10 +1063,102 @@ if (typeof AssignmentDialog !== "function") {
         if (!exam.includes(marker))
           failures.push(`考试工作台缺少「${marker}」`);
       }
+      // 已确认打印：只读一行时间，不再有按钮；开始考试可以点。
+      if (!exam.includes("已确认打印于"))
+        failures.push("已确认打印的考试缺少「已确认打印于 {time}」");
+      if (/确认打印<\/button>/.test(exam))
+        failures.push("已确认打印的考试仍显示「确认打印」按钮");
+      const examStart = buttonMarkup(exam, "开始考试");
+      if (!examStart) failures.push("已确认打印的考试没有「开始考试」按钮");
+      else if (examStart.includes("disabled"))
+        failures.push("已确认打印的考试「开始考试」按钮仍然禁用");
+
+      // 未确认打印：给按钮，开始考试禁用，并说明 core 会拒绝。
+      const unprinted = renderDialog({ assessmentId: "exam-unprinted" });
+      renderedBy["dialog:assignment-exam-unprinted"] = unprinted;
+      for (const marker of [
+        "未打印模拟考试",
+        "确认打印</button>",
+        "试卷尚未确认打印，现在开始会被 core 拒绝。",
+      ]) {
+        if (!unprinted.includes(marker))
+          failures.push(`未打印考试工作台缺少「${marker}」`);
+      }
+      if (unprinted.includes("已确认打印于"))
+        failures.push("未打印考试显示成了「已确认打印于」");
+      const unprintedStart = buttonMarkup(unprinted, "开始考试");
+      if (!unprintedStart)
+        failures.push("未打印考试工作台没有「开始考试」按钮");
+      else if (!unprintedStart.includes("disabled"))
+        failures.push("未确认打印时「开始考试」按钮没有禁用");
+
+      // 三语：新按钮与时间文案不能漏出 assignment.* 的 key。
+      // 正例同时证明 en/ja 的 key 不是退回中文。
+      try {
+        for (const [locale, labels] of [
+          ["en", ["Confirm printing", "Printing confirmed", "Grade now"]],
+          ["ja", ["印刷を確認", "に印刷を確認", "採点へ"]],
+        ]) {
+          services.locale.setLocale(locale);
+          const localized =
+            renderDialog({ assessmentId: "exam-unprinted" }) +
+            renderDialog({ assessmentId: "exam-to-start" }) +
+            renderDialog({ assessmentId: "homework-to-grade" });
+          if (/(?:assignment|education|common)\.[a-zA-Z]/.test(localized))
+            failures.push(`${locale} 考试工作台出现未翻译的文案 key`);
+          for (const label of labels) {
+            if (!localized.includes(label))
+              failures.push(`${locale} 考试工作台缺少「${label}」`);
+          }
+        }
+      } finally {
+        services.locale.setLocale("zh");
+      }
     } catch (e) {
       failures.push(
         `渲染作业工作台失败：${e && e.message ? e.message : e}${process.env.SMOKE_TRACE && e && e.stack ? "\n" + e.stack : ""}`,
       );
+    }
+  }
+}
+
+// SSR 不跑事件处理器：断言「确认打印」与「去批改」真正交给 core/助手的载荷。
+// 跨 vm 上下文的对象原型不同，用 JSON 比较；不要把宿主对象喂给 deepStrictEqual。
+if (!process.env.SMOKE_LIVE) {
+  const parts = context.window.__tomatoAssignmentParts;
+  if (
+    !parts ||
+    typeof parts.confirmPrintedCommand !== "function" ||
+    typeof parts.gradingRequest !== "function"
+  ) {
+    failures.push("工作台没有暴露测试钩子 window.__tomatoAssignmentParts");
+  } else {
+    const command = parts.confirmPrintedCommand("exam-unprinted");
+    const expected = {
+      type: "education",
+      command: { op: "confirmPrinted", id: "exam-unprinted" },
+    };
+    if (JSON.stringify(command) !== JSON.stringify(expected)) {
+      failures.push(
+        `confirmPrintedCommand 形状不对：${JSON.stringify(command)}`,
+      );
+    }
+    const assessment = sampleState.data.education.assessments.find(
+      (item) => item.id === "homework-to-grade",
+    );
+    const submission = sampleState.data.education.submissions.find(
+      (item) => item.id === "submission-to-grade",
+    );
+    const request = parts.gradingRequest(assessment, submission);
+    for (const [key, value] of [
+      ["projectId", "p1"],
+      ["assessmentId", "homework-to-grade"],
+      ["submissionId", "submission-to-grade"],
+    ]) {
+      if (request[key] !== value)
+        failures.push(
+          `gradingRequest.${key} 期望「${value}」，实际「${request[key]}」`,
+        );
     }
   }
 }
