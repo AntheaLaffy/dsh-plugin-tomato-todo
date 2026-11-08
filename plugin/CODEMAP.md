@@ -14,9 +14,10 @@ client 半由 esbuild 打成 `client.js`。契约见 [API.md](../API.md)「插�
 | link-skills.js | 技能分发 | 把 `skills/` 软链进已存在的 agent 技能根（优先 `~/.agents/skills`）；只操作符号链接，不删真实文件；挂载时调用 |
 | link-skills.mjs | 技能分发 CLI | 人工入口：`--dir`/`--all`/`--check`/`--remove`/`--force`/`--relative`/`--dry-run` |
 | cordis.patch.yml | 装载 | DSH 插件补丁：只插入 `tomato-dsh` 一行，`tomatoBin` 指向 runtime 可执行文件 |
-| package.json | 包契约 | 版本 2.0.0、exports、`files`（含 skills/ 与 locale/*.json）、`dsh.bundle`/`dsh.client` |
+| package.json | 包契约 | 版本 0.14.0、exports、`files`（含技能、语言与市场展示图）、`dsh.bundle`/`dsh.client` |
 | client.js | 构建产物 | **生成物**（`pnpm build:client`）：client 半单文件 IIFE，不手改 |
 | icon.svg | 静态资源 | 插件图标（boundary） |
+| screenshots.json | 市场展示 | 官方插件市场的截图清单；相对路径指向本目录内的位图 |
 | README.md | 使用说明 | 安装、Host/MCP 分工、技能链接、开发自检与已知局限 |
 
 ## 子目录
@@ -27,6 +28,8 @@ client 半由 esbuild 打成 `client.js`。契约见 [API.md](../API.md)「插�
 | skills/ | 随包技能 | 六个教学技能的 SKILL.md 与引用/脚本；文件清单见下方「技能文件」 |
 | locale/ | 展示语言 | DSH 里的插件标题/描述；文件清单见下方「语言文件」 |
 | assets/personas/ | 静态资源 | 角色背景板立绘，随包分发；binary boundary，不在源码导航范围 |
+| assets/screenshots/ | 市场展示 | 使用公开演示数据渲染的页面截图；binary boundary，不在源码导航范围 |
+| assets/icon-180.png | 市场展示 | 从 `icon.svg` 转成的方形位图，供官方市场卡片使用；binary boundary |
 
 ## 语言文件（locale/）
 

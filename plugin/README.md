@@ -26,6 +26,17 @@
   `~/.codex`、`~/.claude`、`~/.gemini`、opencode），所以 Codex / Claude Code 读到的
   也是同一份文件，插件更新后一起更新。只建符号链接，绝不删真实目录或文件。
 
+## 页面预览与学习助手
+
+![今日专注页面（演示数据）](assets/screenshots/focus.png)
+
+![应试教育页面（演示数据）](assets/screenshots/education.png)
+
+截图由当前客户端和公开的冒烟测试样例渲染，不含个人计划。页面中的「学习助手」
+回到 DSH 对话；助手通过插件自带的 `tomato_*` 工具读取和修改与面板相同的
+本地运行实例，因此可以依据任务、课表和学习记录安排学习、调整计划并复盘，
+写入仍经过同一套校验。
+
 ## 安装
 
 1. 确保 `tomato-runtime` 已构建，并软链到 `/home/fuurin/.local/bin/tomato-runtime`

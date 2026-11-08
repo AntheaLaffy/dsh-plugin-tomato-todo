@@ -19,7 +19,10 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
+    "screenshots.json",
     "README.md",
+    "assets/icon-180.png",
+    "assets/screenshots/*",
     "assets/personas/*",
     "skills",
     "!skills/*/references/local-*.md"
