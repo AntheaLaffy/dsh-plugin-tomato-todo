@@ -19,6 +19,7 @@ let activePageId = null;
 let activeProjectId = null; // 只在 page === "project" 时有意义
 let openPanelFn = null;
 let panelInfoObs = null; // DSH layout 的面板真值源（有它就不用猜）
+let unbindPanelInfo = null;
 let coldStart = null; // null = 本次页面加载还没判定
 let lastCompleteSerial = 0;
 const listeners = new Set();
@@ -384,28 +385,41 @@ export function bindPanelOpener(fn) {
  * 为什么不能只靠「main 组件挂载 = 面板可见」：DSH 自己也能切面板（侧栏、对话
  * 按钮），组件挂载周期只是它的影子；而刷新时组件卸载与页面卸载的先后顺序并
  * 不可靠，用卸载写「已离开」会把「我在番茄页刷新」记成「我在对话页」。
- * 订阅真值源之后，{panel} 一直反映实际选择。
+ * 订阅真值源之后，{panel} 反映实际选择；DSH 撤销番茄主面板时的
+ * retainMainPanels(null) 是卸载清理，不是用户主动切回对话。
  */
-export function bindPanelInfo(observer) {
+export function bindPanelInfo(observer, isTomatoRegistered = null) {
+  unbindPanelInfo?.();
+  unbindPanelInfo = null;
   panelInfoObs =
     observer && typeof observer.subscribe === "function" ? observer : null;
   if (panelInfoObs === null) return;
+  const source = panelInfoObs;
   // 第一次同步只建立基线：DSH 的面板选择在加载时初始为 null，而用户可能
   // 上次就停在番茄面板。把这次 null 写进存储，等于每次刷新都先把「在番茄」
   // 改写成「在对话」——这正是「刷新掉回助手页」的根因。
   let last = undefined;
   const sync = () => {
-    const panelId = panelInfoObs.getSnapshot?.()?.activePanelId ?? null;
+    const panelId = source.getSnapshot?.()?.activePanelId ?? null;
     if (last === undefined) {
       last = panelId;
       return;
     }
     if (panelId === last) return;
     last = panelId;
+    if (panelId !== "tomato" && typeof isTomatoRegistered === "function") {
+      // 主面板槽位卸载时 DSH 会清空 activePanelId；保留刷新前的记录。
+      try {
+        if (!isTomatoRegistered()) return;
+      } catch {
+        return;
+      }
+    }
     setPanelVisible(panelId === "tomato");
   };
   sync();
-  panelInfoObs.subscribe(sync);
+  const unsubscribe = source.subscribe(sync);
+  if (typeof unsubscribe === "function") unbindPanelInfo = unsubscribe;
 }
 
 /** 是否已经拿到面板真值源（拿不到时 frame.js 的挂载标记才是唯一线索）。 */

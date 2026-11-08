@@ -40,7 +40,7 @@ tomato-guard --notify 番茄完成 休息一下
 | 环境 | 窗口发现 / 激活 | 全屏锁窗 |
 | --- | --- | --- |
 | X11（会话非 Wayland） | EWMH 只读枚举 + _NET_ACTIVE_WINDOW（`x11.rs`） | 自建全屏 X 窗口 |
-| niri（Wayland） | niri IPC，激活后复查焦点 | 通过 foreign-toplevel 协议全屏实际 DSH 窗口（`toplevel.rs`），保留倒计时与解锁按钮 |
+| niri（Wayland） | niri IPC，激活后复查焦点 | 优先通过 foreign-toplevel 协议全屏实际 DSH 窗口；若窗口意外消失，改用独立锁窗并在 DSH 重开后恢复 |
 | Sway / Hyprland（Wayland） | 各自的 IPC socket（`wayland.rs`） | xdg_toplevel 全屏锁面（`wayland_surface.rs`） |
 | GNOME / KWin（Wayland） | 会话总线：GNOME Shell 扩展 `studio.tomato.Guard1`（需 desktop-integrations/）、KWin 脚本（`shell.rs`） | 同上 |
 | 其他 Wayland 桌面 | 明确报错，**绝不把 Xwayland 当完整保护能力** | 不可用 |
@@ -49,7 +49,7 @@ tomato-guard --notify 番茄完成 休息一下
 
 锁窗不抓取键盘/指针：enforce 工作线程每 600ms 列出一次窗口，把白名单外的
 前台窗口切回锁窗（与旧实现「把专注窗口拉回前台」语义一致）；锁窗句柄 RAII，
-进程退出或 unlock 即销毁。
+进程退出或 unlock 即销毁。Wayland 独立锁窗使用合成器必须支持的 ARGB8888。
 
 ## 白名单语义（`guard::allowed`）
 
@@ -62,7 +62,7 @@ tomato-guard --notify 番茄完成 休息一下
 ## 测试政策（务必遵守）
 
 - 单元测试全部无桌面依赖（状态机、HTTP 路由、白名单判定、各 IPC 报文形状）。
-- `cargo build --manifest-path crates/guard/Cargo.toml` 后运行 `node scripts/niri-guard.test.mjs`：自动启动独立 Xvfb + niri，覆盖全屏幂等/退出、白名单、锁机不放行白名单、解锁与焦点确认；不连接用户当前桌面。
+- `cargo build --manifest-path crates/guard/Cargo.toml` 后运行 `node scripts/niri-guard.test.mjs`：自动启动独立 Xvfb + niri，覆盖全屏幂等/退出、白名单、锁机不放行白名单、Mod+Q 后独立锁窗接管、DSH 重开、解锁与焦点确认；不连接用户当前桌面。
 - **绝不在用户当前桌面自动启用真实锁定**。需要真桌面冒烟时，在独立嵌套桌面
   （如 Xephyr/sway 嵌套会话）里设 `TOMATO_GUARD_TEST_ISOLATED=1` 运行
   `cargo test`，`state.rs` 的 lock 测试只在该变量下执行；失败不影响主流程。

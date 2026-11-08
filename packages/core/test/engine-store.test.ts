@@ -24,12 +24,12 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
       saved.push(next);
     });
     expect(saved.length).toBe(1); // 建引擎时先落一次
-    expect(saved[0].version).toBe(4);
+    expect(saved.at(0)?.version).toBe(4);
 
     engine.dispatch({ type: "startTimer", minutes: 1 }, at);
-    expect(saved.length).toBeGreaterThan(saved.length - 1);
+    expect(saved).toHaveLength(2);
     expect(engine.data.timer.durationSecs).toBe(60);
-    const last = saved[saved.length - 1];
+    const last = saved.at(-1)!;
     expect(
       JSON.parse(JSON.stringify(serializeAppData(last))).timer.running,
     ).toBe(true);
@@ -70,9 +70,9 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
   });
 
   it("fromData 的落盘内容是可直接再解析的 AppData（runtime 拆文件的前提）", () => {
-    let saved: AppData | null = null;
+    const saved: AppData[] = [];
     const engine = Engine.fromData(new AppData(), (next) => {
-      saved = next;
+      saved.push(next);
     });
     engine.dispatch(
       {
@@ -95,9 +95,9 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
       },
       at,
     );
-    expect(saved).not.toBeNull();
+    expect(saved).not.toHaveLength(0);
     const round = parseAppData(
-      JSON.parse(JSON.stringify(serializeAppData(saved as AppData))),
+      JSON.parse(JSON.stringify(serializeAppData(saved.at(-1)!))),
     );
     round.validate();
     expect(round.tasks.length).toBe(1);

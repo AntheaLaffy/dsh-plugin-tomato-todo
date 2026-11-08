@@ -40,6 +40,10 @@ body{
   /* 窗光洗层整体不透明度：压在内容上，必须低到不改变中心栏文字对比。 */
   --tomato-wash:.10;
   --tomato-glass:color-mix(in srgb, #fffdf7 62%, transparent);
+  --tomato-immersive-top:#f1e9da;
+  --tomato-immersive-middle:#f7f1e5;
+  --tomato-immersive-bottom:#e9dfcc;
+  --tomato-immersive-number-shadow:#6b4a2f26;
 }
 body[data-ds-dark-theme]{
   --tomato-paper:#1c1916;
@@ -67,6 +71,10 @@ body[data-ds-dark-theme]{
   --tomato-sky-art:.20;
   --tomato-wash:.07;
   --tomato-glass:color-mix(in srgb, #262019 62%, transparent);
+  --tomato-immersive-top:#3a2a20;
+  --tomato-immersive-middle:#251b14;
+  --tomato-immersive-bottom:#16100c;
+  --tomato-immersive-number-shadow:#00000059;
 }
 `;
 

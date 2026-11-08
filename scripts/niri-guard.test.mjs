@@ -199,17 +199,53 @@ try {
     true,
     "Closing immersion cannot bypass lock fullscreen",
   );
+  // Mod+Q 发给 niri 的 close-window：即使目标消失，也不得解除保护。
+  msg("action", "close-window");
+  await until(
+    () => !msg("windows").some((w) => w.id === own.id),
+    "DSH fixture did not close",
+  );
+  const fallback = await until(
+    () => msg("windows").find((w) => w.app_id === "tomato-guard"),
+    "Guard did not replace the closed DSH window",
+  );
+  const statusResponse = await fetch(base + "/guard/status", {
+    headers: { Authorization: "Bearer isolated" },
+  });
+  assert.equal((await statusResponse.json()).locked, true);
+  assert.equal((await command({ command: "focus" })).focused, false);
+  msg("action", "focus-window", "--id", String(blocked.id));
+  await focused(fallback.id);
+  const reopened = start("python3", [
+    "-c",
+    fixture,
+    "dsh-desktop",
+    "DeepSeek Harness",
+  ]);
+  const replacement = await until(
+    () => msg("windows").find((w) => w.app_id === "dsh-desktop"),
+    "Reopened DSH fixture missing",
+  );
+  await focused(replacement.id);
+  await until(
+    () => fullscreen(reopened) === true,
+    "Reopened DSH is not fullscreen",
+  );
+  await until(
+    () => !msg("windows").some((w) => w.app_id === "tomato-guard"),
+    "Fallback lock surface was not released",
+  );
   await command({ command: "unlock" });
   await until(
-    () => fullscreen(dsh) === false,
+    () => fullscreen(reopened) === false,
     "Unlock did not release fullscreen",
   );
   msg("action", "focus-window", "--id", String(blocked.id));
   const result = await command({ command: "focus" });
   assert.equal(result.focused, true);
-  await focused(own.id);
+  await focused(replacement.id);
   console.log(
-    "PASS: isolated niri running apps, fullscreen, whitelist, lock without whitelist, release and DSH focus",
+    "PASS: isolated niri fullscreen, whitelist, Mod+Q fallback, DSH reopen and release",
   );
 } catch (error) {
   for (const child of children)

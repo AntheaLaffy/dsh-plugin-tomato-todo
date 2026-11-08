@@ -18,7 +18,7 @@
 | 面板列表图标 | `sidebar.panellist` id=`tomato`（owner props `{size, active}`） | 与 DSH 自带面板图标同排的番茄图标，点击进入主视图；id 即 main 的 key，保持安静不带计数 |
 | 会话内常驻 | `shell.overlay`（list，order 升序） | 背景氛围层、专注 HUD、沉浸层、toast |
 | 输入框上方 | `conversation.composer.dock` | 极简「今日专注」入口卡（保留，不做主界面） |
-| 主题 | `ctx.theme.register({id, colorScheme, tokens})` + `ctx.theme.setTheme(id)` | 全 DSH 皮肤：注册 `tomato`（light）/`tomato-night`（dark），插件加载时按当前色彩方案选中对应项 |
+| 主题 | `ctx.theme.overrideTokens(source, tokens)`（每项 `{light, dark}`）；外观选择用 `ctx.theme.setTheme(id)` | 全 DSH 皮肤覆盖浅/深两套令牌，保留 DSH 的系统跟随偏好；番茄设置页直接同步 DSH 外观 |
 | 消息链路 | `ctx.locale`、`ctx.layout.selectPanel("tomato")`、`ctx.timer` | 本地化、跳转、定时器 |
 
 皮肤只在插件自身代码内生效：**不改 DSH 包、不写 profile**。
@@ -207,19 +207,19 @@
   两处都点进同一个番茄页，计数只在左下角那处出现；页头胶囊已移除。
   番茄页导航底部同样显示进度。右上角 HUD 空闲时不出现，只在专注/暂停/保护生效时显示倒计时。
 - **到点提醒 + 开始专注**：对话页放在**顶栏正中**（`shell.overlay` id `tomato-top-reminder`，
-  fixed 居中、高度 28 的细长条）：`现在 09:40 · 项目 · 任务名 · [开始专注]`；
+  fixed 居中、高度 42 的提醒条）：`现在 09:40 · 项目 · 任务名 · [开始专注]`；
   点整条进番茄面板，按钮开始专注（没有「稍后」，用户要求移除）。番茄页内不再重复一条
   （只保留页面顶部这一处，或随提醒状态隐藏）。
 - **专注 HUD**（`shell.overlay` 右上角，页头下方 12px，右 20px）：46px 圆角胶囊，
   `--tomato-surface` 底 + 细边 + `--tomato-shadow`；含小番茄进度环（今日分钟/目标）、
   计时状态文字（「专注中 44:59」/「未开始」）、可点开迷你控制（开始/暂停/结束/进入主视图）。
   专注进行中时环缓慢呼吸（4s），数字每分钟更新；沉浸模式时隐藏。
-  HUD 是唯一常驻的番茄组件，除音效外还负责「注意力切换」：一轮计时自然结束、或新提醒
-  到点（`reminderPending` 计数增加）时，调用 `openPanelAt("focus")` 把 DSH 面板切到
-  番茄 → 今日专注；有 `[role=dialog]` 开着时不抢页面（避免丢未保存草稿）。
+  HUD 是唯一常驻的番茄组件，负责跃迁音效与页面导航：一轮计时结束时切到番茄 → 今日专注，
+  有 `[role=dialog]` 开着时不抢页面（避免丢未保存草稿）；新提醒只亮提醒条并播放提示音，
+  保留当前 DSH 对话或番茄页面。
   系统级「把窗口拉到前台」由 runtime 调 guard 的 `focus` 命令完成（`crates/guard`：
   niri/Sway/Hyprland/GNOME/KWin/X11、Windows Win32、macOS Accessibility）；浏览器标签
-  和 `dsh-desktop` 窗口都按标题/应用 ID 识别，找不到窗口时静默跳过。
+  和 `dsh-desktop` 窗口都按标题/应用 ID 识别，新提醒或一轮结束时各拍至多调用一次，找不到窗口时静默跳过。
 - **入口卡**（`conversation.composer.dock`）：沿用现有 DockCard 的位置与信息，
   改成一句话 + 两个 chip：「现在专注 45 分钟」/「查看今天」。hover 上浮 1px。
 - **Toast**：底部居中、纸色卡、8s 淡出；同一时刻最多 1 条。
@@ -242,7 +242,7 @@
 
 ### 4.4 沉浸式专注（`shell.overlay` order 900，全屏）
 
-- 底：同一套纸色 → 深一档的暖色渐变 + 极慢的呼吸光斑（8s 各向）。
+- 底：浅色为暖纸渐变、深色为夜读暖色渐变，均沿用 DSH/番茄外观主题变量，即时切换；带极慢的呼吸光斑（8s 各向）。
 - 顶部居中状态徽章（「应用白名单保护中」/「界面锁定中」/「休息锁机中」）。
 - 中央：44:59 巨型等宽计时（clamp 96–160px）、下方「此刻，只做这一件事。」、
   当前任务名（品牌色，20px）。

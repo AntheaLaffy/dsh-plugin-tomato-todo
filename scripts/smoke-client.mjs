@@ -195,6 +195,28 @@ const overrides = [];
 const slotRegistrations = [];
 const effects = [];
 const localeListeners = new Set();
+const themeListeners = new Set();
+const chatListeners = new Set();
+let themePreference = "dark";
+let transcriptView = "compact";
+const chatSettings = {
+  getSnapshot: () => ({
+    status: "ready",
+    writable: true,
+    value: { transcriptView },
+  }),
+  subscribe(listener) {
+    chatListeners.add(listener);
+    return () => chatListeners.delete(listener);
+  },
+  async set(field, value) {
+    if (field !== "transcriptView")
+      throw new Error(`unexpected field ${field}`);
+    transcriptView = value;
+    for (const listener of chatListeners) listener();
+    return true;
+  },
+};
 const localeState = {
   active: "zh",
   locales: [
@@ -210,9 +232,18 @@ const services = {
     },
     getTheme() {
       return {
-        preference: "light",
-        active: { id: "light", colorScheme: "light", tokens: {} },
+        preference: themePreference,
+        themes: [{ id: "light" }, { id: "dark" }],
+        active: {
+          id: themePreference,
+          colorScheme: themePreference,
+          tokens: {},
+        },
       };
+    },
+    setTheme(id) {
+      themePreference = id;
+      for (const listener of themeListeners) listener(this.getTheme());
     },
     register() {
       return () => {};
@@ -252,10 +283,20 @@ const services = {
 };
 const ctx = {
   get: (name) => services[name] ?? null,
+  configForms: {
+    get: (id) => {
+      if (id !== "ui-chat") throw new Error(`unexpected form ${id}`);
+      return chatSettings;
+    },
+  },
   effect(fn) {
     effects.push(fn);
   },
-  on() {},
+  on(name, listener) {
+    if (name !== "theme/change") return () => {};
+    themeListeners.add(listener);
+    return () => themeListeners.delete(listener);
+  },
   slots: {
     inject(key, callback) {
       const registration = callback();
@@ -307,6 +348,23 @@ if (!head.children.some((n) => n.id === "tomato-skin-style"))
   failures.push("没有注入皮肤样式表");
 if (!body.children.some((n) => n.id === "tomato-ambient"))
   failures.push("没有注入氛围层");
+
+// Todo runtime 尚无快照时，DSH 自有的偏好仍可直接修改。
+const initialMain = slotRegistrations.find((r) => r.key === "main");
+const initialNav = context.window.__tomatoDsh;
+if (initialMain && initialNav) {
+  initialNav.setActivePageId("preferences");
+  const loadingPrefs = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(initialMain.registration.Component, {}),
+  );
+  if (
+    !loadingPrefs.includes('value="dark" selected=""') ||
+    !loadingPrefs.includes('value="compact" selected=""')
+  ) {
+    failures.push("Todo runtime 未就绪时 DSH 偏好选项不可用");
+  }
+  initialNav.setActivePageId("focus");
+}
 
 // ---------- 渲染冒烟 ----------
 const localDate = (offsetDays = 0) => {
@@ -729,6 +787,48 @@ context.fetch = (url) =>
 // 触发一次轮询刷新：等一拍让 fetch 结果落到 store，然后同步渲染。
 await new Promise((resolve) => realSetTimeout(resolve, 250));
 
+// 沉浸层必须使用浅/深两套皮肤变量；主题切换时由 CSS 即时更新。
+if (!process.env.SMOKE_LIVE && initialNav) {
+  const css =
+    head.children.find((node) => node.id === "tomato-skin-style")
+      ?.textContent || "";
+  const light = css.match(/body\{([^}]*)\}/)?.[1] || "";
+  const dark = css.match(/body\[data-ds-dark-theme\]\{([^}]*)\}/)?.[1] || "";
+  for (const token of ["top", "middle", "bottom"]) {
+    const pattern = new RegExp(`--tomato-immersive-${token}:([^;]+)`);
+    const lightValue = light.match(pattern)?.[1];
+    const darkValue = dark.match(pattern)?.[1];
+    if (!lightValue || !darkValue || lightValue === darkValue)
+      failures.push(`沉浸层 ${token} 色没有随 DSH 深浅主题切换`);
+  }
+  const overlay = slotRegistrations.find(
+    ({ key, registration }) =>
+      key === "shell.overlay" && registration?.options?.id === "tomato-overlay",
+  );
+  if (
+    typeof initialNav.openImmersive !== "function" ||
+    typeof initialNav.closeImmersive !== "function"
+  ) {
+    failures.push("没有暴露沉浸层冒烟测试入口");
+  } else {
+    try {
+      initialNav.openImmersive();
+      const markup = ReactDOMServer.renderToStaticMarkup(
+        React.createElement(overlay.registration.Component, {}),
+      );
+      if (
+        !markup.includes("var(--tomato-immersive-top)") ||
+        !markup.includes("color:var(--tomato-ink)")
+      )
+        failures.push("沉浸层没有使用随主题切换的背景和文字色");
+    } catch (error) {
+      failures.push(`沉浸层主题渲染失败：${error.message}`);
+    } finally {
+      initialNav.closeImmersive();
+    }
+  }
+}
+
 const renderedBy = {};
 for (const { key, registration } of slotRegistrations) {
   if (!registration || typeof registration.Component !== "function") continue;
@@ -902,13 +1002,25 @@ if (typeof nav?.openProject === "function") {
         "project:materials",
         "ProjectMaterialsSection",
         { project, onChanged() {} },
-        ["资料目录", "授权目录", "使用共享库", "授权只是读取许可"],
+        [
+          "资料目录",
+          "授权目录",
+          "授权不移动文件",
+          "上传外部文件时才会复制进项目目录",
+        ],
       ],
       [
         "project:index",
         "ProjectIndexBrowser",
         { project, reloadKey: 0, onImported() {} },
-        ["导入本目录全部", "导入选中", "索引 JSON", "索引 CSV"],
+        [
+          "导入本目录全部",
+          "导入选中",
+          "索引 JSON",
+          "索引 CSV",
+          "从外部添加文件",
+          "添加整个目录",
+        ],
       ],
       [
         "project:registered",
@@ -945,6 +1057,12 @@ if (typeof nav?.openProject === "function") {
         );
       }
     }
+    const uploadInputs =
+      renderedBy["project:index"]?.match(/<input[^>]*type="file"[^>]*>/g) ?? [];
+    if (!uploadInputs.some((input) => input.includes('multiple=""')))
+      failures.push("项目资料页缺少多文件选择器");
+    if (!uploadInputs.some((input) => input.includes('webkitdirectory=""')))
+      failures.push("项目资料页缺少递归目录选择器");
     // 三语文案：直接渲染资料区各块，缺 key 时 t() 会返回 key 本身。
     services.locale.setLocale("ja");
     for (const [key, component, props] of renders) {
@@ -1200,6 +1318,20 @@ if (!process.env.SMOKE_LIVE) {
 }
 
 if (!process.env.SMOKE_LIVE) {
+  const preferences = renderedBy["page:preferences"] || "";
+  if (
+    !preferences.includes('value="dark" selected=""') ||
+    !preferences.includes('value="compact" selected=""')
+  ) {
+    failures.push(
+      `偏好页没有显示 DSH 的外观与工作步骤设置：${
+        preferences
+          .match(/<select[^>]*>[\s\S]*?<\/select>/g)
+          ?.slice(0, 3)
+          .join(" | ") ?? preferences.slice(0, 240)
+      }`,
+    );
+  }
   const education = renderedBy["page:education"] || "";
   for (const label of ["布置作业", "提交作业", "批改作业"]) {
     if (!education.includes(label)) failures.push(`教学页缺少操作「${label}」`);
@@ -1218,6 +1350,11 @@ if (!process.env.SMOKE_LIVE) {
     failures.push("全部任务没有跨项目按到期日全局排序");
   }
 }
+const mainProps = mainRegistration?.registration?.Component?.().props;
+mainProps?.onThemeChange?.("light");
+if (themePreference !== "light")
+  failures.push("番茄外观选项没有写入 DSH theme 服务");
+await chatSettings.set("transcriptView", "verbose");
 storage.delete("tomato-dsh.page");
 services.locale.setLocale("en");
 nav.setActivePageId("preferences");
@@ -1226,6 +1363,12 @@ const englishPrefs = ReactDOMServer.renderToStaticMarkup(
 );
 if (!englishPrefs.includes("Language") || !englishPrefs.includes("English")) {
   failures.push("DSH 切到英语后番茄设置没有同步");
+}
+if (
+  !englishPrefs.includes('value="light" selected=""') ||
+  !englishPrefs.includes('value="verbose" selected=""')
+) {
+  failures.push("DSH 外观或工作步骤改变后番茄偏好页没有读取最新设置");
 }
 services.locale.setLocale("ja");
 const japanesePrefs = ReactDOMServer.renderToStaticMarkup(

@@ -27,7 +27,8 @@ import {
   setPanelVisible,
 } from "./navigation.js";
 import { AppOverlay } from "./overlay.js";
-import { AgendaDialog } from "./immersive.js";
+import { installExitGuard } from "./exit-guard.js";
+import { AgendaDialog, openImmersive, closeImmersive } from "./immersive.js";
 import { DockCard } from "./dock.js";
 import {
   SidebarTomatoIcon,
@@ -76,7 +77,7 @@ function TopReminder({ openPanel }) {
         display: "flex",
         justifyContent: "center",
         pointerEvents: "auto",
-        maxWidth: "min(560px, calc(100vw - 40px))",
+        maxWidth: "min(680px, calc(100vw - 32px))",
       },
     },
     h(ReminderStrip, { variant: "inline", onOpen: openPanel }),
@@ -85,6 +86,8 @@ function TopReminder({ openPanel }) {
 
 export function registerApp(ctx) {
   const locale = ctx.get ? ctx.get("locale") : null;
+  const theme = ctx.get ? ctx.get("theme") : null;
+  const chatSettings = ctx.configForms?.get?.("ui-chat") ?? null;
   const hasJapanese =
     locale &&
     typeof locale.getLocale === "function" &&
@@ -112,7 +115,11 @@ export function registerApp(ctx) {
   }
 
   const stopPolling = startPolling();
+  const stopExitGuard = installExitGuard();
   const cleanup = () => {
+    bindPanelInfo(null);
+    bindPanelOpener(null);
+    stopExitGuard();
     stopPolling();
     disposeStore();
     try {
@@ -137,7 +144,12 @@ export function registerApp(ctx) {
   );
   // 面板真值源优先于「组件是否挂载」：刷新时 React 卸载顺序不可靠，用真值源
   // 才知道用户此刻究竟在番茄面板还是对话。
-  bindPanelInfo(layout && layout.panelInfo ? layout.panelInfo : null);
+  bindPanelInfo(
+    layout && layout.panelInfo ? layout.panelInfo : null,
+    typeof layout?.hasMainPanel === "function"
+      ? () => layout.hasMainPanel("tomato")
+      : null,
+  );
 
   // 测试钩子：无浏览器冒烟（scripts/smoke-client.mjs）需要跨页重挂主视图；
   // 也方便在真实页面控制台里排查导航。只有测试页显式置位时才暴露。
@@ -153,6 +165,8 @@ export function registerApp(ctx) {
         // 冒烟脚本直接渲染工作台/日程弹层：它们在页面与沉浸层内部。
         AssignmentDialog,
         AgendaDialog,
+        openImmersive,
+        closeImmersive,
       };
     }
   } catch {
@@ -241,6 +255,10 @@ export function registerApp(ctx) {
       if (typeof locale?.setLocale === "function") locale.setLocale(id);
       else setLocale(id);
     },
+    theme,
+    subscribeTheme: (listener) => ctx.on("theme/change", listener),
+    onThemeChange: (id) => theme?.setTheme(id),
+    chatSettings,
     collapseSidebar,
     restoreSidebar,
   };

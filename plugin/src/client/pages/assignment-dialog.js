@@ -30,7 +30,7 @@ import { FilePreview } from "../shared/file-preview.js";
 import { tryDispatch } from "../shared/store.js";
 import {
   getFileToken,
-  getLibraryItems,
+  getProjectLibraryItems,
   getResourceInfo,
   getStateWithResources,
   registerResource,
@@ -76,10 +76,10 @@ registerCopy("assignment", {
     answerSheetsEmpty: "项目里还没有登记答卷文件",
     registerSheet: "从资料库选文件并登记为答卷",
     pickerTitle: "选择答卷文件",
-    pickerSubtitle: "选一条共享资料库索引里的文件，登记为这个项目的答卷。",
+    pickerSubtitle: "从本项目资料目录选文件，登记为答卷。",
     pickerSearch: "搜索文件",
     pickerEmpty: "资料库里没有可用文件",
-    pickerNoIndex: "还没有共享资料库索引，请先到应试教育页扫描资料库。",
+    pickerNoIndex: "本项目还没有资料索引，请先到项目页扫描目录。",
     pickerError: "读取资料库失败：{error}",
     register: "登记为答卷",
     registering: "登记中…",
@@ -158,11 +158,11 @@ registerCopy("assignment", {
     registerSheet: "Pick a library file and register it as an answer sheet",
     pickerTitle: "Choose an answer sheet",
     pickerSubtitle:
-      "Pick a file from the shared library index and register it as this project's answer sheet.",
+      "Pick a file from this project's materials folder and register it as an answer sheet.",
     pickerSearch: "Search files",
     pickerEmpty: "No usable files in the library",
     pickerNoIndex:
-      "The shared library index is missing; scan it on the Education page first.",
+      "This project has no materials index yet; scan its folder on the project page first.",
     pickerError: "Could not read the library: {error}",
     register: "Register as answer sheet",
     registering: "Registering…",
@@ -246,11 +246,11 @@ registerCopy("assignment", {
     registerSheet: "資料庫からファイルを選んで答案として登録",
     pickerTitle: "答案ファイルを選択",
     pickerSubtitle:
-      "共有資料庫の索引から 1 件選び、このプロジェクトの答案として登録します。",
+      "このプロジェクトの資料フォルダから選び、答案として登録します。",
     pickerSearch: "ファイルを検索",
     pickerEmpty: "資料庫に使えるファイルがありません",
     pickerNoIndex:
-      "共有資料庫の索引がありません。先に教育ページでスキャンしてください。",
+      "このプロジェクトの索引がありません。先にプロジェクトページでスキャンしてください。",
     pickerError: "資料庫を読み込めません：{error}",
     register: "答案として登録",
     registering: "登録中…",
@@ -800,8 +800,9 @@ export function AssignmentDialog({
     let cancelled = false;
     setPickerLoading(true);
     setPickerError(null);
-    getLibraryItems(
-      { projectId, q: pickerApplied, limit: PICKER_LIMIT },
+    getProjectLibraryItems(
+      projectId,
+      { q: pickerApplied, limit: PICKER_LIMIT },
       { timeoutMs: 15000 },
     )
       .then((result) => {

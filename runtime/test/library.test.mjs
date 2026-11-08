@@ -1,15 +1,9 @@
-// 共享资料库授权：一次授权整个目录，所有应试项目默认共用；项目单独授权
-// 只能收窄到它里面的子目录。这里同时覆盖目录安全校验与 HTTP 端点，
-// 并确认项目级授权/取消共享后的回落行为。
-//
-// 只用临时目录；不读写真实学习资料，也不启动 guard（startServer 只在
-// /health、/api/state 等端点探测 guard，本文件的端点不碰它）。
+// 项目资料授权、上传与登记均以项目自己的目录为边界。
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
   mkdirSync,
   mkdtempSync,
-  unlinkSync,
   readFileSync,
   renameSync,
   statSync,
@@ -25,16 +19,16 @@ import { startServer, UI_ORIGIN } from "../src/server.mjs";
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "tomato-library-"));
   const dataDir = join(root, "data");
-  const exam = join(root, "exam");
-  const other = join(root, "other");
-  mkdirSync(join(exam, "math"), { recursive: true });
-  mkdirSync(other, { recursive: true });
+  const math = join(root, "math");
+  const english = join(root, "english");
+  mkdirSync(join(math, "algebra"), { recursive: true });
+  mkdirSync(english);
   const engine = Engine.open(dataDir);
   return {
     root,
     dataDir,
-    exam,
-    other,
+    math,
+    english,
     engine,
     library: new ProjectLibrary(engine, dataDir),
   };
@@ -42,454 +36,268 @@ function fixture() {
 
 function rejects(fn, status, pattern) {
   assert.throws(fn, (error) => {
-    assert.ok(
-      error instanceof LibraryError,
-      `应为 LibraryError，实际 ${error}`,
-    );
+    assert.ok(error instanceof LibraryError, String(error));
     assert.equal(error.status, status);
     if (pattern) assert.match(error.message, pattern);
     return true;
   });
 }
 
-test("共享资料库授权后，多个项目默认挂载同一目录", () => {
-  const { exam, engine, library } = fixture();
-  const status = library.authorizeLibrary(exam, 1_800_000_000_000);
-  assert.equal(status.authorized, true);
-  assert.equal(status.directory, exam);
-  assert.equal(status.projects, 0);
-  assert.equal(status.grantedAt, 1_800_000_000);
-
-  const math = library.create({ name: "数学", color: "#b8503f" });
-  const english = library.create({ name: "英语", color: "#5f7b50" });
-  const politics = library.create({ name: "政治", color: "#a87b2d" });
-
-  for (const project of [math, english, politics])
-    assert.equal(library.mount(project.projectId), exam);
-  const after = library.libraryStatus();
-  assert.equal(after.projects, 3);
-  assert.deepEqual(
-    after.sharedProjects.sort(),
-    [math.projectId, english.projectId, politics.projectId].sort(),
-  );
-  for (const project of [math, english, politics]) {
-    const grant = library.grantStatus(project.projectId);
-    assert.equal(grant.authorized, true);
-    assert.equal(grant.shared, true);
-    assert.equal(grant.directory, exam);
-  }
-  engine.flushNow();
-});
-
-test("共享库授权文件是 0600，且只写目录与授权时刻", () => {
-  const { dataDir, exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const file = join(dataDir, "library-grant.json");
-  assert.equal(statSync(file).mode & 0o777, 0o600);
-  assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), {
-    directory: exam,
-    grantedAt: 1_800_000_000,
-  });
-  engine.flushNow();
-});
-
-test("项目单独授权在共享库内的子目录通过，并收窄读取范围", () => {
-  const { exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const project = library.create({ name: "数学", color: "#b8503f" });
-  writeFileSync(join(exam, "root.txt"), "root");
-  writeFileSync(join(exam, "math", "book.pdf"), "book");
-
-  const grant = library.bind(project.projectId, join(exam, "math"));
-  assert.equal(grant.authorized, true);
-  assert.equal(grant.directory, join(exam, "math"));
-  assert.equal(grant.shared, false);
-  assert.equal(library.mount(project.projectId), join(exam, "math"));
-  assert.equal(
-    library.resolveFile(project.projectId, "book.pdf").path,
-    join(exam, "math", "book.pdf"),
-  );
-  rejects(
-    () => library.resolveFile(project.projectId, "../root.txt"),
-    400,
-    /越|安全/,
-  );
-  engine.flushNow();
-});
-
-test("项目单独授权在共享库外被拒", () => {
-  const { exam, other, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const project = library.create({ name: "数学", color: "#b8503f" });
-  rejects(() => library.bind(project.projectId, other), 400, /共享资料库内/);
-  engine.flushNow();
-});
-
-test("项目单独授权指向共享库根目录等价于使用共享库，不落项目级授权", () => {
-  const { dataDir, exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const narrow = library.create({ name: "数学", color: "#b8503f" });
-  library.bind(narrow.projectId, join(exam, "math"));
-  const project = library.create({ name: "英语", color: "#5f7b50" });
-  const grant = library.bind(project.projectId, exam);
-  assert.equal(grant.authorized, true);
-  assert.equal(grant.shared, true);
-
-  const grants = JSON.parse(
-    readFileSync(join(dataDir, "project-grants.json"), "utf8"),
-  );
-  assert.equal(
-    grants.some((item) => item.projectId === project.projectId),
-    false,
-  );
-  assert.equal(library.mount(project.projectId), exam);
-  // 共享根目录与别的项目子目录天然重叠，也必须能直接创建/使用。
-  const physics = library.create({
-    name: "物理",
-    color: "#a87b2d",
-    directory: exam,
-  });
-  assert.equal(library.mount(physics.projectId), exam);
-  engine.flushNow();
-});
-
-test("共享库目录是符号链接时被拒", () => {
-  const { root, exam, engine, library } = fixture();
-  const link = join(root, "exam-link");
-  symlinkSync(exam, link);
-  rejects(
-    () => library.authorizeLibrary(link, 1_800_000_000_000),
-    400,
-    /符号链接/,
-  );
-  engine.flushNow();
-});
-
-test("共享库不能是根目录、主目录或应用数据目录", () => {
-  const { dataDir, engine, library } = fixture();
-  rejects(
-    () => library.authorizeLibrary("/", 1_800_000_000_000),
-    400,
-    /根目录|主目录|应用内部/,
-  );
-  rejects(
-    () => library.authorizeLibrary(homedir(), 1_800_000_000_000),
-    400,
-    /根目录|主目录|应用内部/,
-  );
-  rejects(
-    () => library.authorizeLibrary(dataDir, 1_800_000_000_000),
-    400,
-    /根目录|主目录|应用内部/,
-  );
-  engine.flushNow();
-});
-
-test("共享库必须是已存在的绝对目录", () => {
-  const { root, exam, engine, library } = fixture();
-  rejects(
-    () => library.authorizeLibrary("exam", 1_800_000_000_000),
-    400,
-    /绝对目录/,
-  );
-  rejects(
-    () => library.authorizeLibrary(join(root, "missing"), 1_800_000_000_000),
-    400,
-    /绝对目录/,
-  );
-  writeFileSync(join(root, "file.txt"), "x");
-  rejects(
-    () => library.authorizeLibrary(join(root, "file.txt"), 1_800_000_000_000),
-    400,
-    /绝对目录/,
-  );
-  assert.equal(library.libraryStatus().authorized, false);
-  engine.flushNow();
-});
-
-test("读文件仍拒绝 ../ 越界、绝对路径与目录内符号链接", () => {
-  const { exam, other, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const project = library.create({ name: "数学", color: "#b8503f" });
-  writeFileSync(join(exam, "math", "ok.txt"), "ok");
-  writeFileSync(join(other, "secret.txt"), "secret");
-  symlinkSync(join(other, "secret.txt"), join(exam, "math", "link.txt"));
-
-  assert.equal(
-    library.resolveFile(project.projectId, "math/ok.txt").path,
-    join(exam, "math", "ok.txt"),
-  );
-  rejects(
-    () => library.resolveFile(project.projectId, "../other/secret.txt"),
-    400,
-    /安全/,
-  );
-  rejects(
-    () => library.resolveFile(project.projectId, "/etc/passwd"),
-    400,
-    /安全/,
-  );
-  rejects(
-    () => library.resolveFile(project.projectId, "math/link.txt"),
-    400,
-    /符号链接/,
-  );
-  engine.flushNow();
-});
-
-test("取消共享授权后，无单独授权的项目回落 403，单独授权保留", () => {
-  const { dataDir, exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const shared = library.create({ name: "408", color: "#5f7b50" });
-  const narrow = library.create({ name: "数学", color: "#b8503f" });
-  library.bind(narrow.projectId, join(exam, "math"));
-
-  const revoked = library.revokeLibrary();
-  assert.equal(revoked.authorized, false);
-  assert.equal(revoked.directory, null);
-  rejects(() => library.mount(shared.projectId), 403, /尚未由用户授权/);
-  assert.equal(library.mount(narrow.projectId), join(exam, "math"));
-  assert.equal(library.grantStatus(narrow.projectId).authorized, true);
-  assert.throws(() => statSync(join(dataDir, "library-grant.json")), /ENOENT/);
-  engine.flushNow();
-});
-
-test("共享库目录失联后 mount 返回 403，状态标记为未授权", () => {
-  const { root, exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const project = library.create({ name: "数学", color: "#b8503f" });
-  renameSync(exam, join(root, "exam-moved"));
-
-  rejects(() => library.mount(project.projectId), 403, /共享资料库/);
-  const status = library.libraryStatus();
-  assert.equal(status.authorized, false);
-  assert.equal(status.directory, exam);
-  assert.match(status.reason, /共享资料库|绝对目录/);
-  engine.flushNow();
-});
-
-test("已有项目授权在共享库外时，拒绝该共享库授权并点名项目", () => {
-  const { exam, other, engine, library } = fixture();
-  const project = library.create({
+test("每个项目单独授权，授权记录私有，目录不能重叠", () => {
+  const f = fixture();
+  const math = f.library.create({
     name: "数学",
     color: "#b8503f",
-    directory: other,
+    directory: f.math,
   });
-  rejects(() => library.authorizeLibrary(exam, 1_800_000_000_000), 400, /数学/);
-  assert.equal(library.libraryStatus().authorized, false);
-  assert.equal(library.mount(project.projectId), other);
-  engine.flushNow();
-});
-
-test("共享库内置项目改名不会移动整库", () => {
-  const { exam, engine, library } = fixture();
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const project = library.create({ name: "数学", color: "#b8503f" });
-  rejects(
-    () =>
-      library.rename(project.projectId, { name: "高等数学", color: "#b8503f" }),
-    400,
-    /共享资料库/,
+  const english = f.library.create({
+    name: "英语",
+    color: "#5f7b50",
+    directory: f.english,
+  });
+  assert.equal(f.library.mount(math.projectId), f.math);
+  assert.equal(f.library.mount(english.projectId), f.english);
+  assert.equal(f.library.grantStatus(math.projectId).authorized, true);
+  const grantFile = join(f.dataDir, "project-grants.json");
+  assert.equal(statSync(grantFile).mode & 0o777, 0o600);
+  assert.deepEqual(
+    JSON.parse(readFileSync(grantFile, "utf8"))
+      .map((g) => g.directory)
+      .sort(),
+    [f.math, f.english].sort(),
   );
-  assert.equal(library.mount(project.projectId), exam);
-  engine.flushNow();
+  rejects(
+    () => f.library.bind(english.projectId, join(f.math, "algebra")),
+    400,
+    /重叠/,
+  );
+  f.library.putGrant(math.projectId, null);
+  rejects(() => f.library.mount(math.projectId), 403, /授权/);
+  assert.equal(f.library.grantStatus(math.projectId).authorized, false);
+  assert.equal(f.library.mount(english.projectId), f.english);
+  f.engine.flushNow();
 });
 
-test("HTTP：授权 / 读取 / 验证 Origin / 取消授权", async () => {
-  const { dataDir, exam, engine } = fixture();
+test("项目授权拒绝不安全目录，文件与上传路径不得越界或经过符号链接", () => {
+  const f = fixture();
+  const link = join(f.root, "math-link");
+  symlinkSync(f.math, link);
+  for (const path of [
+    "/",
+    homedir(),
+    f.dataDir,
+    link,
+    "relative",
+    join(f.root, "missing"),
+  ])
+    rejects(
+      () =>
+        f.library.create({ name: "坏目录", color: "#b8503f", directory: path }),
+      400,
+    );
+  const project = f.library.create({
+    name: "数学",
+    color: "#b8503f",
+    directory: f.math,
+  });
+  writeFileSync(join(f.math, "algebra", "book.pdf"), "book");
+  symlinkSync(join(f.english, "secret.txt"), join(f.math, "link.txt"));
+  assert.equal(
+    f.library.resolveFile(project.projectId, "algebra/book.pdf").sizeBytes,
+    4,
+  );
+  for (const path of [
+    "../english/secret.txt",
+    "/etc/passwd",
+    "a\\b",
+    ".hidden/x",
+    "node_modules/x",
+  ])
+    rejects(() => f.library.uploadPath(project.projectId, path), 400);
+  rejects(
+    () => f.library.resolveFile(project.projectId, "link.txt"),
+    400,
+    /符号链接/,
+  );
+  rejects(
+    () => f.library.uploadPath(project.projectId, "link.txt"),
+    400,
+    /符号链接/,
+  );
+  assert.equal(
+    f.library.uploadPath(project.projectId, "new/sub/file.pdf"),
+    join(f.math, "new", "sub", "file.pdf"),
+  );
+  f.engine.flushNow();
+});
+
+test("重新授权到原目录的子目录时保留资源 ID 并重定位已有路径", () => {
+  const f = fixture();
+  const project = f.library.create({
+    name: "数学",
+    color: "#b8503f",
+    directory: f.math,
+  });
+  writeFileSync(join(f.math, "algebra", "book.pdf"), "book");
+  const resource = f.library.register(project.projectId, {
+    title: "教材",
+    kind: "book",
+    path: "algebra/book.pdf",
+    source: "教材",
+    edition: "1",
+  });
+  // 旧数据可能只保留绑定元数据，而共享库授权已经退役。
+  f.library.putGrant(project.projectId, null);
+  const result = f.library.bind(project.projectId, join(f.math, "algebra"));
+  assert.equal(result.rebased, 1);
+  assert.equal(result.missing, 0);
+  const current = f.library.resource(resource.id);
+  assert.equal(current.path, "book.pdf");
+  assert.equal(current.id, resource.id);
+  f.engine.flushNow();
+});
+
+test("HTTP：文件选择器上传保留目录层级、多文件可登记；同名不覆盖", async () => {
+  const f = fixture();
+  const project = f.library.create({
+    name: "数学",
+    color: "#b8503f",
+    directory: f.math,
+  });
+  const id = encodeURIComponent(project.projectId);
   const started = await startServer({
-    engine,
-    dataDir,
+    engine: f.engine,
+    dataDir: f.dataDir,
     host: "127.0.0.1",
     port: 0,
-    token: "library-token",
-    version: "0.0.0-test",
+    token: "library-test",
+    version: "test",
   });
-  const base = `http://127.0.0.1:${started.port}`;
+  const base = "http://127.0.0.1:" + started.port;
   const json = async (path, init = {}) => {
-    const res = await fetch(base + path, init);
-    let body = null;
-    try {
-      body = await res.json();
-    } catch {
-      body = null;
-    }
-    return { status: res.status, body };
+    const response = await fetch(base + path, init);
+    return { status: response.status, body: await response.json() };
   };
+  const postJson = (path, body, headers = {}) =>
+    json(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+  const upload = (path, body, headers = {}) =>
+    json("/api/projects/" + id + "/files?path=" + encodeURIComponent(path), {
+      method: "POST",
+      headers,
+      body,
+    });
   try {
-    let res = await json("/api/library/grant");
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, false);
-    assert.equal(res.body.directory, null);
-
-    res = await json("/api/library/authorize", {
+    const paths = ["数学/代数/讲义.pdf", "数学/真题.pdf", "notes.md"];
+    for (const path of paths) {
+      const result = await upload(path, "hello", { Origin: UI_ORIGIN });
+      assert.equal(result.status, 201);
+      assert.equal(result.body.path, path);
+      assert.equal(
+        readFileSync(join(f.math, ...path.split("/")), "utf8"),
+        "hello",
+      );
+    }
+    assert.equal((await upload(paths[0], "overwrite")).status, 409);
+    assert.equal(
+      readFileSync(join(f.math, ...paths[0].split("/")), "utf8"),
+      "hello",
+    );
+    for (const path of [
+      "../bad.pdf",
+      "/etc/passwd",
+      ".private/x",
+      "node_modules/x",
+    ])
+      assert.equal((await upload(path, "bad")).status, 400);
+    assert.equal(
+      (await upload("evil.txt", "bad", { Origin: "http://evil.example" }))
+        .status,
+      403,
+    );
+    const scan = await json("/api/projects/" + id + "/library/scan", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: exam }),
     });
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, true);
-    assert.equal(res.body.directory, exam);
-
-    // 项目创建可以省略 directory：共享库就是默认资料根。
-    res = await json("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "数学", color: "#b8503f" }),
+    assert.equal(scan.body.count, 3);
+    const items = await json("/api/projects/" + id + "/library/items");
+    assert.equal(items.body.total, 3);
+    const registered = await postJson(
+      "/api/projects/" + id + "/resources/import",
+      { paths },
+    );
+    assert.equal(registered.body.registered, 3);
+    assert.ok(
+      f.engine.data.education.resources.every(
+        (resource) => resource.kind === "reference",
+      ),
+    );
+    const again = await postJson("/api/projects/" + id + "/resources/import", {
+      paths,
     });
-    assert.equal(res.status, 201);
-    const projectId = res.body.projectId;
-    res = await json(`/api/projects/${projectId}/grant`);
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, true);
-    assert.equal(res.body.shared, true);
-    assert.equal(res.body.directory, exam);
-
-    // 共享库里的相对路径可以被登记、列出并真正流式读出。
-    writeFileSync(join(exam, "math", "book.txt"), "hello");
-    res = await json(`/api/projects/${projectId}/resources`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resource: {
-          title: "book",
-          kind: "book",
-          path: "math/book.txt",
-          source: "textbook",
-          edition: "1",
-        },
-      }),
-    });
-    assert.equal(res.status, 201);
-    const resourceId = res.body.id;
-    res = await json(`/api/resources/${resourceId}/info`);
-    assert.equal(res.status, 200);
-    assert.equal(res.body.name, "book.txt");
-    const token = await json("/api/file-token");
+    assert.equal(again.body.skipped, 3);
+    const state = await json("/api/state");
+    assert.equal(
+      state.body.data.education.resourceCounts[project.projectId],
+      3,
+    );
+    assert.deepEqual(state.body.data.education.resources, []);
+    const token = (await json("/api/file-token")).body.access;
     const file = await fetch(
-      `${base}/api/resources/${resourceId}/file?access=${token.body.access}`,
+      base +
+        "/api/projects/" +
+        id +
+        "/library/file?path=" +
+        encodeURIComponent(paths[0]) +
+        "&access=" +
+        token,
     );
     assert.equal(file.status, 200);
     assert.equal(await file.text(), "hello");
-
-    // 越出共享库的相对路径在登记时就被拒绝。
-    res = await json(`/api/projects/${projectId}/resources`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resource: {
-          title: "bad",
-          kind: "book",
-          path: "../outside.txt",
-          source: "textbook",
-          edition: "1",
-        },
-      }),
-    });
-    assert.equal(res.status, 400);
-
-    // 写端点 Origin 白名单：陌生 Origin 拒绝，DSH Origin 放行。
-    res = await json("/api/library/grant", {
-      method: "DELETE",
-      headers: { Origin: "http://evil.example" },
-    });
-    assert.equal(res.status, 403);
-    res = await json("/api/library/grant", {
-      method: "DELETE",
-      headers: { Origin: UI_ORIGIN },
-    });
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, false);
-    res = await json(`/api/projects/${projectId}/grant`);
-    assert.equal(res.body.authorized, false);
   } finally {
     await started.close();
-    engine.flushNow();
+    f.engine.flushNow();
   }
 });
 
-test("按索引整批登记：只登记本项目目录下的文件，已登记的不重复、文件必须仍在授权目录内", async () => {
-  const { exam, engine, library } = fixture();
-  const { scanLibrary, writeIndex } = await import("../src/library-index.mjs");
-
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  const math = library.create({ name: "数学一", color: "#b8503f" });
-  const english = library.create({ name: "英语一", color: "#5f7b50" });
-  mkdirSync(join(exam, "eng"), { recursive: true });
-  writeFileSync(join(exam, "math", "book.pdf"), "book");
-  writeFileSync(join(exam, "math", "notes.md"), "notes");
-  writeFileSync(join(exam, "eng", "words.pdf"), "words");
-
-  const scanned = await scanLibrary(exam);
-  writeIndex(library.dataDir, {
-    root: exam,
-    scannedAt: 1_800_000_000,
-    items: scanned.items,
-  });
-  const dataDir = library.dataDir;
-
-  const first = library.importFromIndex(math.projectId);
-  assert.equal(first.registered, 2);
-  assert.equal(first.skipped, 0);
-  const resources = engine.data.education.resources.filter(
-    (r) => r.projectId === math.projectId,
-  );
-  assert.deepEqual(resources.map((r) => r.path).sort(), [
-    "math/book.pdf",
-    "math/notes.md",
-  ]);
-  assert.equal(resources.find((r) => r.path === "math/book.pdf").kind, "book");
-
-  // 再跑一次：同样的文件全部跳过，不产生重复登记。
-  const second = library.importFromIndex(math.projectId);
-  assert.equal(second.registered, 0);
-  assert.equal(second.skipped, 2);
-
-  // 显式指定路径只登记选中的那一条（并且英语项目也能登记自己的目录）。
-  const picked = library.importFromIndex(english.projectId, {
-    paths: ["eng/words.pdf"],
-  });
-  assert.equal(picked.registered, 1);
-  assert.equal(picked.considered, 1);
-
-  engine.flushNow();
-  assert.ok(dataDir);
-});
-
-test("项目只授权库内子目录时，按索引导入会剥掉目录前缀", async () => {
-  const { exam, engine, library } = fixture();
-  const { scanLibrary, writeIndex } = await import("../src/library-index.mjs");
-  library.authorizeLibrary(exam, 1_800_000_000_000);
-  mkdirSync(join(exam, "math"), { recursive: true });
-  writeFileSync(join(exam, "math", "book.pdf"), "book");
-  writeFileSync(join(exam, "math", "notes.md"), "notes");
-  // 项目只挂载子目录：索引仍相对库根。
-  const project = library.create({
-    name: "数学一",
+test("项目目录失联后不再提供原文件", () => {
+  const f = fixture();
+  const project = f.library.create({
+    name: "数学",
     color: "#b8503f",
-    directory: join(exam, "math"),
+    directory: f.math,
   });
-  writeFileSync(join(exam, "eng.txt"), "eng");
-  const scanned = await scanLibrary(exam);
-  writeIndex(library.dataDir, {
-    root: exam,
-    scannedAt: 1_800_000_000,
-    items: scanned.items,
-  });
+  renameSync(f.math, join(f.root, "moved"));
+  rejects(() => f.library.mount(project.projectId), 403, /失联/);
+  assert.equal(f.library.grantStatus(project.projectId).authorized, false);
+  f.engine.flushNow();
+});
 
-  const result = library.importFromIndex(project.projectId);
-  assert.equal(result.registered, 2);
-  const resources = engine.data.education.resources.filter(
-    (r) => r.projectId === project.projectId,
-  );
-  assert.deepEqual(resources.map((r) => r.path).sort(), [
-    "book.pdf",
-    "notes.md",
-  ]);
-  // 存的是项目相对路径，因此读取校验能通过。
-  for (const resource of resources) {
-    const file = library.resolveFile(project.projectId, resource.path);
-    assert.ok(file.sizeBytes > 0);
+test("启动时清理退役共享授权与索引，不影响项目授权", async () => {
+  const f = fixture();
+  const project = f.library.create({
+    name: "数学",
+    color: "#b8503f",
+    directory: f.math,
+  });
+  for (const name of ["library-grant.json", "library-index.json"])
+    writeFileSync(join(f.dataDir, name), "legacy");
+  const started = await startServer({
+    engine: f.engine,
+    dataDir: f.dataDir,
+    host: "127.0.0.1",
+    port: 0,
+    token: "library-test",
+    version: "test",
+  });
+  try {
+    for (const name of ["library-grant.json", "library-index.json"])
+      assert.throws(() => statSync(join(f.dataDir, name)), /ENOENT/);
+    assert.equal(f.library.mount(project.projectId), f.math);
+  } finally {
+    await started.close();
+    f.engine.flushNow();
   }
-  engine.flushNow();
 });

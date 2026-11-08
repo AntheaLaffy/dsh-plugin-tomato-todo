@@ -138,14 +138,14 @@ export function ReminderStrip({ variant = "page", onOpen }) {
         ? {
             display: "inline-flex",
             alignItems: "center",
-            gap: 7,
-            height: 28,
-            padding: "0 6px 0 9px",
-            borderRadius: 9,
+            gap: 10,
+            height: 42,
+            padding: "0 9px 0 13px",
+            borderRadius: 12,
             border: "1px solid var(--tomato-line)",
             background:
               "color-mix(in srgb, var(--tomato-brand-soft) 70%, var(--tomato-surface))",
-            maxWidth: 430,
+            maxWidth: "min(600px, calc(100vw - 32px))",
             minWidth: 0,
             flex: "none",
             cursor: onOpen ? "pointer" : undefined,
@@ -166,14 +166,14 @@ export function ReminderStrip({ variant = "page", onOpen }) {
     },
     h(Icon, {
       name: "bell",
-      size: 14,
+      size: inline ? 17 : 14,
       style: { color: "var(--tomato-accent-fg)" },
     }),
     h(
       "span",
       {
         style: {
-          fontSize: 11.5,
+          fontSize: inline ? 13 : 11.5,
           fontWeight: 600,
           color: "var(--tomato-accent-fg)",
           letterSpacing: ".02em",
@@ -196,9 +196,9 @@ export function ReminderStrip({ variant = "page", onOpen }) {
             style: {
               display: "inline-flex",
               alignItems: "center",
-              gap: 4,
-              fontSize: 11.5,
-              color: "var(--tomato-ink-3)",
+              gap: inline ? 6 : 4,
+              fontSize: inline ? 12.5 : 11.5,
+              color: inline ? "var(--tomato-ink-2)" : "var(--tomato-ink-3)",
               flex: "none",
             },
           },
@@ -221,8 +221,8 @@ export function ReminderStrip({ variant = "page", onOpen }) {
         style: {
           flex: 1,
           minWidth: inline ? 40 : 120,
-          maxWidth: inline ? 156 : undefined,
-          fontSize: 12.5,
+          maxWidth: inline ? 240 : undefined,
+          fontSize: inline ? 14 : 12.5,
           fontWeight: 550,
           color: "var(--tomato-ink)",
           overflow: "hidden",
@@ -238,7 +238,7 @@ export function ReminderStrip({ variant = "page", onOpen }) {
             "span",
             {
               style: {
-                fontSize: 11,
+                fontSize: 12,
                 color: "var(--tomato-ink-3)",
                 flex: "none",
               },
@@ -286,7 +286,7 @@ export function ReminderStrip({ variant = "page", onOpen }) {
           icon: "play",
           disabled: busy,
           onClick: start,
-          style: { height: 24, fontSize: 11.5 },
+          style: { height: inline ? 32 : 24, fontSize: inline ? 13 : 11.5 },
         },
         t("reminder.start"),
       ),

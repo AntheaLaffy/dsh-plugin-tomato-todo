@@ -218,7 +218,7 @@ node scripts/install.mjs
 - **自启动**：由 `scripts/install.mjs` 注册 systemd user service；niri 会话需启用 XDG 自启动目标。仅在本机保存的桌面偏好为 `$XDG_CONFIG_HOME/studio.tomato.todo/desktop.json`，不随任务备份导入到其他电脑。
 - **系统运行库**：依赖 `pactl`（专注时抑制其他应用提示音；Arch 由 `libpulse` 提供，Debian / Ubuntu 为 `pulseaudio-utils`）。
 
-Windows 桌面层与跨平台 CI 的当前证据和剩余验收项见 [跨平台适配记录](docs/CROSS_PLATFORM.md)。
+其他桌面后端的已有适配记录与剩余验收项见 [跨平台适配记录](docs/CROSS_PLATFORM.md)；当前 CI 只在 Linux 上运行。
 
 ## 专注保护能做什么、不能做什么
 

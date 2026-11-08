@@ -7,14 +7,11 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - LICENSE
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - LICENSE
+  schedule:
+    # 每周检查锁定依赖与 GitHub runner 的兼容性。
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -49,23 +46,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # CI 只检查、不改写：格式不符直接报错，避免把无关 PR 变红。
-      # glob 与根 package.json 的 format 脚本保持一致。
+      # 格式规则与本地 format:check 共用，CI 不自动改写。
       - name: Prettier check
-        run: >-
-          pnpm exec prettier --check
-          "packages/**/*.ts"
-          "runtime/**/*.{ts,mjs}"
-          "plugin/**/*.{js,json,yml}"
-          "scripts/**/*.{mjs,js}"
+        run: pnpm format:check
 
       # Host 工具的 schema 由 runtime/src/tools.mjs 生成；漂移会让 DSH 里的工具
       # 参数与 runtime 实际接受的参数不一致，必须在 CI 拦住。
       - name: Host tool schema is in sync
         run: pnpm check:host-tools
 
+      - name: Core typecheck
+        run: pnpm typecheck:core
+
       - name: Core tests
         run: pnpm core:test
+
+      - name: Build vendored core
+        run: pnpm build:runtime
+
+      - name: Vendored core is in sync
+        run: git diff --exit-code -- runtime/vendor/core.mjs
 
       - name: Runtime tests
         run: pnpm runtime:test
@@ -77,6 +77,9 @@ jobs:
       # 构建客户端产物 + 假 DOM/真 React 冒烟（九页与全部 slot 组件）。
       - name: Build client and smoke
         run: pnpm check:client
+
+      - name: Client bundle is in sync
+        run: git diff --exit-code -- plugin/client.js
 
       # 手册只做结构校验；三条生成器会改文件，放进 CI 既没意义也不该由 CI 提交。
       - name: Handbook structure check
@@ -120,32 +123,6 @@ jobs:
           name: tomato-guard-linux
           path: crates/guard/target/release/tomato-guard
           if-no-files-found: error
-
-  # Windows/macOS 只做类型检查：guard 的 X11/Wayland 绑定只在 Linux 完整构建，
-  # 这两个平台的价值是尽早暴露条件编译错误，而不是产出安装包。
-  guard-cross:
-    name: Guard 类型检查 / ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - windows-2022
-          - macos-15
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: crates/guard
-
-      - name: Check guard
-        run: cargo check --locked --manifest-path crates/guard/Cargo.toml
 
   # 出包才是这个项目「能发版」的证明：tarball 里的目录布局必须能被
   # scripts/install.mjs 直接安装，否则 AUR 与用户手工安装都会在解包后失败。

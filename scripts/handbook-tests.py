@@ -60,6 +60,7 @@ DOMAINS = [
         "guard 与守护进程",
         [
             "crates/guard/src",
+            "runtime/test/desktop-attention.test.mjs",
             "runtime/test/guard-client.mjs",
             "runtime/test/guard-client.test.mjs",
             "runtime/test/supervise.test.mjs",
@@ -70,6 +71,8 @@ DOMAINS = [
         "客户端冒烟",
         [
             "scripts/attention.test.mjs",
+            "scripts/exit-guard.test.mjs",
+            "scripts/markdown.test.mjs",
             "scripts/modal-ssr.test.mjs",
             "scripts/navigation-filter.test.mjs",
             "scripts/persona-switch.test.mjs",
@@ -82,6 +85,7 @@ DOMAINS = [
         [
             "scripts/export-sqlite.test.mjs",
             "scripts/import-backup.test.mjs",
+            "scripts/install-dsh.test.mjs",
             "scripts/install.test.mjs",
             "scripts/plugin-host.test.mjs",
         ],
@@ -100,9 +104,11 @@ CHAPTER_TESTS = {
     ],
     "10-锁与专注保护": [
         "crates/guard/src",
+        "runtime/test/desktop-attention.test.mjs",
         "runtime/test/guard-client.mjs",
         "runtime/test/guard-client.test.mjs",
         "runtime/test/supervise.test.mjs",
+        "scripts/exit-guard.test.mjs",
     ],
     "11-定时锁机": ["packages/core/test/core.test.ts"],
     "12-课表与提醒": ["packages/core/test/core.test.ts"],
@@ -126,7 +132,10 @@ CHAPTER_TESTS = {
         "scripts/import-backup.test.mjs",
         "scripts/export-sqlite.test.mjs",
     ],
-    "21-安装与桌面集成": ["scripts/install.test.mjs"],
+    "21-安装与桌面集成": [
+        "scripts/install.test.mjs",
+        "scripts/install-dsh.test.mjs",
+    ],
     "22-架构与工程": [
         "runtime/test/connection.test.mjs",
         "runtime/test/engine.test.mjs",
@@ -137,14 +146,17 @@ CHAPTER_TESTS = {
     ],
     "24-界面手感与音效": [
         "scripts/attention.test.mjs",
+        "scripts/markdown.test.mjs",
         "scripts/modal-ssr.test.mjs",
         "scripts/navigation-filter.test.mjs",
         "scripts/persona-switch.test.mjs",
+        "scripts/refresh-navigation.test.mjs",
     ],
     "25-前端架构与状态流": [
         "scripts/navigation-filter.test.mjs",
         "scripts/persona-switch.test.mjs",
         "scripts/modal-ssr.test.mjs",
+        "scripts/refresh-navigation.test.mjs",
         "runtime/test/api-state.test.mjs",
     ],
     # 重构后前端与 audio 测试随旧 src/ 一起删除，声音章暂无自动化背书。
@@ -383,7 +395,7 @@ def main() -> int:
 
 1. **为什么按域而不是按章组织**：同一份 `core.test.ts` 同时给任务、锁机、提醒与诊断背书，按章切会把一个文件拆成多行、数字重复；按文件归域，才能让「谁跑什么、出了问题先看哪」一眼对上。章节表只负责把读者从章带到文件。
 2. **为什么数字由脚本采集而不是手写**：测试会增删、文件会改名，手写的「74 个用例」过两周就开始骗人。脚本读 `it(`、`test(` 与 `#[test]`，并数 `expect(`、`assert.` 和 Rust 的断言宏，每次生成都重算。
-3. **为什么 runtime 的 76 里有一个不带 `.test` 的文件**：`runtime/test/guard-client.mjs` 里有 23 个真实用例，`node --test` 按 `**/test/**` 的发现规则把它当测试跑；它不是被别的测试导入的工具模块，文件名只是少了 `.test` 后缀，所以这一轮只如实记录，不改代码。
+3. **为什么 runtime 有一个不带 `.test` 的文件**：`runtime/test/guard-client.mjs` 里有真实用例，`node --test` 按 `**/test/**` 的发现规则把它当测试跑；它不是被别的测试导入的工具模块，文件名只是少了 `.test` 后缀。
 4. **为什么 guard 单独一格**：Rust 单测在 `crates/guard` 这个独立 cargo workspace 里，不进 pnpm 的测试链；`cargo test` 只跑编译到当前平台的用例，macOS 与 Windows 分支在 Linux 上不会被统计。
 5. **为什么客户端冒烟与脚本工具分开**：两者都跑 `pnpm test:tools`，但前者测插件前端的纯函数与降级渲染（注意力提示、面板路由、角色切换、对话框 SSR），后者测安装器与数据导入导出脚本；失败时该找的文件完全不同。
 6. **断言数量怎么数**：`.ts` 数 `expect(`，`.mjs` 数 `assert.`，Rust 数 `assert!`、`assert_eq!`、`assert_ne!`。它只能说明测试有多密，不能说明每行代码都被走到。
@@ -391,14 +403,14 @@ def main() -> int:
 
 ## C. 机制（一次生成与一次运行分别发生什么）
 
-生成脚本先读两张人工映射：域表决定一个测试文件归到哪一格，章表决定哪一章由哪些文件背书。它把目录展开成文件，逐文件采集用例名与断言数——TypeScript 走 vitest 的 `it(` 与 `test(`，JavaScript 走 node:test 的 `test(`，Rust 走 `#[test]` 后的函数名；平台专属的 Rust 模块按当前机器过滤，所以 Linux 上不会把 macOS 的用例算进来。采集结果先按测试文件去重，再加总成域合计与四个命令的分组数字，最后把「用例清单」按文件展开。运行侧对应四条命令：`pnpm core:test` 让 vitest 直接加载 `packages/core/src` 的 TypeScript；`cd runtime && node --test` 让 Node 自己发现 `runtime/test` 下的文件，并在进程内起假 guard 与 HTTP 服务；`pnpm test:tools` 只跑 `scripts` 里登记的七个测试文件；`cd crates/guard && cargo test` 先编译独立 workspace 再跑 Rust 单测。四条命令互不包含，因此四个数字可以直接相加。
+生成脚本先读两张人工映射：域表决定一个测试文件归到哪一格，章表决定哪一章由哪些文件背书。它把目录展开成文件，逐文件采集用例名与断言数——TypeScript 走 vitest 的 `it(` 与 `test(`，JavaScript 走 node:test 的 `test(`，Rust 走 `#[test]` 后的函数名；平台专属的 Rust 模块按当前机器过滤，所以 Linux 上不会把 macOS 的用例算进来。采集结果先按测试文件去重，再加总成域合计与四个命令的分组数字，最后把「用例清单」按文件展开。运行侧对应四条命令：`pnpm core:test` 让 vitest 直接加载 `packages/core/src` 的 TypeScript；`cd runtime && node --test` 让 Node 自己发现 `runtime/test` 下的文件，并在进程内起假 guard 与 HTTP 服务；`pnpm test:tools` 运行命令行登记的脚本测试；`cd crates/guard && cargo test` 先编译独立 workspace 再跑 Rust 单测。四条命令互不包含，因此四个数字可以直接相加。
 
 ## D. 语义规则与不变量
 
 - 一个测试文件只出现在一个域里；域合计必须等于四个命令的实际用例总数。
 - 用例名描述行为（英文 snake_case 或中文短语），改名视为行为变更，要同步本页与相关章。
 - 本页数字必须由脚本生成；手改的表格会在下次运行时被覆盖。
-- `crates/guard` 的 23 是 Linux 编译面的数字；换平台要重跑 `cargo test`，并让脚本按同一平台过滤。
+- `crates/guard` 的计数是当前平台编译面的数字；换平台要重跑 `cargo test`，并让脚本按同一平台过滤。
 - 测试不得读写用户真实数据目录：runtime 与脚本测试都使用临时目录或 mock，不碰正在运行的实例。
 
 ## E. 边界与坑

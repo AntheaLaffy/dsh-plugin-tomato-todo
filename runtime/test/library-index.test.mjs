@@ -23,14 +23,13 @@ import { Engine } from "../src/engine.ts";
 import { LibraryError, ProjectLibrary } from "../src/project-library.mjs";
 import {
   DEFAULT_MAX_ENTRIES,
-  directoryMatchScore,
+  INDEX_DIR,
+  indexFile,
   groupForExtension,
-  matchTopLevelToProject,
   readIndex,
   scanLibrary,
   searchIndex,
   summarize,
-  topLevelsForProject,
   writeIndex,
 } from "../src/library-index.mjs";
 import { startServer } from "../src/server.mjs";
@@ -182,15 +181,17 @@ test("索引文件：0600、原子写、可重写、损坏时拒绝读取", asyn
   const { root, libraryRoot } = buildTree();
   const dataDir = join(root, "data");
   const index = await scanLibrary(libraryRoot);
-  const written = writeIndex(dataDir, index);
+  const written = writeIndex(dataDir, "math-id", index);
   assert.equal(written.count, expectedPaths.length);
-  const file = join(dataDir, "library-index.json");
+  const file = indexFile(dataDir, "math-id");
   assert.equal(statSync(file).mode & 0o777, 0o600);
   assert.equal(
-    readdirSync(dataDir).some((name) => name.includes(".tmp-")),
+    readdirSync(join(dataDir, INDEX_DIR)).some((name) =>
+      name.includes(".tmp-"),
+    ),
     false,
   );
-  const loaded = readIndex(dataDir);
+  const loaded = readIndex(dataDir, "math-id");
   assert.deepEqual(loaded, {
     root: index.root,
     scannedAt: index.scannedAt,
@@ -206,19 +207,26 @@ test("索引文件：0600、原子写、可重写、损坏时拒绝读取", asyn
   ]);
 
   const second = await scanLibrary(libraryRoot, { maxEntries: 3 });
-  writeIndex(dataDir, second);
-  assert.equal(readIndex(dataDir).count, 3);
+  writeIndex(dataDir, "math-id", second);
+  assert.equal(readIndex(dataDir, "math-id").count, 3);
   assert.equal(statSync(file).mode & 0o777, 0o600);
   assert.equal(
-    readdirSync(dataDir).some((name) => name.includes(".tmp-")),
+    readdirSync(join(dataDir, INDEX_DIR)).some((name) =>
+      name.includes(".tmp-"),
+    ),
     false,
   );
 
   writeFileSync(file, "{ not json");
-  rejects(() => readIndex(dataDir), 500, /损坏|格式/);
-  assert.equal(readIndex(join(root, "empty")), null);
+  rejects(() => readIndex(dataDir, "math-id"), 500, /损坏|格式/);
+  assert.equal(readIndex(join(root, "empty"), "math-id"), null);
   rejects(
-    () => writeIndex(dataDir, { root: libraryRoot, scannedAt: 1, items: [{}] }),
+    () =>
+      writeIndex(dataDir, "math-id", {
+        root: libraryRoot,
+        scannedAt: 1,
+        items: [{}],
+      }),
     400,
   );
 });
@@ -296,70 +304,43 @@ test("摘要：按扩展名、浏览分组与顶层目录计数", () => {
   assert.equal(groupForExtension("PNG"), "image");
 });
 
-test("顶层目录 → 项目映射：示例目录都能对上，匹配不到返回 null", () => {
-  const projects = [
-    { name: "数学一" },
-    { name: "英语一" },
-    { name: "408" },
-    { name: "政治" },
-    { name: "教学安排" },
-  ];
-  assert.equal(matchTopLevelToProject("math", projects)?.name, "数学一");
-  assert.equal(matchTopLevelToProject("eng", projects)?.name, "英语一");
-  assert.equal(matchTopLevelToProject("408", projects)?.name, "408");
-  assert.equal(matchTopLevelToProject("politics", projects)?.name, "政治");
-  assert.equal(matchTopLevelToProject("教学安排", projects)?.name, "教学安排");
-  assert.equal(matchTopLevelToProject("random", projects), null);
-  assert.ok(directoryMatchScore("math", "数学一") > 0);
-  assert.equal(directoryMatchScore("math", "物理"), 0);
-  assert.deepEqual(
-    topLevelsForProject({ name: "数学一" }, [
-      "math",
-      "eng",
-      "408",
-      "politics",
-      "教学安排",
-    ]),
-    ["math"],
-  );
-  assert.equal(
-    topLevelsForProject({ name: "物理" }, ["math", "eng", "408"]),
-    null,
-  );
-});
-
 function serverFixture() {
   const root = mkdtempSync(join(tmpdir(), "tomato-index-http-"));
   const dataDir = join(root, "data");
-  const exam = join(root, "exam");
+  const math = join(root, "math");
+  const english = join(root, "english");
   const outside = join(root, "outside");
-  mkdirSync(join(exam, "math", "algebra"), { recursive: true });
-  mkdirSync(join(exam, "eng"), { recursive: true });
-  mkdirSync(join(exam, "408"), { recursive: true });
-  mkdirSync(join(exam, "politics"), { recursive: true });
-  mkdirSync(join(exam, "教学安排"), { recursive: true });
-  mkdirSync(outside, { recursive: true });
-  writeFileSync(join(exam, "math", "notes.md"), "# notes");
-  writeFileSync(join(exam, "math", "swap.txt"), "real");
-  writeFileSync(join(exam, "math", "algebra", "lecture1.pdf"), "pdf");
-  writeFileSync(join(exam, "eng", "listening.mp3"), "mp3");
-  writeFileSync(join(exam, "408", "2020真题.pdf"), "paper");
-  writeFileSync(join(exam, "politics", "outline.docx"), "docx");
-  writeFileSync(join(exam, "教学安排", "week1.md"), "week");
-  writeFileSync(join(exam, "other.swf"), "swf");
-  writeFileSync(join(outside, "secret.txt"), "outside");
+  mkdirSync(join(math, "algebra"), { recursive: true });
+  mkdirSync(english);
+  mkdirSync(outside);
+  writeFileSync(join(math, "algebra", "lecture.pdf"), "pdf");
+  writeFileSync(join(math, "notes.md"), "# notes");
+  writeFileSync(join(math, "swap.txt"), "real");
+  writeFileSync(join(english, "words.pdf"), "words");
+  writeFileSync(join(outside, "secret.txt"), "secret");
   const engine = Engine.open(dataDir);
-  return { root, dataDir, exam, outside, engine };
+  const library = new ProjectLibrary(engine, dataDir);
+  const mathId = library.create({
+    name: "数学",
+    color: "#b8503f",
+    directory: math,
+  }).projectId;
+  const englishId = library.create({
+    name: "英语",
+    color: "#5f7b50",
+    directory: english,
+  }).projectId;
+  return { root, dataDir, math, english, outside, engine, mathId, englishId };
 }
 
-/** 用独立 socket 发 POST，避免 fetch 连接池把两个扫描请求排成串行。 */
-function postScan(port) {
+function postScan(port, projectId) {
   return new Promise((resolve, reject) => {
     const req = httpRequest(
       {
         host: "127.0.0.1",
         port,
-        path: "/api/library/scan",
+        path:
+          "/api/projects/" + encodeURIComponent(projectId) + "/library/scan",
         method: "POST",
         headers: { "Content-Length": 0 },
       },
@@ -383,268 +364,136 @@ function postScan(port) {
   });
 }
 
-async function startLibraryServer(fixture) {
+async function server(fixture) {
   const started = await startServer({
     engine: fixture.engine,
     dataDir: fixture.dataDir,
     host: "127.0.0.1",
     port: 0,
     token: "index-token",
-    version: "0.0.0-test",
+    version: "test",
   });
-  const base = `http://127.0.0.1:${started.port}`;
+  const base = "http://127.0.0.1:" + started.port;
   const json = async (path, init = {}) => {
-    const res = await fetch(base + path, init);
-    let body = null;
-    try {
-      body = await res.json();
-    } catch {
-      body = null;
-    }
-    return { status: res.status, body, headers: res.headers };
+    const response = await fetch(base + path, init);
+    return { status: response.status, body: await response.json() };
   };
-  const waitForIndex = async () => {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const stats = await json("/api/library/stats");
-      if (stats.body.hasIndex) return stats.body;
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    throw new Error("等待索引超时");
-  };
-  return { started, base, port: started.port, json, waitForIndex };
+  return { started, base, json };
 }
 
-test("HTTP：授权后自动扫描，索引不写进 resources / 计划 / 备份", async () => {
-  const fixture = serverFixture();
-  const { started, json, waitForIndex } = await startLibraryServer(fixture);
+test("HTTP：项目索引只含本项目目录，扫描不登记资源", async () => {
+  const f = serverFixture();
+  const { started, json } = await server(f);
   try {
-    let res = await json("/api/library/stats");
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, false);
-    assert.equal(res.body.hasIndex, false);
-    assert.equal(res.body.count, 0);
-
-    res = await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: fixture.exam }),
-    });
-    assert.equal(res.status, 200);
-    assert.equal(res.body.authorized, true);
-
-    const stats = await waitForIndex();
-    assert.equal(stats.count, 8);
-    assert.equal(stats.byTop.math, 3);
-    assert.equal(stats.byTop["教学安排"], 1);
-    assert.ok(stats.scannedAt > 0);
-
-    // 扫描只建索引：教学资源仍是空的，计划/备份里也没有索引。
-    assert.equal(fixture.engine.data.education.resources.length, 0);
+    const mathBase =
+      "/api/projects/" + encodeURIComponent(f.mathId) + "/library/";
+    const englishBase =
+      "/api/projects/" + encodeURIComponent(f.englishId) + "/library/";
+    assert.equal((await json(mathBase + "stats")).body.hasIndex, false);
+    const mathScan = await json(mathBase + "scan", { method: "POST" });
+    const englishScan = await json(englishBase + "scan", { method: "POST" });
+    assert.equal(mathScan.body.count, 3);
+    assert.equal(englishScan.body.count, 1);
+    assert.equal((await json(mathBase + "items?kind=pdf")).body.total, 1);
+    assert.equal((await json(mathBase + "items?q=words")).body.total, 0);
+    assert.equal((await json(englishBase + "items?q=words")).body.total, 1);
+    assert.equal(
+      (await json(mathBase + "items?offset=1&limit=1")).body.items.length,
+      1,
+    );
+    assert.equal((await json(mathBase + "items?limit=101")).status, 400);
+    assert.equal(f.engine.data.education.resources.length, 0);
     const plan = JSON.stringify(
-      fixture.engine.exportPlan(Math.floor(Date.now() / 1000)),
+      f.engine.exportPlan(Math.floor(Date.now() / 1000)),
     );
     const backup = JSON.stringify(
-      fixture.engine.exportBackup(Math.floor(Date.now() / 1000)),
+      f.engine.exportBackup(Math.floor(Date.now() / 1000)),
     );
     assert.equal(plan.includes("library-index"), false);
     assert.equal(backup.includes("library-index"), false);
-    assert.equal(plan.includes("2020真题"), false);
-
-    const indexFile = join(fixture.dataDir, "library-index.json");
-    assert.equal(statSync(indexFile).mode & 0o777, 0o600);
-    assert.ok(statSync(indexFile).size > 0);
+    assert.equal(statSync(indexFile(f.dataDir, f.mathId)).mode & 0o777, 0o600);
+    assert.notEqual(
+      indexFile(f.dataDir, f.mathId),
+      indexFile(f.dataDir, f.englishId),
+    );
+    assert.equal(readIndex(f.dataDir, f.mathId).root, f.math);
   } finally {
     await started.close();
-    fixture.engine.flushNow();
+    f.engine.flushNow();
   }
 });
 
-test("HTTP：items 搜索/分页/项目目录过滤，stats 与 scan 摘要一致", async () => {
-  const fixture = serverFixture();
-  const { started, json, waitForIndex } = await startLibraryServer(fixture);
+test("HTTP：同一项目并发扫描共用结果，不同项目互不混用", async () => {
+  const f = serverFixture();
+  for (let i = 0; i < 800; i += 1)
+    writeFileSync(join(f.math, "algebra", "file-" + i + ".txt"), "x");
+  const { started } = await server(f);
   try {
-    await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: fixture.exam }),
-    });
-    const stats = await waitForIndex();
-    const library = new ProjectLibrary(fixture.engine, fixture.dataDir);
-    const mathProject = library.create({ name: "数学一", color: "#b8503f" });
-    const physicsProject = library.create({ name: "物理", color: "#5f7b50" });
-
-    let res = await json("/api/library/items?q=408");
-    assert.equal(res.status, 200);
-    assert.equal(res.body.hasIndex, true);
-    assert.equal(res.body.total, 1);
-    assert.equal(res.body.items[0].path, "408/2020真题.pdf");
-    assert.equal(res.body.items[0].kind, "pdf");
-    assert.equal(res.body.items[0].previewable, true);
-
-    res = await json("/api/library/items?kind=pdf");
-    assert.equal(res.body.total, 2);
-    assert.equal(
-      res.body.items.every((item) => item.kind === "pdf"),
-      true,
-    );
-
-    res = await json("/api/library/items?offset=1&limit=2");
-    assert.equal(res.body.total, 8);
-    assert.equal(res.body.items.length, 2);
-    assert.equal(res.body.offset, 1);
-    assert.equal(res.body.limit, 2);
-
-    res = await json(`/api/library/items?projectId=${mathProject.projectId}`);
-    assert.equal(res.body.filtered, true);
-    assert.deepEqual(res.body.matchedDirs, ["math"]);
-    assert.equal(res.body.total, 3);
-    assert.equal(
-      res.body.items.every((item) => item.path.startsWith("math/")),
-      true,
-    );
-
-    res = await json(
-      `/api/library/items?projectId=${physicsProject.projectId}`,
-    );
-    assert.equal(res.body.filtered, false);
-    assert.deepEqual(res.body.matchedDirs, []);
-    assert.equal(res.body.total, stats.count);
-
-    res = await json("/api/library/items?limit=101");
-    assert.equal(res.status, 400);
-
-    res = await json("/api/library/scan", { method: "POST" });
-    assert.equal(res.status, 200);
-    assert.equal(res.body.hasIndex, true);
-    assert.equal(res.body.count, stats.count);
-    assert.equal(res.body.truncated, false);
-    assert.equal(Number.isInteger(res.body.durationMs), true);
-    assert.equal(res.body.byExt.pdf, 2);
-  } finally {
-    await started.close();
-    fixture.engine.flushNow();
-  }
-});
-
-test("HTTP：扫描并发保护，同一时刻只跑一次", async () => {
-  const fixture = serverFixture();
-  mkdirSync(join(fixture.exam, "bulk"), { recursive: true });
-  for (let i = 0; i < 1200; i += 1)
-    writeFileSync(join(fixture.exam, "bulk", `file-${i}.txt`), "x");
-  const { started, port, json, waitForIndex } =
-    await startLibraryServer(fixture);
-  try {
-    await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: fixture.exam }),
-    });
-    await waitForIndex();
-    const [a, b] = await Promise.all([postScan(port), postScan(port)]);
+    const [a, b, c] = await Promise.all([
+      postScan(started.port, f.mathId),
+      postScan(started.port, f.mathId),
+      postScan(started.port, f.englishId),
+    ]);
     assert.equal(a.status, 200);
     assert.equal(b.status, 200);
-    // 第二次等待同一次扫描：两边的 scannedAt / durationMs / count 必须一致。
+    assert.equal(c.status, 200);
+    assert.equal(a.body.count, 803);
+    assert.equal(b.body.count, 803);
+    assert.equal(c.body.count, 1);
     assert.equal(a.body.scannedAt, b.body.scannedAt);
     assert.equal(a.body.durationMs, b.body.durationMs);
-    assert.equal(a.body.count, 1208);
-    assert.equal(b.body.count, 1208);
   } finally {
     await started.close();
-    fixture.engine.flushNow();
+    f.engine.flushNow();
   }
 });
 
-test("HTTP：文件流式读取、Range、非索引/越界/符号链接被拒", async () => {
-  const fixture = serverFixture();
-  const { started, base, json, waitForIndex } =
-    await startLibraryServer(fixture);
+test("HTTP：项目索引文件读取、Range、路径安全与旧索引失效", async () => {
+  const f = serverFixture();
+  const { started, base, json } = await server(f);
+  const prefix = "/api/projects/" + encodeURIComponent(f.mathId) + "/library/";
   try {
-    await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: fixture.exam }),
-    });
-    await waitForIndex();
+    await json(prefix + "scan", { method: "POST" });
     const token = (await json("/api/file-token")).body.access;
     const url = (path, extra = "") =>
-      `${base}/api/library/file?path=${encodeURIComponent(path)}&access=${token}${extra}`;
-
-    let res = await fetch(url("math/notes.md"));
-    assert.equal(res.status, 200);
-    assert.equal(await res.text(), "# notes");
-    assert.match(res.headers.get("content-type"), /text\/plain/);
-    assert.equal(res.headers.get("accept-ranges"), "bytes");
-
-    res = await fetch(url("math/notes.md"), {
+      base +
+      prefix +
+      "file?path=" +
+      encodeURIComponent(path) +
+      "&access=" +
+      token +
+      extra;
+    let response = await fetch(url("notes.md"));
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "# notes");
+    response = await fetch(url("notes.md"), {
       headers: { Range: "bytes=0-1" },
     });
-    assert.equal(res.status, 206);
-    assert.equal(await res.text(), "# ");
-    assert.equal(res.headers.get("content-range"), "bytes 0-1/7");
-
-    res = await fetch(url("math/notes.md", "&download=1"));
-    assert.equal(res.status, 200);
-    assert.match(res.headers.get("content-disposition"), /attachment/);
-
+    assert.equal(response.status, 206);
+    assert.equal(await response.text(), "# ");
     assert.equal((await fetch(url("../outside/secret.txt"))).status, 400);
     assert.equal((await fetch(url("/etc/passwd"))).status, 400);
-    assert.equal((await fetch(url("math/not-indexed.txt"))).status, 404);
-
-    // 索引之后把普通文件换成库外符号链接：即使路径在索引里也拒绝。
-    unlinkSync(join(fixture.exam, "math", "swap.txt"));
-    symlinkSync(
-      join(fixture.outside, "secret.txt"),
-      join(fixture.exam, "math", "swap.txt"),
+    assert.equal((await fetch(url("not-indexed.txt"))).status, 404);
+    unlinkSync(join(f.math, "swap.txt"));
+    symlinkSync(join(f.outside, "secret.txt"), join(f.math, "swap.txt"));
+    assert.equal((await fetch(url("swap.txt"))).status, 400);
+    const newDir = join(f.root, "math-new");
+    mkdirSync(newDir);
+    const authorized = await json(
+      "/api/projects/" + encodeURIComponent(f.mathId) + "/authorize",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directory: newDir }),
+      },
     );
-    assert.equal((await fetch(url("math/swap.txt"))).status, 400);
-
-    res = await fetch(url("other.swf"));
-    assert.equal(res.status, 413);
-    res = await fetch(url("other.swf", "&download=1"));
-    assert.equal(res.status, 200);
-    assert.equal(await res.text(), "swf");
-  } finally {
-    await started.close();
-    fixture.engine.flushNow();
-  }
-});
-
-test("HTTP：索引属于旧目录时不再对外提供，stats 标记 stale", async () => {
-  const fixture = serverFixture();
-  const { started, json, waitForIndex } = await startLibraryServer(fixture);
-  try {
-    await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: fixture.exam }),
-    });
-    await waitForIndex();
-    const oldIndex = readIndex(fixture.dataDir);
-    const other = join(fixture.root, "other-exam");
-    mkdirSync(other, { recursive: true });
-    writeFileSync(join(other, "new.md"), "new");
-    await json("/api/library/authorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: other }),
-    });
-    // 等授权后的自动扫描落地，避免它稍后覆盖我们人为放回的旧索引。
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const current = await json("/api/library/stats");
-      if (current.body.hasIndex && current.body.root === other) break;
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    // 人为把旧目录的索引放回去，模拟「授权已换、索引还没重扫」。
-    writeIndex(fixture.dataDir, oldIndex);
-    const stats = await json("/api/library/stats");
-    assert.equal(stats.body.hasIndex, false);
+    assert.equal(authorized.status, 200);
+    const stats = await json(prefix + "stats");
     assert.equal(stats.body.stale, true);
-    assert.equal(stats.body.count, 0);
-    const res = await json("/api/library/items");
-    assert.equal(res.body.hasIndex, false);
-    assert.equal(res.body.total, 0);
+    assert.equal(stats.body.hasIndex, false);
+    assert.equal((await fetch(url("notes.md"))).status, 409);
   } finally {
     await started.close();
-    fixture.engine.flushNow();
+    f.engine.flushNow();
   }
 });

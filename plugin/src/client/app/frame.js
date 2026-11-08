@@ -627,6 +627,10 @@ export function AppShell(props) {
               onLeave: props.onLeave,
               onAssistant: props.onAssistant,
               onLanguageChange: props.onLanguageChange,
+              theme: props.theme,
+              subscribeTheme: props.subscribeTheme,
+              onThemeChange: props.onThemeChange,
+              chatSettings: props.chatSettings,
             })
           : null,
       ),

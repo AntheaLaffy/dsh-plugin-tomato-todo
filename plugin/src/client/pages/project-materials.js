@@ -1,8 +1,6 @@
 // 项目资料：目录授权、索引浏览、批量导入与清单导出。
 //
-// 为什么授权入口必须放在项目页：用户点进一个项目时已经带着「这个项目的资料在
-// 哪」的意图；把授权只留在应试教育页，三态（共享库 / 专属目录 / 未授权）与
-// 索引浏览就分处两页，用户看到空列表也不知道是没索引还是没授权。授权只写
+// 授权入口在项目页，目录、扫描和导入都归这个项目。授权只写
 // grant，不移动、不复制磁盘上的文件；导入也只登记清单，不打开文件内容。
 import { h, useEffect, useState } from "../runtime.js";
 import { t, registerCopy } from "../shared/copy.js";
@@ -28,16 +26,16 @@ import { refresh } from "../shared/store.js";
 import {
   authorizeProjectDirectory,
   getFileToken,
-  getLibraryGrant,
-  getLibraryItems,
-  getLibraryStats,
+  getProjectLibraryItems,
+  getProjectLibraryStats,
   getProjectGrant,
   getProjectResources,
   importProjectResources,
-  libraryFileUrl,
+  projectLibraryFileUrl,
   cleanupProjectResources,
-  scanLibrary,
+  scanProjectLibraryIndex,
   scanProjectLibrary,
+  uploadProjectFile,
 } from "../shared/api.js";
 
 registerCopy("project", {
@@ -46,35 +44,23 @@ registerCopy("project", {
     grantStatusLoading: "读取授权状态…",
     grantStatusError: "授权状态读取失败",
     grantUnauthorized: "未授权",
-    grantShared: "共享资料库",
-    grantOwn: "项目专属目录",
+    grantOwn: "项目资料目录",
     grantLoading: "读取授权状态…",
     grantNotAuthorizedHint:
-      "这个项目还没有资料目录。先授权共享资料库根目录或专属子目录，才能浏览、导入并按资料绑定应试内容。",
-    grantNotAuthorizedNoLibraryHint:
-      "共享资料库也尚未授权。可以先在这里给项目一个专属目录，或到「应试教育」页授权整个资料库。",
-    grantSharedHint:
-      "本项目使用共享资料库根目录；索引覆盖整个共享库，导入时按项目目录筛选。",
-    grantOwnHint:
-      "本项目使用共享库内的专属子目录；浏览与导入都只在这个目录范围内。",
-    grantReadOnly: "授权只是读取许可，不移动文件。",
+      "这个项目还没有授权资料目录。请选择项目自己的目录后再浏览或导入。",
+    grantOwnHint: "浏览、扫描和导入只针对这个项目目录及其子目录。",
+    grantReadOnly: "授权不移动文件；上传外部文件时才会复制进项目目录。",
     grantAuthorize: "授权目录",
     grantChange: "更换",
-    grantUseShared: "使用共享库",
-    grantUsingShared: "使用中",
     grantSwitching: "正在切换…",
     grantRefresh: "刷新",
     grantPathRequired: "请填写绝对路径",
     grantModalTitle: "授权项目资料目录",
-    grantModalSubtitle:
-      "选择一个已存在的绝对目录；授权只给读取许可，不移动任何文件。",
+    grantModalSubtitle: "选择一个已存在的项目目录；授权本身不会移动文件。",
     grantPathLabel: "绝对路径",
     grantModalHint:
-      "必须在共享资料库内（若已授权）；不能是根目录、整个主目录或应用内部目录。",
+      "项目目录不能互相重叠，也不能是根目录、整个主目录或应用内部目录。",
     grantSaved: "资料目录已授权",
-    grantSharedMissing:
-      "共享资料库尚未授权，请先到「应试教育」页授权整个资料库。",
-    grantSharedDone: "已切换为使用共享资料库",
     grantConfirm: "授权",
     importAvailable: "索引内 {n} 个文件",
     importSelected: "导入选中（{n}）",
@@ -86,6 +72,13 @@ registerCopy("project", {
     importConfirmSubmit: "导入 {n} 个",
     importBusy: "正在导入…",
     importDone: "已登记 {registered} 条，跳过 {skipped} 条（已登记过）",
+    uploadFiles: "从外部添加文件",
+    uploadFolder: "添加整个目录",
+    uploadBusy: "正在复制文件…",
+    uploadProgress: "已复制 {done}/{total}",
+    uploadSkipped: "隐藏文件或依赖目录不导入",
+    uploadDone: "已复制 {n} 个文件到项目目录并登记",
+    uploadCopiedUnregistered: "已复制 {n} 个文件，但尚未登记",
     selectItem: "选择 {name}",
     clearSelection: "取消选择",
     exportHint: "只导出元数据，不导出文件内容。",
@@ -124,36 +117,26 @@ registerCopy("project", {
     grantStatusLoading: "Reading authorization…",
     grantStatusError: "Could not read authorization",
     grantUnauthorized: "Not authorized",
-    grantShared: "Shared library",
-    grantOwn: "Project folder",
+    grantOwn: "Project materials folder",
     grantLoading: "Reading authorization…",
     grantNotAuthorizedHint:
-      "This project has no materials folder yet. Authorize the shared library root or a project subfolder before browsing, importing, or binding exam materials.",
-    grantNotAuthorizedNoLibraryHint:
-      "The shared library is not authorized either. Give this project its own folder here, or authorize the whole library on the study page.",
-    grantSharedHint:
-      "This project uses the shared library root; the index covers the whole library and imports are filtered by project folder.",
+      "Authorize this project's materials folder before browsing or importing files.",
     grantOwnHint:
-      "This project uses a subfolder inside the shared library; browsing and importing stay inside that folder.",
+      "Scanning, browsing, and importing stay inside this project folder and its subfolders.",
     grantReadOnly:
-      "Authorization is read-only permission; files are never moved.",
+      "Authorization itself does not move files; uploading copies files into this folder.",
     grantAuthorize: "Authorize folder",
     grantChange: "Change",
-    grantUseShared: "Use shared library",
-    grantUsingShared: "In use",
     grantSwitching: "Switching…",
     grantRefresh: "Refresh",
     grantPathRequired: "Enter an absolute path",
     grantModalTitle: "Authorize the project materials folder",
     grantModalSubtitle:
-      "Choose an existing absolute folder; authorization only grants read access and never moves a file.",
+      "Choose an existing project folder; authorization itself does not move files.",
     grantPathLabel: "Absolute path",
     grantModalHint:
-      "It must be inside the shared library when one is authorized; the root, the whole home folder, and app data folders are rejected.",
+      "Project folders cannot overlap; the root, whole home folder, and app data folders are rejected.",
     grantSaved: "Materials folder authorized",
-    grantSharedMissing:
-      "The shared library is not authorized; authorize the whole library on the study page first.",
-    grantSharedDone: "Switched to the shared library",
     grantConfirm: "Authorize",
     importAvailable: "{n} files in the index",
     importSelected: "Import selected ({n})",
@@ -165,6 +148,13 @@ registerCopy("project", {
     importConfirmSubmit: "Import {n}",
     importBusy: "Importing…",
     importDone: "Registered {registered}, skipped {skipped} already registered",
+    uploadFiles: "Add external files",
+    uploadFolder: "Add a whole folder",
+    uploadBusy: "Copying files…",
+    uploadProgress: "Copied {done}/{total}",
+    uploadSkipped: "Hidden files and dependency folders are skipped",
+    uploadDone: "Copied and registered {n} files in this project",
+    uploadCopiedUnregistered: "Copied {n} files but could not register them",
     selectItem: "Select {name}",
     clearSelection: "Clear selection",
     exportHint: "Metadata only; file contents are never exported.",
@@ -205,22 +195,16 @@ registerCopy("project", {
     grantStatusLoading: "認可状態を読み込み中…",
     grantStatusError: "認可状態を読み込めません",
     grantUnauthorized: "未認可",
-    grantShared: "共有ライブラリ",
-    grantOwn: "プロジェクト専用フォルダ",
+    grantOwn: "プロジェクト資料フォルダ",
     grantLoading: "認可状態を読み込み中…",
     grantNotAuthorizedHint:
-      "このプロジェクトには資料フォルダがありません。共有ライブラリのルートか専用サブフォルダを認可すると、閲覧・取り込み・試験資料の紐付けができます。",
-    grantNotAuthorizedNoLibraryHint:
-      "共有ライブラリも未認可です。ここで専用フォルダを認可するか、学習ページでライブラリ全体を認可してください。",
-    grantSharedHint:
-      "このプロジェクトは共有ライブラリのルートを使います。索引はライブラリ全体を対象にし、取り込みはプロジェクトのフォルダで絞り込みます。",
+      "このプロジェクトの資料フォルダを認可してから、閲覧や取り込みを行ってください。",
     grantOwnHint:
-      "このプロジェクトは共有ライブラリ内の専用サブフォルダを使います。閲覧と取り込みはそのフォルダ内だけです。",
-    grantReadOnly: "認可は読み取り許可だけです。ファイルは移動しません。",
+      "スキャン・閲覧・取り込みはこのプロジェクトのフォルダとサブフォルダ内だけです。",
+    grantReadOnly:
+      "認可だけではファイルを移動しません。アップロード時にコピーします。",
     grantAuthorize: "フォルダを認可",
     grantChange: "変更",
-    grantUseShared: "共有ライブラリを使う",
-    grantUsingShared: "使用中",
     grantSwitching: "切り替え中…",
     grantRefresh: "更新",
     grantPathRequired: "絶対パスを入力してください",
@@ -229,11 +213,8 @@ registerCopy("project", {
       "既存の絶対フォルダを選択してください。認可は読み取り許可だけで、ファイルは移動しません。",
     grantPathLabel: "絶対パス",
     grantModalHint:
-      "共有ライブラリが認可済みならその内側である必要があります。ルート、ホーム全体、アプリ内部フォルダは拒否されます。",
+      "プロジェクトのフォルダは重複不可です。ルート、ホーム全体、アプリ内部フォルダは拒否されます。",
     grantSaved: "資料フォルダを認可しました",
-    grantSharedMissing:
-      "共有ライブラリが未認可です。先に学習ページでライブラリ全体を認可してください。",
-    grantSharedDone: "共有ライブラリの使用に切り替えました",
     grantConfirm: "認可",
     importAvailable: "索引内 {n} ファイル",
     importSelected: "選択をインポート（{n}）",
@@ -245,6 +226,13 @@ registerCopy("project", {
     importConfirmSubmit: "{n} 件をインポート",
     importBusy: "インポート中…",
     importDone: "{registered} 件を登録、{skipped} 件をスキップ（登録済み）",
+    uploadFiles: "外部ファイルを追加",
+    uploadFolder: "フォルダごと追加",
+    uploadBusy: "ファイルをコピー中…",
+    uploadProgress: "{done}/{total} 件コピー済み",
+    uploadSkipped: "隠しファイルと依存フォルダは取り込みません",
+    uploadDone: "{n} 件をコピーして登録しました",
+    uploadCopiedUnregistered: "{n} 件をコピーしましたが、登録できませんでした",
     selectItem: "{name} を選択",
     clearSelection: "選択を解除",
     exportHint: "メタデータのみを出力します。ファイルの中身は出力しません。",
@@ -361,7 +349,10 @@ async function collectLibraryItems(projectId) {
   let offset = 0;
   let total = Infinity;
   while (offset < total) {
-    const page = await getLibraryItems({ projectId, offset, limit: 100 });
+    const page = await getProjectLibraryItems(projectId, {
+      offset,
+      limit: 100,
+    });
     const list = Array.isArray(page && page.items) ? page.items : [];
     total = Number(page && page.total) || 0;
     if (list.length === 0) break;
@@ -410,7 +401,7 @@ function cachedFileToken() {
  * 资料预览：令牌由本页取，渲染交给 shared/file-preview.js（图片/音视频内联、
  * PDF iframe、Markdown 自己排版）；取令牌失败时把服务端错误当作不可预览说明。
  */
-function LibraryPreview({ item, onClose }) {
+function LibraryPreview({ item, projectId, onClose }) {
   const [access, setAccess] = useState("");
   const [error, setError] = useState("");
 
@@ -438,8 +429,10 @@ function LibraryPreview({ item, onClose }) {
     name: item.name,
     kind: item.kind,
     sizeBytes: item.sizeBytes,
-    viewUrl: access ? libraryFileUrl(item.path, access) : "",
-    downloadUrl: access ? libraryFileUrl(item.path, access, true) : "",
+    viewUrl: access ? projectLibraryFileUrl(projectId, item.path, access) : "",
+    downloadUrl: access
+      ? projectLibraryFileUrl(projectId, item.path, access, true)
+      : "",
     previewable: item.previewable !== false && error === "",
     emptyHint: error !== "" ? error : t("project.previewUnsupported"),
   });
@@ -477,26 +470,23 @@ function mutedHint(message) {
 }
 
 /**
- * 资料区的总入口：授权三态 + 索引浏览 + 批量导入。
+ * 资料区的总入口：项目授权 + 索引浏览 + 批量导入。
  * 未授权时不请求索引，直接给出本页的授权引导，避免「空白 = 没资料」的误读。
  */
 export function ProjectMaterialsSection({ project, onChanged }) {
   const projectId = project.id;
   const [grant, setGrant] = useState(null);
   const [grantError, setGrantError] = useState("");
-  const [library, setLibrary] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [indexReload, setIndexReload] = useState(0);
   const [authorizeOpen, setAuthorizeOpen] = useState(false);
   const [directory, setDirectory] = useState("");
   const [busy, setBusy] = useState(false);
-  const [sharedBusy, setSharedBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     setGrant(null);
     setGrantError("");
-    setLibrary(null);
     setAuthorizeOpen(false);
     setDirectory("");
     setActionError("");
@@ -514,13 +504,6 @@ export function ProjectMaterialsSection({ project, onChanged }) {
       .catch((error) => {
         if (!cancelled) setGrantError(errorText(error));
       });
-    getLibraryGrant()
-      .then((result) => {
-        if (!cancelled) setLibrary(result);
-      })
-      .catch(() => {
-        if (!cancelled) setLibrary(null);
-      });
     return () => {
       cancelled = true;
     };
@@ -528,13 +511,6 @@ export function ProjectMaterialsSection({ project, onChanged }) {
 
   const loading = grant === null && grantError === "";
   const authorized = grant !== null && grant.authorized === true;
-  const shared = authorized && grant.shared === true;
-  const libraryReady =
-    library !== null &&
-    library !== undefined &&
-    library.authorized === true &&
-    typeof library.directory === "string" &&
-    library.directory !== "";
 
   function acceptGrant(next) {
     setGrant(next);
@@ -572,39 +548,10 @@ export function ProjectMaterialsSection({ project, onChanged }) {
       setAuthorizeOpen(false);
       notify(t("project.grantSaved"), "brand");
     } catch (error) {
-      // 服务端的目录校验文案更具体（不在共享库内、重叠、不是目录），原样显示。
+      // 服务端的目录校验文案更具体，原样显示。
       setActionError(errorText(error));
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function useSharedLibrary() {
-    if (sharedBusy) return;
-    setSharedBusy(true);
-    setActionError("");
-    try {
-      const nextLibrary = await getLibraryGrant();
-      setLibrary(nextLibrary);
-      if (
-        !nextLibrary ||
-        nextLibrary.authorized !== true ||
-        typeof nextLibrary.directory !== "string" ||
-        nextLibrary.directory === ""
-      ) {
-        setActionError(t("project.grantSharedMissing"));
-        return;
-      }
-      const next = await authorizeProjectDirectory(
-        projectId,
-        nextLibrary.directory,
-      );
-      acceptGrant(next);
-      notify(t("project.grantSharedDone"), "brand");
-    } catch (error) {
-      setActionError(errorText(error));
-    } finally {
-      setSharedBusy(false);
     }
   }
 
@@ -614,17 +561,11 @@ export function ProjectMaterialsSection({ project, onChanged }) {
       ? h(Chip, { tone: "danger" }, t("project.grantStatusError"))
       : !authorized
         ? h(Chip, { tone: "neutral" }, t("project.grantUnauthorized"))
-        : shared
-          ? h(Chip, { tone: "brand", icon: "folder" }, t("project.grantShared"))
-          : h(Chip, { tone: "leaf", icon: "folder" }, t("project.grantOwn"));
+        : h(Chip, { tone: "leaf", icon: "folder" }, t("project.grantOwn"));
 
   const grantHint = !authorized
-    ? libraryReady
-      ? t("project.grantNotAuthorizedHint")
-      : t("project.grantNotAuthorizedNoLibraryHint")
-    : shared
-      ? t("project.grantSharedHint")
-      : t("project.grantOwnHint");
+    ? t("project.grantNotAuthorizedHint")
+    : t("project.grantOwnHint");
 
   const pathText = loading
     ? t("project.grantLoading")
@@ -679,7 +620,7 @@ export function ProjectMaterialsSection({ project, onChanged }) {
           variant: "plain",
           size: "sm",
           icon: "refresh",
-          disabled: loading || busy || sharedBusy,
+          disabled: loading || busy,
           onClick: () => setReloadKey((value) => value + 1),
         },
         t("project.grantRefresh"),
@@ -725,30 +666,11 @@ export function ProjectMaterialsSection({ project, onChanged }) {
           variant: authorized ? "soft" : "primary",
           size: "sm",
           icon: "folder",
-          disabled: loading || busy || sharedBusy,
+          disabled: loading || busy,
           onClick: openAuthorize,
         },
         authorized ? t("project.grantChange") : t("project.grantAuthorize"),
       ),
-      h(
-        Btn,
-        {
-          variant: "ghost",
-          size: "sm",
-          icon: "folder",
-          disabled: !libraryReady || shared || loading || busy || sharedBusy,
-          title: libraryReady ? undefined : t("project.grantSharedMissing"),
-          onClick: useSharedLibrary,
-        },
-        sharedBusy ? t("project.grantSwitching") : t("project.grantUseShared"),
-      ),
-      shared
-        ? h(
-            Chip,
-            { tone: "brand", icon: "check" },
-            t("project.grantUsingShared"),
-          )
-        : null,
     ),
   );
 
@@ -895,6 +817,9 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
   const [importing, setImporting] = useState(false);
   const [importingAll, setImportingAll] = useState(false);
   const [importError, setImportError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
+  const [uploadError, setUploadError] = useState("");
   const [lastImport, setLastImport] = useState(null);
   const [confirmImportAll, setConfirmImportAll] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -916,6 +841,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     setPreview(null);
     setSelected(new Set());
     setImportError("");
+    setUploadError("");
     setLastImport(null);
     setExportError("");
   }, [projectId]);
@@ -931,7 +857,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
 
   useEffect(() => {
     let cancelled = false;
-    getLibraryStats()
+    getProjectLibraryStats(projectId)
       .then((result) => {
         if (cancelled) return;
         setStats(result);
@@ -953,8 +879,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     let cancelled = false;
     setLoading(true);
     setLoadError("");
-    getLibraryItems({
-      projectId,
+    getProjectLibraryItems(projectId, {
       q: appliedQuery,
       kind,
       offset,
@@ -992,7 +917,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
       return undefined;
     }
     let cancelled = false;
-    getLibraryItems({ projectId, offset: 0, limit: 1 })
+    getProjectLibraryItems(projectId, { offset: 0, limit: 1 })
       .then((result) => {
         if (cancelled) return;
         if (result && result.hasIndex === false) setMissing(true);
@@ -1010,7 +935,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     if (scanning) return;
     setScanning(true);
     try {
-      const result = await scanLibrary();
+      const result = await scanProjectLibraryIndex(projectId);
       notify(
         t("project.libraryScanDone", {
           n: Number(result && result.count) || 0,
@@ -1046,6 +971,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
       registered > 0 ? "brand" : "neutral",
     );
     bump();
+    refresh();
     onImported?.();
   }
 
@@ -1084,7 +1010,7 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     setImportError("");
     setLastImport(null);
     try {
-      // 省略 paths：由 runtime 按项目目录映射取索引里的全部条目。
+      // 省略 paths：由 runtime 取当前项目目录索引里的全部条目。
       const result = await importProjectResources(projectId);
       acceptImport(result);
       setConfirmImportAll(false);
@@ -1093,6 +1019,74 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     } finally {
       setImportingAll(false);
     }
+  }
+
+  async function uploadFiles(event) {
+    const files = Array.from(event.target.files || []).map((file) => ({
+      file,
+      path: file.webkitRelativePath || file.name,
+    }));
+    event.target.value = "";
+    if (uploading || files.length === 0) return;
+    setUploading(true);
+    setUploadError("");
+    setUploadProgress({ done: 0, total: files.length });
+    const paths = [];
+    const errors = [];
+    let next = 0;
+    let done = 0;
+    const workers = Array.from(
+      { length: Math.min(files.length, 4) },
+      async () => {
+        while (next < files.length) {
+          const { file, path } = files[next++];
+          try {
+            if (
+              path
+                .split("/")
+                .some((part) => part.startsWith(".") || part === "node_modules")
+            )
+              throw new Error(t("project.uploadSkipped"));
+            const result = await uploadProjectFile(projectId, file, path);
+            paths.push(result.path);
+          } catch (error) {
+            errors.push(path + "：" + errorText(error));
+          }
+          done += 1;
+          if (done % 20 === 0 || done === files.length)
+            setUploadProgress({ done, total: files.length });
+        }
+      },
+    );
+    await Promise.all(workers);
+    if (paths.length > 0) {
+      try {
+        await scanProjectLibraryIndex(projectId);
+        setMissing(false);
+        let registered = 0;
+        let skipped = 0;
+        for (let offset = 0; offset < paths.length; offset += 1000) {
+          const result = await importProjectResources(projectId, {
+            paths: paths.slice(offset, offset + 1000),
+          });
+          registered += Number(result.registered) || 0;
+          skipped += Number(result.skipped) || 0;
+        }
+        acceptImport({ registered, skipped });
+        notify(t("project.uploadDone", { n: paths.length }), "brand");
+      } catch (error) {
+        errors.push(
+          t("project.uploadCopiedUnregistered", { n: paths.length }) +
+            "：" +
+            errorText(error),
+        );
+        bump();
+      }
+    }
+    setUploadError(
+      errors.slice(0, 10).join("\n") + (errors.length > 10 ? "\n…" : ""),
+    );
+    setUploading(false);
   }
 
   async function exportIndex(format) {
@@ -1174,6 +1168,34 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
           onClick: scan,
         },
         scanning ? t("project.libraryScanning") : t("project.libraryScan"),
+      ),
+      h(
+        "label",
+        { style: { fontSize: 12, cursor: "pointer", alignSelf: "center" } },
+        uploading
+          ? t("project.uploadProgress", uploadProgress)
+          : t("project.uploadFiles"),
+        h("input", {
+          type: "file",
+          multiple: true,
+          disabled: uploading,
+          onChange: uploadFiles,
+          style: { display: "block", fontSize: 11 },
+        }),
+      ),
+      h(
+        "label",
+        { style: { fontSize: 12, cursor: "pointer", alignSelf: "center" } },
+        uploading ? t("project.uploadBusy") : t("project.uploadFolder"),
+        h("input", {
+          type: "file",
+          webkitdirectory: "",
+          directory: "",
+          multiple: true,
+          disabled: uploading,
+          onChange: uploadFiles,
+          style: { display: "block", fontSize: 11 },
+        }),
       ),
     ),
   );
@@ -1293,6 +1315,70 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
         allCount !== null
           ? t("project.importAllCount", { n: allCount })
           : t("project.importAll"),
+      ),
+      h(
+        "label",
+        {
+          style: {
+            position: "relative",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "7px 11px",
+            border: "1px solid var(--tomato-line)",
+            borderRadius: 9,
+            cursor: uploading ? "wait" : "pointer",
+            color: "var(--tomato-ink)",
+            fontSize: 12,
+          },
+        },
+        uploading
+          ? t("project.uploadProgress", uploadProgress)
+          : t("project.uploadFiles"),
+        h("input", {
+          type: "file",
+          multiple: true,
+          disabled: uploading,
+          onChange: uploadFiles,
+          style: {
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            width: "100%",
+            cursor: "pointer",
+          },
+        }),
+      ),
+      h(
+        "label",
+        {
+          style: {
+            position: "relative",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "7px 11px",
+            border: "1px solid var(--tomato-line)",
+            borderRadius: 9,
+            cursor: uploading ? "wait" : "pointer",
+            color: "var(--tomato-ink)",
+            fontSize: 12,
+          },
+        },
+        t("project.uploadFolder"),
+        h("input", {
+          type: "file",
+          webkitdirectory: "",
+          directory: "",
+          multiple: true,
+          disabled: uploading,
+          onChange: uploadFiles,
+          style: {
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            width: "100%",
+            cursor: "pointer",
+          },
+        }),
       ),
     ),
     lastImport !== null
@@ -1585,8 +1671,13 @@ export function ProjectIndexBrowser({ project, reloadKey, onImported }) {
     "div",
     null,
     statsError !== "" ? alertBox(statsError) : null,
+    uploadError !== "" ? alertBox(uploadError) : null,
     missing ? missingBlock : listBlock,
-    h(LibraryPreview, { item: preview, onClose: () => setPreview(null) }),
+    h(LibraryPreview, {
+      item: preview,
+      projectId,
+      onClose: () => setPreview(null),
+    }),
     importAllDialog,
   );
 }
@@ -1711,6 +1802,7 @@ export function ProjectRegisteredSection({ project, reloadKey, onChanged }) {
       setStates(null);
       setScanSummary("");
       setLocalReload((value) => value + 1);
+      if (removed > 0) refresh();
       onChanged?.();
     } catch (error) {
       setCleanupError(errorText(error));

@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { readIndex, topLevelsForProject } from "./library-index.mjs";
+import { readIndex } from "./library-index.mjs";
 import {
   basename,
   dirname,
@@ -26,8 +26,6 @@ import {
 } from "node:path";
 
 export const PREVIEW_BYTES = 20 * 1024 * 1024;
-/** 共享资料库授权文件名；与按项目的 project-grants.json 分开，语义不同。 */
-const LIBRARY_FILE = "library-grant.json";
 const MIME = {
   pdf: "application/pdf",
   png: "image/png",
@@ -59,31 +57,6 @@ export function mimeTypeFor(ext) {
   return (
     MIME[String(ext ?? "").toLocaleLowerCase()] ?? "application/octet-stream"
   );
-}
-
-/** 扩展名 → core 的 ResourceKind；拿不准的一律 reference（可预览、可被引用）。 */
-function kindForExtension(ext) {
-  switch (String(ext ?? "").toLowerCase()) {
-    case "pdf":
-    case "epub":
-      return "book";
-    case "ppt":
-    case "pptx":
-      return "course";
-    case "png":
-    case "jpg":
-    case "jpeg":
-    case "webp":
-    case "gif":
-      return "attachment";
-    case "mp3":
-    case "wav":
-    case "mp4":
-    case "flv":
-      return "attachment";
-    default:
-      return "reference";
-  }
 }
 
 export class LibraryError extends Error {
@@ -173,36 +146,6 @@ function writeGrants(dataDir, grants) {
   writePrivateJson(join(dataDir, "project-grants.json"), grants);
 }
 
-/** 共享资料库授权：{directory, grantedAt}；文件不存在表示未授权。 */
-function readLibraryGrant(dataDir) {
-  const file = join(dataDir, LIBRARY_FILE);
-  if (!existsSync(file)) return null;
-  let value;
-  try {
-    value = JSON.parse(readFileSync(file, "utf8"));
-  } catch {
-    fail(500, "共享资料库授权文件读取失败；未授予任何资料权限");
-  }
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    typeof value.directory !== "string" ||
-    !isAbsolute(value.directory) ||
-    (value.grantedAt !== undefined && !Number.isInteger(value.grantedAt))
-  ) {
-    fail(500, "共享资料库授权文件格式无效；未授予任何资料权限");
-  }
-  return { directory: value.directory, grantedAt: value.grantedAt ?? null };
-}
-
-function writeLibraryGrant(dataDir, grant) {
-  writePrivateJson(join(dataDir, LIBRARY_FILE), {
-    directory: grant.directory,
-    grantedAt: grant.grantedAt,
-  });
-}
-
 export function validateResourceAction(dataDir, data, action) {
   if (action?.type !== "education" || action.command?.op !== "saveResource")
     return;
@@ -233,105 +176,6 @@ export class ProjectLibrary {
     const grants = this.grants().filter((g) => g.projectId !== id);
     if (directory) grants.push({ projectId: id, directory });
     writeGrants(this.dataDir, grants);
-  }
-  /** 共享资料库授权（用户只能从界面设置；助手/MCP 没有入口）。 */
-  libraryGrant() {
-    return readLibraryGrant(this.dataDir);
-  }
-  /**
-   * 共享资料库的状态投影：目录失联或不再安全时仍返回 200 + authorized:false，
-   * 让界面能显示「需要重新授权」，而不是把整个页面打挂。
-   */
-  libraryStatus() {
-    const grant = this.libraryGrant();
-    const profiles = this.engine.data.education.projects.filter((p) =>
-      this.engine.data.projects.some((x) => x.id === p.projectId),
-    );
-    if (!grant)
-      return {
-        authorized: false,
-        directory: null,
-        projects: 0,
-        sharedProjects: [],
-      };
-    try {
-      const directory = this.safeDirectory(grant.directory);
-      const grants = this.grants();
-      const sharedProjects = profiles
-        .filter((p) => {
-          const own = grants.find((g) => g.projectId === p.projectId);
-          return !own || own.directory === directory;
-        })
-        .map((p) => p.projectId);
-      return {
-        authorized: true,
-        directory,
-        projects: profiles.length,
-        sharedProjects,
-        grantedAt: grant.grantedAt,
-      };
-    } catch (error) {
-      if (!(error instanceof LibraryError)) throw error;
-      return {
-        authorized: false,
-        directory: grant.directory,
-        projects: 0,
-        sharedProjects: [],
-        reason: error.message,
-      };
-    }
-  }
-  /**
-   * 授权共享资料库。已有项目授权必须都在这个目录内：共享库是应试资料的
-   * 上界，项目单独授权只能收窄，不能借旧授权越过用户这次选择的边界。
-   */
-  authorizeLibrary(requested, now = Date.now()) {
-    const directory = this.safeDirectory(requested);
-    const outside = this.grants().filter(
-      (g) =>
-        this.engine.data.projects.some((p) => p.id === g.projectId) &&
-        !inside(g.directory, directory),
-    );
-    if (outside.length > 0) {
-      const names = outside
-        .map(
-          (g) =>
-            this.engine.data.projects.find((p) => p.id === g.projectId)?.name ??
-            g.projectId,
-        )
-        .join("、");
-      fail(
-        400,
-        `已有项目授权不在共享资料库内（${names}）；先把这些项目改到该目录内，或取消它们的单独授权`,
-      );
-    }
-    writeLibraryGrant(this.dataDir, {
-      directory,
-      grantedAt: Math.floor(now / 1000),
-    });
-    return this.libraryStatus();
-  }
-  /** 只取消共享授权；按项目的单独授权原样保留。 */
-  revokeLibrary() {
-    const file = join(this.dataDir, LIBRARY_FILE);
-    try {
-      unlinkSync(file);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-    return this.libraryStatus();
-  }
-  /** 已授权的共享资料库真实路径；未授权返回 null，失效则 403。 */
-  libraryRoot() {
-    const grant = this.libraryGrant();
-    if (!grant) return null;
-    try {
-      return this.safeDirectory(grant.directory);
-    } catch (error) {
-      if (error instanceof LibraryError)
-        fail(403, "共享资料库已失联或不再安全，请重新授权");
-      throw error;
-    }
   }
   /** 目录本身的硬性安全检查：绝对路径、非符号链接、目录，且不是根/主目录/应用数据目录。 */
   safeDirectory(requested) {
@@ -364,7 +208,7 @@ export class ProjectLibrary {
     this.validateOverlap(directory, projectId);
     return directory;
   }
-  /** 项目单独授权不能与别的项目重叠；共享库根目录是例外（见 bind/create）。 */
+  /** 每个项目独立授权，目录不能与别的项目重叠。 */
   validateOverlap(directory, projectId = null) {
     for (const grant of this.grants()) {
       if (
@@ -381,7 +225,6 @@ export class ProjectLibrary {
     this.project(id);
     const profile = this.profile(id);
     const grant = this.grants().find((g) => g.projectId === id);
-    const libraryRoot = this.libraryRoot();
     if (grant) {
       if (!profile || profile.directory !== grant.directory)
         fail(403, "项目目录尚未由用户授权，或绑定与授权不一致");
@@ -393,22 +236,15 @@ export class ProjectLibrary {
           fail(403, "项目目录已失联或不再安全，请重新授权");
         throw error;
       }
-      if (libraryRoot !== null && !inside(directory, libraryRoot))
-        fail(403, "项目目录不在共享资料库内，请重新授权");
       return directory;
     }
-    if (libraryRoot !== null) return libraryRoot;
     fail(403, "项目目录尚未由用户授权");
   }
   grantStatus(id) {
     this.project(id);
     try {
       const directory = this.mount(id);
-      let shared = false;
-      try {
-        shared = directory === this.libraryRoot();
-      } catch {}
-      return { projectId: id, authorized: true, directory, shared };
+      return { projectId: id, authorized: true, directory };
     } catch (error) {
       if (error instanceof LibraryError)
         return {
@@ -423,13 +259,7 @@ export class ProjectLibrary {
   bind(id, requested) {
     this.project(id);
     const directory = this.safeDirectory(requested);
-    const libraryRoot = this.libraryRoot();
-    // 选共享库根目录等于「使用共享库」：它本来就会覆盖所有项目授权，
-    // 不能再按「不同项目目录不能重叠」拒绝；也不落项目级授权，项目改名才不会动到整库。
-    const usesLibrary = libraryRoot !== null && directory === libraryRoot;
-    if (!usesLibrary) this.validateOverlap(directory, id);
-    if (libraryRoot !== null && !inside(directory, libraryRoot))
-      fail(400, "项目目录必须位于共享资料库内；如需该目录，请先更换共享资料库");
+    this.validateOverlap(directory, id);
     const old =
       this.grants().find((g) => g.projectId === id)?.directory ?? null;
     const profile = this.profile(id) ?? {
@@ -443,35 +273,64 @@ export class ProjectLibrary {
       pastPaperIds: [],
       mockPaperIds: [],
     };
-    this.putGrant(id, usesLibrary ? null : directory);
+    // 旧项目根下登记的路径（如 math/a.pdf）在改绑 math 子目录后
+    // 应变成 a.pdf；只转换新目录里确实存在的文件，保留 ID 与教学引用。
+    const oldRoot = profile.directory;
+    const prefix =
+      isAbsolute(oldRoot) && directory !== oldRoot && inside(directory, oldRoot)
+        ? relative(oldRoot, directory).split(sep).join("/") + "/"
+        : null;
+    const projectResources = this.engine.data.education.resources.filter(
+      (r) => r.projectId === id,
+    );
+    const rebased = [];
+    if (prefix) {
+      for (const resource of projectResources) {
+        if (!resource.path.startsWith(prefix)) continue;
+        const path = resource.path.slice(prefix.length);
+        const target = join(directory, ...path.split("/"));
+        try {
+          noSymlinks(target);
+          if (statSync(target).isFile()) rebased.push({ ...resource, path });
+        } catch {}
+      }
+    }
+    this.putGrant(id, directory);
     try {
       this.engine.applyAction({
         type: "education",
         command: { op: "saveProject", project: { ...profile, directory } },
       });
+      if (rebased.length > 0)
+        this.engine.applyAction({
+          type: "education",
+          command: { op: "saveResources", resources: rebased },
+        });
     } catch (error) {
       this.putGrant(id, old);
+      if (
+        isAbsolute(profile.directory) &&
+        profile.directory !== this.profile(id)?.directory
+      )
+        this.engine.applyAction({
+          type: "education",
+          command: { op: "saveProject", project: profile },
+        });
       throw error;
     }
-    return this.grantStatus(id);
+    let missing = 0;
+    const rebasedPaths = new Map(rebased.map((item) => [item.id, item.path]));
+    for (const resource of projectResources) {
+      try {
+        this.resolveFile(id, rebasedPaths.get(resource.id) ?? resource.path);
+      } catch {
+        missing += 1;
+      }
+    }
+    return { ...this.grantStatus(id), rebased: rebased.length, missing };
   }
   create({ name, color, directory }) {
-    const libraryRoot = this.libraryRoot();
-    let safe;
-    if (directory === undefined || directory === null || directory === "") {
-      if (libraryRoot === null)
-        fail(400, "请选择已存在的绝对目录；或先在应试教育页授权共享资料库");
-      safe = libraryRoot;
-    } else {
-      safe = this.safeDirectory(directory);
-      const usesLibrary = libraryRoot !== null && safe === libraryRoot;
-      if (!usesLibrary) this.validateOverlap(safe, null);
-      if (libraryRoot !== null && !inside(safe, libraryRoot))
-        fail(
-          400,
-          "项目目录必须位于共享资料库内；如需该目录，请先更换共享资料库",
-        );
-    }
+    const safe = this.validateDirectory(directory);
     const before = new Set(this.engine.data.projects.map((p) => p.id));
     this.engine.applyAction({
       type: "saveProject",
@@ -483,7 +342,7 @@ export class ProjectLibrary {
     const project = this.engine.data.projects.find((p) => !before.has(p.id));
     if (!project) fail(500, "项目创建失败");
     try {
-      if (safe !== libraryRoot) this.putGrant(project.id, safe);
+      this.putGrant(project.id, safe);
     } catch (error) {
       try {
         this.engine.applyAction({ type: "deleteProject", id: project.id });
@@ -495,12 +354,6 @@ export class ProjectLibrary {
   rename(id, { name, color }) {
     const project = this.project(id);
     const old = this.mount(id);
-    const libraryRoot = this.libraryRoot();
-    if (libraryRoot !== null && old === libraryRoot)
-      fail(
-        400,
-        "共享资料库本身不能通过项目改名移动；请先为项目单独授权一个子目录",
-      );
     if (
       typeof name !== "string" ||
       !name ||
@@ -576,40 +429,23 @@ export class ProjectLibrary {
     if (!info.isFile()) fail(400, "资源路径不是普通文件");
     return { path: target, sizeBytes: info.size };
   }
-  /**
-   * 共享库里的相对路径：与项目资料共用 safeRelative/noSymlinks/inside 规则，
-   * 但不要求项目 ID——索引浏览的是整个共享库，不是某个项目的收窄目录。
-   */
-  resolveLibraryPath(path) {
-    const root = this.libraryRoot();
-    if (root === null) fail(403, "共享资料库尚未授权");
-    const target = join(root, ...safeRelative(path).split("/"));
-    try {
-      noSymlinks(target, true);
-    } catch (error) {
-      if (error instanceof LibraryError) throw error;
-      fail(403, "资料库路径不可访问");
-    }
-    if (!inside(target, root)) fail(400, "资料路径越出共享资料库");
+  /** UI 多文件/目录上传保留相对路径，目录只在当前项目根内创建。 */
+  uploadPath(projectId, path) {
+    const relativePath = safeRelative(path);
+    if (
+      relativePath
+        .split("/")
+        .some((part) => part.startsWith(".") || part === "node_modules")
+    )
+      fail(400, "不导入隐藏目录、隐藏文件或 node_modules");
+    const target = this.resolvePath(projectId, relativePath);
+    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+    noSymlinks(target, true);
     return target;
   }
-
-  resolveLibraryFile(path) {
-    const target = this.resolveLibraryPath(path);
-    let info;
-    try {
-      info = statSync(target);
-    } catch (error) {
-      if (error.code === "ENOENT") fail(404, "资料文件不存在");
-      throw error;
-    }
-    if (!info.isFile()) fail(400, "资料路径不是普通文件");
-    return { path: target, sizeBytes: info.size };
-  }
-
-  /** 共享库文件的预览元数据；预览上限与项目资源一致（20 MiB）。 */
-  libraryFileMetadata(path) {
-    const file = this.resolveLibraryFile(path);
+  /** 项目索引文件的预览元数据；同样走项目目录路径校验。 */
+  fileMetadata(projectId, path) {
+    const file = this.resolveFile(projectId, path);
     const extension = basename(file.path).split(".").at(-1).toLowerCase();
     const mimeType = mimeTypeFor(extension);
     return {
@@ -739,71 +575,24 @@ export class ProjectLibrary {
    * 4,821 次（每次都是整份原子写）；core 的 saveResources 让整批只落一次盘。
    * 直接读索引而不是重新遍历目录：索引是刚扫过的快照，文件在不在由它负责。
    *
-   * `paths` 省略时按「顶层目录 → 项目」的映射取该项目对应的目录；显式传 paths
-   * 时只登记这些路径（仍要求它们出现在索引里）。
+   * 每个索引只包含当前项目授权目录，paths 始终是项目相对路径。
    */
   importFromIndex(projectId, { paths = null, max = 5000 } = {}) {
     this.project(projectId);
     const root = this.mount(projectId);
-    const index = readIndex(this.dataDir);
+    const index = readIndex(this.dataDir, projectId);
     if (!index || !Array.isArray(index.items))
-      fail(409, "资料库索引尚未建立，请先扫描");
-
-    // 索引永远相对共享库根；项目可能只授权了库里的一个子目录（例如
-    // /exam/math）。这种情况下把索引路径的前缀剥掉再存，因为 resolveFile
-    // 是以项目挂载点为基准解析的。
-    const libraryRoot = this.libraryRoot();
-    const indexRoot = libraryRoot ?? root;
-    if (index.root !== indexRoot)
-      fail(409, "资料库索引属于另一个目录，请重新扫描");
-    let prefix = "";
-    if (libraryRoot !== null && root !== libraryRoot) {
-      const relativePath = relative(libraryRoot, root);
-      if (relativePath.startsWith(".."))
-        fail(403, "项目目录不在共享资料库内，无法按索引导入");
-      prefix = relativePath.split(sep).filter(Boolean).join("/");
-    }
-    const strip = (path) =>
-      prefix === ""
-        ? path
-        : path === prefix
-          ? ""
-          : path.startsWith(prefix + "/")
-            ? path.slice(prefix.length + 1)
-            : null;
-
-    let candidates = [];
-    for (const item of index.items) {
-      const local = strip(item.path);
-      if (local === null || local === "") continue;
-      candidates.push({ ...item, path: local });
-    }
+      fail(409, "项目资料索引尚未建立，请先扫描");
+    if (index.root !== root)
+      fail(409, "项目资料索引属于另一个目录，请重新扫描");
+    let candidates = index.items;
     if (Array.isArray(paths)) {
-      // 显式路径按索引里的写法（相对共享库根）；也接受已剥前缀的项目相对
-      // 路径，方便前端把当前列表原样回传。
       const wanted = new Set(
         paths.filter((p) => typeof p === "string" && p !== ""),
       );
       if (wanted.size === 0) fail(400, "请选择要登记的资料");
-      candidates = candidates.filter(
-        (item) =>
-          wanted.has(prefix === "" ? item.path : `${prefix}/${item.path}`) ||
-          wanted.has(item.path),
-      );
+      candidates = candidates.filter((item) => wanted.has(item.path));
       if (candidates.length === 0) fail(404, "有资料不在索引中，请先重新扫描");
-    } else if (prefix === "") {
-      const tops = [
-        ...new Set(
-          index.items.map((item) => item.path.split("/")[0]).filter(Boolean),
-        ),
-      ];
-      const matched = topLevelsForProject(this.project(projectId), tops);
-      if (matched !== null) {
-        const allowed = new Set(matched);
-        candidates = candidates.filter((item) =>
-          allowed.has(item.path.split("/")[0]),
-        );
-      }
     }
 
     const existing = new Map(
@@ -826,7 +615,7 @@ export class ProjectLibrary {
         id: randomUUID(),
         projectId,
         title: item.name.replace(/\.[^.]+$/, "") || item.name,
-        kind: kindForExtension(item.ext),
+        kind: "reference",
         path: item.path,
         source: "",
         edition: "",

@@ -5,25 +5,24 @@
 // - 写端点 POST /api/dispatch（UI 数据面，body {action}）与旧写端点
 //   POST/PATCH /api/tasks*、/api/focus*、/api/tasks/move：同 Origin 白名单
 //   （无 Origin 的非浏览器客户端放行；有 Origin 且不在白名单 → 403）。
-// - 资料目录授权：GET /api/library/grant、POST /api/library/authorize、
-//   DELETE /api/library/grant，仅供界面用户操作；不暴露 MCP/助手入口
-//   （目录授权只能由用户设置）。
-// - 资料库索引：POST /api/library/scan、GET /api/library/items、/stats、/file。
-//   索引是数据目录里的独立文件，不是计划/备份，也不等于 education.resources；
-//   浏览/搜索走索引，只有真正引用某份资料时才登记。
+// - 项目资料目录：每个项目独立授权，并在该项目下扫描、浏览、导入。
+//   索引不进计划/备份；用户导入或教学引用时才登记到 education.resources。
 // - /mcp：Streamable HTTP 桩（POST JSON-RPC），Bearer token 认证（数据目录
 //   agent/connection.json），拒绝任何带 Origin 的请求；GET/SSE 未实现。
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
-import { relative, sep } from "node:path";
+import { pipeline } from "node:stream/promises";
 import {
   createReadStream,
+  createWriteStream,
   fstatSync,
   openSync,
   closeSync,
+  unlinkSync,
   constants,
 } from "node:fs";
 import { gzipSync } from "node:zlib";
+import { join } from "node:path";
 import { mcpMethod, safeEqual } from "./mcp.mjs";
 import { listApps } from "./apps.mjs";
 import { GuardClient } from "./guard-client.ts";
@@ -39,13 +38,23 @@ import {
   scanLibrary,
   searchIndex,
   summarize,
-  topLevelOf,
-  topLevelsForProject,
   writeIndex,
 } from "./library-index.mjs";
 
 export const UI_ORIGIN = "http://127.0.0.1:3080";
 export const DEFAULT_PORT = 43987;
+
+/** 共享库已退役；旧授权和索引都不再被任何项目读取。 */
+function retireSharedLibraryFiles(dataDir) {
+  for (const name of ["library-grant.json", "library-index.json"]) {
+    try {
+      unlinkSync(join(dataDir, name));
+    } catch (error) {
+      if (error.code !== "ENOENT")
+        console.error("清理退役共享库文件失败：", name, error.message);
+    }
+  }
+}
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const MAX_BODY = 1024 * 1024;
@@ -246,23 +255,18 @@ function sendResourceFile(req, res, url, library, id, fileToken) {
   return sendFile(req, res, file, url.searchParams.get("download") === "1");
 }
 
-/** 真正发文件前先核对索引与授权根；路径校验仍走 ProjectLibrary 的共享规则。 */
-function currentLibraryIndex(library) {
-  let root;
-  try {
-    root = library.libraryRoot();
-  } catch (error) {
-    if (error instanceof LibraryError)
-      return { authorized: false, root: null, index: null };
-    throw error;
-  }
-  if (root === null) return { authorized: false, root: null, index: null };
+/** 索引只属于当前项目的当前授权目录。 */
+function currentProjectIndex(library, projectId) {
+  const grant = library.grantStatus(projectId);
+  if (!grant.authorized)
+    return { authorized: false, root: null, index: null, reason: grant.reason };
+  const root = grant.directory;
   let index;
   try {
-    index = readIndex(library.dataDir);
+    index = readIndex(library.dataDir, projectId);
   } catch (error) {
     if (!(error instanceof LibraryError)) throw error;
-    console.error("library index:", error.message);
+    console.error("project library index:", error.message);
     return {
       authorized: true,
       root,
@@ -276,25 +280,59 @@ function currentLibraryIndex(library) {
   return { authorized: true, root, index };
 }
 
-function sendLibraryFile(req, res, url, library, fileToken) {
+function sendProjectFile(req, res, url, library, projectId, fileToken) {
   ensureFileToken(url, fileToken);
   const path = url.searchParams.get("path") ?? "";
   if (path === "") throw new HttpError(400, "缺少资料路径");
-  // 先做共享库路径校验：..、绝对路径、符号链接都在这里被拒。
-  const file = library.libraryFileMetadata(path);
-  const current = currentLibraryIndex(library);
+  const current = currentProjectIndex(library, projectId);
   if (!current.authorized)
-    throw new HttpError(403, "共享资料库尚未授权或已失联");
+    throw new HttpError(403, "项目资料目录尚未授权或已失联");
   if (current.index === null)
     throw new HttpError(
       409,
       current.stale
-        ? "资料库索引属于另一个目录，请重新扫描"
-        : "尚未生成资料库索引，请先扫描",
+        ? "项目资料索引属于另一个目录，请重新扫描"
+        : "尚未生成项目资料索引，请先扫描",
     );
+  library.resolvePath(projectId, path);
   if (!current.index.items.some((item) => item.path === path))
-    throw new HttpError(404, "资料不在资料库索引中");
+    throw new HttpError(404, "资料不在项目索引中");
+  const file = library.fileMetadata(projectId, path);
   return sendFile(req, res, file, url.searchParams.get("download") === "1");
+}
+
+/** 将浏览器选中的原件直接流式写入项目目录，避免经 JSON/Base64 复制大文件。 */
+async function uploadProjectFile(req, res, url, library, projectId) {
+  const relativePath = url.searchParams.get("path") ?? "";
+  const path = library.uploadPath(projectId, relativePath);
+  let fd;
+  try {
+    fd = openSync(
+      path,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_NOFOLLOW,
+      0o600,
+    );
+  } catch (error) {
+    if (error.code === "EEXIST")
+      throw new LibraryError(409, "项目目录已有同名文件，不会覆盖");
+    throw error;
+  }
+  let sizeBytes = 0;
+  req.on("data", (chunk) => {
+    sizeBytes += chunk.length;
+  });
+  try {
+    await pipeline(req, createWriteStream(null, { fd, autoClose: true }));
+  } catch (error) {
+    try {
+      unlinkSync(path);
+    } catch {}
+    throw error;
+  }
+  return sendApi(res, 201, { projectId, path: relativePath, sizeBytes });
 }
 
 async function handleMcp(req, res, { engine, token }) {
@@ -393,6 +431,11 @@ export function projectUiState(
 ) {
   const data = { ...state.data };
   if (!full) delete data.identities;
+  const resourceCounts = Object.create(null);
+  for (const resource of data.education.resources) {
+    const id = resource.projectId;
+    resourceCounts[id] = (resourceCounts[id] ?? 0) + 1;
+  }
   if (education !== "full") {
     const resources =
       education === "lite"
@@ -402,7 +445,9 @@ export function projectUiState(
             return out;
           })
         : [];
-    data.education = { ...data.education, resources };
+    data.education = { ...data.education, resources, resourceCounts };
+  } else {
+    data.education = { ...data.education, resourceCounts };
   }
   return { ...state, data };
 }
@@ -515,22 +560,22 @@ function indexItemView(item) {
   };
 }
 
-function libraryStatsView(library) {
-  const status = library.libraryStatus();
-  const current = currentLibraryIndex(library);
+function projectStatsView(library, projectId) {
+  const current = currentProjectIndex(library, projectId);
   return {
-    authorized: status.authorized === true,
-    directory: status.directory ?? null,
+    projectId,
+    authorized: current.authorized,
+    directory: current.root,
     hasIndex: current.index !== null,
     ...(current.stale ? { stale: true } : {}),
     ...(current.corrupt ? { reason: current.reason } : {}),
-    ...(status.reason ? { reason: status.reason } : {}),
+    ...(!current.corrupt && current.reason ? { reason: current.reason } : {}),
     ...summarize(current.index),
   };
 }
 
 async function handleApi(req, res, url, ctx) {
-  const { engine, guard, syncGuard, library, fileToken, scanLibraryIndex } =
+  const { engine, guard, syncGuard, library, fileToken, scanProjectIndex } =
     ctx;
   const path = url.pathname;
   const now = () => Math.floor(Date.now() / 1000);
@@ -565,68 +610,33 @@ async function handleApi(req, res, url, ctx) {
     match = /^\/api\/projects\/([^/]+)\/grant$/.exec(path);
     if (match)
       return sendApi(res, 200, library.grantStatus(decodeId(match[1])));
-    if (path === "/api/library/grant")
-      return sendApi(res, 200, library.libraryStatus());
-    if (path === "/api/library/stats")
-      return sendApi(res, 200, libraryStatsView(library));
-    if (path === "/api/library/items") {
-      const current = currentLibraryIndex(library);
-      const projectId = url.searchParams.get("projectId");
-      let tops = null;
-      let prefix = "";
-      let matchedDirs = [];
-      if (projectId !== null && projectId !== "") {
-        const project = library.project(projectId);
-        // 优先用「项目挂载点相对库根的前缀」；这才是导入时真正使用的范围。
-        // 只有项目目录不在共享库内（或没有共享库）时才退回按名称匹配顶层目录。
-        const mounted = library.grantStatus(projectId);
-        const libraryRoot = library.libraryStatus().directory;
-        if (
-          mounted.authorized &&
-          libraryRoot &&
-          mounted.directory !== libraryRoot
-        ) {
-          try {
-            const rel = relative(libraryRoot, mounted.directory);
-            if (!rel.startsWith("..")) prefix = rel.split(sep).join("/");
-          } catch {
-            prefix = "";
-          }
-        }
-        if (prefix === "") {
-          const topLevels = [
-            ...new Set(
-              (current.index?.items ?? []).map((item) => topLevelOf(item.path)),
-            ),
-          ];
-          matchedDirs = topLevelsForProject(project, topLevels) ?? [];
-          if (matchedDirs.length > 0) tops = matchedDirs;
-        } else {
-          matchedDirs = prefix.split("/").filter(Boolean).slice(0, 1);
-        }
-      }
+    match = /^\/api\/projects\/([^/]+)\/library\/(stats|items|file)$/.exec(
+      path,
+    );
+    if (match) {
+      const projectId = decodeId(match[1]);
+      if (match[2] === "stats")
+        return sendApi(res, 200, projectStatsView(library, projectId));
+      if (match[2] === "file")
+        return sendProjectFile(req, res, url, library, projectId, fileToken);
+      const current = currentProjectIndex(library, projectId);
       const result = searchIndex(current.index, {
         q: url.searchParams.get("q") ?? "",
         kind: url.searchParams.get("kind") ?? "",
         offset: Number(url.searchParams.get("offset") ?? 0),
         limit: Number(url.searchParams.get("limit") ?? 40),
-        tops,
-        prefix,
       });
       return sendApi(res, 200, {
+        projectId,
         authorized: current.authorized === true,
         hasIndex: current.index !== null,
         ...(current.stale ? { stale: true } : {}),
-        filtered: tops !== null || prefix !== "",
-        matchedDirs,
         total: result.total,
         offset: result.offset,
         limit: result.limit,
         items: result.items.map(indexItemView),
       });
     }
-    if (path === "/api/library/file")
-      return sendLibraryFile(req, res, url, library, fileToken);
     match = /^\/api\/projects\/([^/]+)\/resources\/scan$/.exec(path);
     if (match) return sendApi(res, 200, library.scan(decodeId(match[1])));
     match = /^\/api\/projects\/([^/]+)\/resources$/.exec(path);
@@ -700,29 +710,12 @@ async function handleApi(req, res, url, ctx) {
   }
 
   ensureWriteOrigin(req);
-  if (method === "POST" && path === "/api/library/authorize") {
-    const body = await parseJson(req);
-    const status = library.authorizeLibrary(body.directory, Date.now());
-    sendApi(res, 200, status);
-    // 授权成功后异步建立索引：失败只记日志，不影响这次授权的响应。
-    // 同一时刻只跑一次扫描；并发请求等待同一份结果，换目录时排队补扫。
-    const pending = scanLibraryIndex({ afterCurrent: true });
-    if (pending)
-      pending.catch((error) =>
-        console.error(
-          "library scan after authorize failed:",
-          error?.message ?? error,
-        ),
-      );
-    return;
-  }
-  if (method === "POST" && path === "/api/library/scan") {
-    // 第二次请求不重扫：等第一次的结果，返回同一个 scannedAt 摘要。
-    return sendApi(res, 200, await scanLibraryIndex());
-  }
-  if (method === "DELETE" && path === "/api/library/grant") {
-    return sendApi(res, 200, library.revokeLibrary());
-  }
+  const scanMatch = /^\/api\/projects\/([^/]+)\/library\/scan$/.exec(path);
+  if (method === "POST" && scanMatch)
+    return sendApi(res, 200, await scanProjectIndex(decodeId(scanMatch[1])));
+  const uploadMatch = /^\/api\/projects\/([^/]+)\/files$/.exec(path);
+  if (method === "POST" && uploadMatch)
+    return uploadProjectFile(req, res, url, library, decodeId(uploadMatch[1]));
   if (method === "POST" && path === "/api/projects") {
     const result = library.create(await parseJson(req));
     return sendApi(res, 201, result);
@@ -850,6 +843,7 @@ export async function startServer({
   version,
   guardClient = null,
 }) {
+  retireSharedLibraryFiles(dataDir);
   // guardClient 仅测试注入用：避免在真实桌面上误发锁屏命令。
   const guard = guardClient ?? GuardClient.fromDataDir(dataDir);
   const syncGuard = createGuardSync(engine, guard);
@@ -857,22 +851,17 @@ export async function startServer({
   const fileToken = randomBytes(24).toString("hex");
   const startedAt = Date.now();
 
-  // 同一时刻只跑一次扫描：并发请求等待同一个 Promise（拿到同一份结果与
-  // scannedAt），而不是各自再遍历一遍大目录、把索引写乱。
-  let scanPromise = null;
-  const scanLibraryIndex = ({ afterCurrent = false } = {}) => {
-    if (scanPromise !== null) {
-      // 授权可能发生在旧目录扫描途中：等旧扫描收尾后再扫一次新根，
-      // 而不是把旧结果当成新授权目录的索引。
-      if (!afterCurrent) return scanPromise;
-      return scanPromise.catch(() => {}).then(() => scanLibraryIndex());
-    }
+  // 同一项目的并发扫描共享 Promise；不同项目互不阻塞。
+  const scans = new Map();
+  const scanProjectIndex = (projectId) => {
+    if (scans.has(projectId)) return scans.get(projectId);
     const scanStartedAt = Date.now();
-    scanPromise = (async () => {
-      const root = library.libraryRoot();
-      if (root === null) throw new LibraryError(403, "共享资料库尚未授权");
+    const pending = (async () => {
+      const root = library.mount(projectId);
       const index = await scanLibrary(root);
-      writeIndex(dataDir, index);
+      if (library.mount(projectId) !== root)
+        throw new LibraryError(409, "项目资料目录已更换，请重新扫描");
+      writeIndex(dataDir, projectId, index);
       return {
         ...summarize(index),
         hasIndex: true,
@@ -880,15 +869,9 @@ export async function startServer({
         truncated: index.truncated === true,
       };
     })();
-    scanPromise.then(
-      () => {
-        scanPromise = null;
-      },
-      () => {
-        scanPromise = null;
-      },
-    );
-    return scanPromise;
+    scans.set(projectId, pending);
+    pending.finally(() => scans.delete(projectId)).catch(() => {});
+    return pending;
   };
   const server = createServer((req, res) => {
     let url;
@@ -926,7 +909,7 @@ export async function startServer({
             syncGuard,
             library,
             fileToken,
-            scanLibraryIndex,
+            scanProjectIndex,
           });
         }
         send(res, 404, { error: "Not found" });

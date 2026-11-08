@@ -16,13 +16,13 @@ GitHub 持续集成与标签发布。
 
 | Dir        | Domain | Depends On                                 | Purpose                                                                       |
 | ---------- | ------ | ------------------------------------------ | ----------------------------------------------------------------------------- |
-| workflows/ | 构建   | GitHub Actions、Linux/Windows/macOS runner | 推送/PR 验证与 v* 标签发布                                                    |
+| workflows/ | 构建   | GitHub Actions、Linux runner | 推送/PR 验证与 v* 标签发布                                                    |
 | releases/  | 构建   | 版本标签                                   | 每个 tag 一份发布说明，由发布工作流按标签读取；文件索引见 releases/CODEMAP.md |
 
 ## 文件
 
 | File                  | Domain | Function                                                                                                                      |
 | --------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| workflows/ci.yml      | 构建   | Linux 上跑 core/runtime 测试、prettier 只检查、迁移自测、客户端构建冒烟与手册结构，并完整构建 guard；Windows/macOS 矩阵对 guard 做类型检查 |
+| workflows/ci.yml      | 构建   | main 的 push/PR（含文档）、每周与手动触发；Node 格式/类型/测试/入库产物同步检查，Linux guard 构建测试与 tarball 安装验证 |
 | workflows/market-pages.yml | 构建   | 把 `market/`（插件市场索引 + 图标）发布到 GitHub Pages；索引地址 `https://<owner>.github.io/<repo>/index.json` |
 | workflows/release.yml | 构建   | 打 DSH 插件形态的 Linux tarball（runtime bin/src/vendor + guard + plugin + 安装脚本，x86_64/aarch64），发布 Release；可选推 AUR -bin |

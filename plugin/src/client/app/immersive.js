@@ -216,11 +216,13 @@ function useNow(active) {
   return now;
 }
 
-/** 沉浸层是「夜读」的暗暖色：纸色压暗一档，仍与皮肤同源。 */
-const INK = "#fbf3e6";
-const INK_2 = "#c9b7a1";
-const INK_3 = "#8f7d6b";
-const HAIRLINE = "#ffffff12";
+/** 沉浸层沿用皮肤变量，DSH 与 Todo 的主题切换无需重新挂载。 */
+const INK = "var(--tomato-ink)";
+const INK_2 = "var(--tomato-ink-2)";
+const INK_3 = "var(--dsw-alias-label-tertiary, var(--tomato-ink-2))";
+const HAIRLINE = "var(--tomato-line)";
+const SOFT_FILL = "color-mix(in srgb, var(--tomato-ink) 5%, transparent)";
+const FAINT_FILL = "color-mix(in srgb, var(--tomato-ink) 4%, transparent)";
 
 // ------------------------------------------------------------ 结束确认（2b）
 
@@ -960,7 +962,7 @@ export function Immersive() {
         justifyContent: "center",
         overflow: "hidden",
         background:
-          "radial-gradient(120% 120% at 50% -18%, #3a2a20 0%, #251b14 46%, #16100c 100%)",
+          "radial-gradient(120% 120% at 50% -18%, var(--tomato-immersive-top) 0%, var(--tomato-immersive-middle) 46%, var(--tomato-immersive-bottom) 100%)",
         color: INK,
       },
     },
@@ -976,7 +978,8 @@ export function Immersive() {
         height: "74vmax",
         borderRadius: "50%",
         pointerEvents: "none",
-        background: "radial-gradient(circle, #e8886c14 0%, #e8886c00 62%)",
+        background:
+          "radial-gradient(circle, color-mix(in srgb, var(--tomato-brand) 8%, transparent) 0%, transparent 62%)",
         filter: "blur(30px)",
         animation: "t-breathe 9s ease-in-out infinite",
       },
@@ -992,7 +995,8 @@ export function Immersive() {
         height: "66vmax",
         borderRadius: "50%",
         pointerEvents: "none",
-        background: "radial-gradient(circle, #f3d9c80d 0%, #f3d9c800 60%)",
+        background:
+          "radial-gradient(circle, color-mix(in srgb, var(--tomato-accent) 5%, transparent) 0%, transparent 60%)",
         filter: "blur(36px)",
         animation: "t-breathe 13s ease-in-out infinite 1.6s",
       },
@@ -1008,14 +1012,15 @@ export function Immersive() {
           right: 0,
           bottom: 0,
           height: 2,
-          background: "#ffffff0a",
+          background: FAINT_FILL,
         },
       },
       h("div", {
         style: {
           height: "100%",
           width: `${progress * 100}%`,
-          background: "#e8886c66",
+          background:
+            "color-mix(in srgb, var(--tomato-brand) 40%, transparent)",
           transition: "width 1s linear",
         },
       }),
@@ -1035,10 +1040,10 @@ export function Immersive() {
           padding: "7px 15px",
           borderRadius: 22,
           border: `1px solid ${HAIRLINE}`,
-          background: "#ffffff0d",
+          background: SOFT_FILL,
           fontSize: 12,
           letterSpacing: ".02em",
-          color: "#e8d8c2",
+          color: INK_2,
           maxWidth: "calc(100vw - 120px)",
           whiteSpace: "nowrap",
         },
@@ -1087,8 +1092,8 @@ export function Immersive() {
             fontWeight: 250,
             letterSpacing: "-.035em",
             lineHeight: 1,
-            color: view.paused ? "#cbbca8" : INK,
-            textShadow: "0 8px 40px #00000059",
+            color: view.paused ? INK_2 : INK,
+            textShadow: "0 8px 40px var(--tomato-immersive-number-shadow)",
             transition: "color .4s ease",
             fontVariantNumeric: "tabular-nums",
           },
@@ -1106,7 +1111,7 @@ export function Immersive() {
                 padding: "5px 13px",
                 borderRadius: 18,
                 border: `1px solid ${HAIRLINE}`,
-                background: "#ffffff0d",
+                background: SOFT_FILL,
                 fontSize: 12,
                 color: INK_2,
               },
@@ -1262,7 +1267,7 @@ export function Immersive() {
                 size: "sm",
                 variant: "plain",
                 style: {
-                  color: "#d8b7a2",
+                  color: "var(--tomato-accent-fg)",
                   background: "transparent",
                   border: `1px solid ${HAIRLINE}`,
                 },
@@ -1325,7 +1330,7 @@ export function Immersive() {
           style: {
             color: INK_2,
             border: `1px solid ${HAIRLINE}`,
-            background: "#ffffff0a",
+            background: FAINT_FILL,
             borderRadius: 12,
           },
           onClick: closeImmersive,

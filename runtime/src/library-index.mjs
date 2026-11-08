@@ -1,10 +1,10 @@
-// 共享资料库的文件索引：只回答「授权目录里有什么」，不回答「教学记录引用了什么」。
+// 项目目录的文件索引：只回答「授权目录里有什么」，不回答「教学记录引用了什么」。
 //
 // 为什么需要独立一层：真实资料库有近五千个文件，逐个 education.saveResource
 // 登记会让 plan.json 每次写盘都重写整份、每份快照都序列化；而 Resource.kind
 // 是固定枚举，靠扩展名自动猜类型必然猜错。索引放在数据目录的独立 JSON 里，
-// 不进计划、不进备份；只有真正引用某份资料时才登记一条 Resource。
-import { randomUUID } from "node:crypto";
+// 不进计划、不进备份；批量登记时先用中性的 reference 类型，之后按用途整理。
+import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   lstatSync,
@@ -19,7 +19,7 @@ import {
 import { isAbsolute, join } from "node:path";
 import { LibraryError } from "./project-library.mjs";
 
-export const INDEX_FILE = "library-index.json";
+export const INDEX_DIR = "project-library-indexes";
 export const DEFAULT_MAX_ENTRIES = 50_000;
 export const DEFAULT_MAX_MS = 30_000;
 export const INDEX_KINDS = ["pdf", "image", "audio", "video", "doc", "other"];
@@ -63,45 +63,6 @@ const EXT_GROUPS = {
   ],
 };
 
-/** 已知目录名与项目名的对照；匹配不靠猜，按显式别名表收窄。 */
-const DIRECTORY_ALIASES = [
-  {
-    key: "math",
-    aliases: [
-      "math",
-      "mathematics",
-      "数学",
-      "数学一",
-      "数学二",
-      "数学三",
-      "高等数学",
-      "高数",
-      "考研数学",
-    ],
-  },
-  {
-    key: "eng",
-    aliases: ["eng", "english", "英语", "英语一", "英语二", "考研英语"],
-  },
-  {
-    key: "politics",
-    aliases: ["politics", "政治", "考研政治", "思想政治"],
-  },
-  {
-    key: "408",
-    aliases: ["408", "计算机", "计算机学科专业基础", "计算机统考"],
-  },
-  {
-    key: "教学安排",
-    aliases: ["教学安排", "教学计划", "课程安排", "排课"],
-  },
-];
-
-const normalizeName = (value) =>
-  String(value ?? "")
-    .toLocaleLowerCase()
-    .replace(/[\s_\-·.()（）[\]【】,，、/\\]+/g, "");
-
 const yieldToLoop = () => new Promise((resolve) => setImmediate(resolve));
 
 function extensionOf(name) {
@@ -126,50 +87,6 @@ export function groupForExtension(ext) {
     if (extensions.includes(value)) return group;
   }
   return "other";
-}
-
-/** 把顶层目录与项目 name 做最佳匹配；返回 0 表示不确定，不参与过滤。 */
-export function directoryMatchScore(directory, projectName) {
-  const dir = normalizeName(directory);
-  const name = normalizeName(projectName);
-  if (!dir || !name) return 0;
-  if (dir === name) return 100;
-  let best = 0;
-  for (const group of DIRECTORY_ALIASES) {
-    const aliases = group.aliases.map(normalizeName);
-    if (!aliases.some((alias) => dir === alias || dir.includes(alias)))
-      continue;
-    if (aliases.some((alias) => name.includes(alias)))
-      best = Math.max(best, 80);
-  }
-  if (dir.includes(name) || name.includes(dir)) {
-    best = Math.max(best, 60 + Math.min(dir.length, name.length));
-  }
-  return best;
-}
-
-/** 单个目录名 → 最佳项目；调用方可用来核对「这个名字属于哪个项目」。 */
-export function matchTopLevelToProject(directory, projects) {
-  let best = null;
-  for (const project of Array.isArray(projects) ? projects : []) {
-    const name = typeof project === "string" ? project : project?.name;
-    const score = directoryMatchScore(directory, name);
-    if (score > 0 && (best === null || score > best.score))
-      best = { project, score };
-  }
-  return best ? best.project : null;
-}
-
-/**
- * 项目 → 应展示的顶层目录列表。匹配不到返回 null，语义是「不过滤，
- * 全部可见」——宁可在项目页看到全部资料，也不要把资料藏起来。
- */
-export function topLevelsForProject(project, topLevels) {
-  const name = typeof project === "string" ? project : project?.name;
-  const matched = (Array.isArray(topLevels) ? topLevels : []).filter(
-    (top) => directoryMatchScore(top, name) > 0,
-  );
-  return matched.length > 0 ? matched : null;
 }
 
 function isSafeRelative(value) {
@@ -307,14 +224,21 @@ export async function scanLibrary(root, opts = {}) {
   };
 }
 
-/** 索引文件位置；所有读写都只认这个文件名。 */
-export function indexFile(dataDir) {
-  return join(dataDir, INDEX_FILE);
+/** 项目 ID 只用于哈希文件名，不能拼进用户目录路径。 */
+export function indexFile(dataDir, projectId) {
+  if (
+    typeof projectId !== "string" ||
+    projectId.length === 0 ||
+    projectId.length > 200
+  )
+    throw new LibraryError(400, "项目 ID 无效");
+  const name = createHash("sha256").update(projectId).digest("hex") + ".json";
+  return join(dataDir, INDEX_DIR, name);
 }
 
 /** 读索引；不存在返回 null，损坏或形状不对按 500 拒绝（让用户重新扫描）。 */
-export function readIndex(dataDir) {
-  const file = indexFile(dataDir);
+export function readIndex(dataDir, projectId) {
+  const file = indexFile(dataDir, projectId);
   let raw;
   try {
     raw = readFileSync(file, "utf8");
@@ -346,7 +270,7 @@ export function readIndex(dataDir) {
 }
 
 /** 0600、同目录临时文件 + rename 原子替换；索引永不进计划/备份。 */
-export function writeIndex(dataDir, index) {
+export function writeIndex(dataDir, projectId, index) {
   if (
     !index ||
     typeof index !== "object" ||
@@ -364,8 +288,8 @@ export function writeIndex(dataDir, index) {
     count: index.items.length,
     items: index.items,
   };
-  mkdirSync(dataDir, { recursive: true });
-  const file = indexFile(dataDir);
+  const file = indexFile(dataDir, projectId);
+  mkdirSync(join(dataDir, INDEX_DIR), { recursive: true });
   const temp = file + ".tmp-" + process.pid + "-" + randomUUID();
   try {
     writeFileSync(temp, JSON.stringify(value, null, 2), {
@@ -415,11 +339,11 @@ export function summarize(index) {
 
 /**
  * 索引内分页搜索。`kind` 既接受分组（pdf/image/audio/video/doc/other），
- * 也接受单个扩展名（如 docx）；`tops` 是项目视图的可选顶层目录过滤。
+ * 也接受单个扩展名（如 docx）。
  */
 export function searchIndex(
   index,
-  { q = "", kind = "", offset = 0, limit = 40, tops = null, prefix = "" } = {},
+  { q = "", kind = "", offset = 0, limit = 40 } = {},
 ) {
   if (
     !Number.isInteger(offset) ||
@@ -432,21 +356,8 @@ export function searchIndex(
   }
   const needle = String(q).trim().toLocaleLowerCase();
   const wanted = String(kind).trim().toLocaleLowerCase();
-  const topSet = Array.isArray(tops) ? new Set(tops) : null;
   const matched = [];
-  const prefixBase = String(prefix ?? "")
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
   for (const item of Array.isArray(index?.items) ? index.items : []) {
-    if (topSet !== null && !topSet.has(topLevelOf(item.path))) continue;
-    // 项目只授权库内子目录时，列表必须和导入用同一个前缀判据，否则会出现
-    // 「列表显示整库、导入只进子目录」这种自相矛盾的计数。
-    if (
-      prefixBase !== "" &&
-      item.path !== prefixBase &&
-      !item.path.startsWith(prefixBase + "/")
-    )
-      continue;
     if (wanted !== "") {
       if (INDEX_KINDS.includes(wanted)) {
         if (groupForExtension(item.ext) !== wanted) continue;

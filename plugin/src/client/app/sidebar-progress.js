@@ -135,7 +135,9 @@ export function SidebarTomatoProgress({ wide = true, openPanel }) {
               flex: "none",
               fontSize: 10.5,
               fontWeight: 600,
-              color: view.running ? "var(--tomato-brand-deep)" : "var(--tomato-ink-3)",
+              color: view.running
+                ? "var(--tomato-brand-deep)"
+                : "var(--tomato-ink-3)",
               background: "var(--tomato-surface-2)",
               borderRadius: 6,
               padding: "1px 6px",
@@ -145,7 +147,11 @@ export function SidebarTomatoProgress({ wide = true, openPanel }) {
         )
       : null,
     wide
-      ? h(Icon, { name: "arrowRight", size: 13, style: { opacity: 0.4, flex: "none" } })
+      ? h(Icon, {
+          name: "arrowRight",
+          size: 13,
+          style: { opacity: 0.4, flex: "none" },
+        })
       : null,
   );
 }

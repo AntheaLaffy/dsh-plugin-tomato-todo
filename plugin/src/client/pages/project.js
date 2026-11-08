@@ -91,12 +91,12 @@ registerCopy("project", {
     noProject: "还没有选择项目",
     noProjectHint: "从左侧「我的项目」点一个项目进来。",
     libraryTitle: "项目资料",
-    libraryHint: "来自共享资料库索引，按项目目录过滤。",
+    libraryHint: "扫描并浏览本项目目录；需要时登记为教学资料。",
     libraryMissing: "资料库尚未建索引",
     libraryMissingHint:
       "先在本页授权资料目录，然后扫描一次；这里会列出该项目目录下的文件。",
     libraryUnauthorized: "资料目录尚未授权",
-    libraryUnauthorizedHint: "先在本页授权共享资料库根目录或项目专属目录。",
+    libraryUnauthorizedHint: "先在本页授权项目资料目录。",
     libraryScan: "扫描资料库",
     libraryScanning: "正在扫描…",
     libraryScanDone: "已索引 {n} 个文件",
@@ -169,14 +169,13 @@ registerCopy("project", {
     noProject: "No project selected",
     noProjectHint: "Pick one from “My projects” in the sidebar.",
     libraryTitle: "Project materials",
-    libraryHint:
-      "From the shared library index, filtered to this project folder.",
+    libraryHint: "Scanned from this project's materials folder.",
     libraryMissing: "The library has no index yet",
     libraryMissingHint:
       "Authorize the folder here, then scan once; files under this project folder will show up here.",
     libraryUnauthorized: "Materials folder not authorized",
     libraryUnauthorizedHint:
-      "Authorize the shared library root or a project folder here first.",
+      "Authorize this project's materials folder here first.",
     libraryScan: "Scan library",
     libraryScanning: "Scanning…",
     libraryScanDone: "Indexed {n} files",
@@ -251,14 +250,13 @@ registerCopy("project", {
     noProject: "プロジェクトが選択されていません",
     noProjectHint: "左の「マイプロジェクト」から選んでください。",
     libraryTitle: "プロジェクト資料",
-    libraryHint:
-      "共有ライブラリの索引から、このプロジェクトのフォルダで絞り込みます。",
+    libraryHint: "このプロジェクトの資料フォルダをスキャンして表示します。",
     libraryMissing: "ライブラリの索引がまだありません",
     libraryMissingHint:
       "このページで資料フォルダを認可してから一度スキャンしてください。このプロジェクトのフォルダ内のファイルがここに表示されます。",
     libraryUnauthorized: "資料フォルダが未認可です",
     libraryUnauthorizedHint:
-      "このページで共有ライブラリのルートかプロジェクト専用フォルダを認可してください。",
+      "このページでプロジェクトの資料フォルダを認可してください。",
     libraryScan: "ライブラリをスキャン",
     libraryScanning: "スキャン中…",
     libraryScanDone: "{n}件のファイルを索引しました",

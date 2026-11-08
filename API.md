@@ -35,9 +35,8 @@
 - `GET /api/projects/:id/grant` — `{projectId, authorized, directory, reason?}`：项目绑定目录与本机授权是否一致
 - `GET /api/projects/:id/resources` — 资料库分页：`?q=&kind=&status=&offset=&limit=`（limit 1–100，默认 40），返回 `{projectId,total,offset,limit,resources}`；`status` 取 `available`/`missing`/`unavailable`
 - `GET /api/projects/:id/resources/scan` — 只读核查登记文件：`{projectId,checkedAt,resources:[{id,state,sizeBytes,detail,references}]}`
+- `GET /api/projects/:id/library/stats`、`GET /api/projects/:id/library/items`、`GET /api/projects/:id/library/file` — 项目独立索引的摘要、分页浏览与文件流
 - `GET /api/state`、`GET /api/export/plan`、`GET /api/export/backup` — 见下节（UI 数据面与导出）
-- `GET /api/library/grant` — 共享资料库授权状态（见「资料目录授权」）
-- `GET /api/library/stats`、`GET /api/library/items`、`GET /api/library/file` — 共享资料库索引的摘要、浏览与文件流（见「资料库索引」）
 
 浏览器写端点（同 Origin 白名单；写路径也必须经 @tomato/core 的校验与保护规则）：
 - `POST /api/tasks`、`PATCH /api/tasks/:id`、`POST /api/tasks/:id/complete`、`POST /api/tasks/move`
@@ -47,9 +46,9 @@
 - `POST /api/projects/:id/rename` `{name,color}` → 目录改名并回写授权/项目记录
 - `POST /api/projects/:id/resources` `{resource}` → 201 登记后的资源；文件必须已在授权目录内
 - `POST /api/projects/:id/resources/:rid/repair` `{path}` → 验证新路径后保留资源 ID
-- `POST /api/projects/:id/resources/cleanup` `{ids?}` → 清理仍缺失且无教学引用的登记；只删索引，不删磁盘文件
-- `POST /api/library/authorize` `{directory}`、`DELETE /api/library/grant` — 共享资料库的一次性授权与取消，只给界面上的用户操作，见「资料目录授权」
-- `POST /api/library/scan` — 重新扫描共享资料库并写索引，返回摘要；同一时刻只跑一次，见「资料库索引」
+- `POST /api/projects/:id/resources/cleanup` `{ids?}` → 清理仍缺失且无教学引用的登记；不删磁盘文件
+- `POST /api/projects/:id/library/scan` → 扫描本项目目录；`POST /api/projects/:id/resources/import` `{paths?}` → 批量登记
+- `POST /api/projects/:id/files?path=<相对路径>` → 流式上传单个文件，UI 可多选文件或递归选择目录
 - 其余写操作走 MCP（助手代劳），UI 不直接暴露
 
 ### UI 数据面（插件 UI 的唯一数据入口）
@@ -83,56 +82,15 @@ UI 不再按页面堆端点，而是「取一份全量状态 + 提交 Action」�
 - 写端点在保护生效时同步驱动 guard（lock/unlock/whitelist），并每秒 tick 计时器。
 - `POST /api/desktop/fullscreen` `{ "enabled": true|false }`：沉浸层进入/退出时控制 DSH 原生全屏；沿用 UI Origin 校验，失败返回 503 与可读 `error`。仅改变视图，不修改计时与保护规则；保护期间退出沉浸不会解除全屏。
 
-**资料目录授权（共享资料库 / 项目目录，只能由用户设置）**：
+**项目资料目录与索引**：
 
-- `GET /api/library/grant` — `{"authorized":true,"directory":"/home/fuurin/exam","projects":6,"sharedProjects":["..."]}`；
-  未授权时 `{"authorized":false,"directory":null,"projects":0,"sharedProjects":[]}`。授权目录已失联或不再安全时
-  仍返回 200，但 `authorized:false` 并带 `reason`，让界面提示重新授权。`projects` 是应试项目数，
-  `sharedProjects` 是没有单独授权、直接使用共享库的项目 ID。
-- `POST /api/library/authorize` — body `{"directory":"/home/fuurin/exam"}`，返回同形状态。目录必须是已存在的
-  绝对路径、不经过符号链接，且不是根目录、整个主目录或 runtime 数据目录（400）。已有项目单独授权的目录
-  必须都在新共享库内，否则 400 并点名项目。授权后所有应试项目默认挂载共享库；项目单独授权只能收窄到
-  它内部的子目录（`POST /api/projects/:id/authorize` 越界 → 400）。
-- `DELETE /api/library/grant` — 返回 `{"authorized":false,...}`。只删除共享授权；`project-grants.json` 里的
-  项目单独授权原样保留，没有单独授权的项目立即回落到 403「项目目录尚未由用户授权」。
-- 三个端点只服务插件界面「应试教育 → 资料库」卡片；**不映射成 MCP 工具，也不接进 `/api/dispatch` 的
-  Action union**，保持「目录授权只能由用户设置」这条不变量。授权存 `dataDir/library-grant.json`
-  （0600、同目录临时文件 + rename 原子写，内容 `{directory, grantedAt}`），不进入计划/备份；
-  导入备份也不会扩大本机授权。
-
-**资料库索引（索引 ≠ 登记）**：
-
-索引是共享资料库的**文件清单**，回答「目录里有什么」，用于浏览与搜索；它不是
-`education.resources`，也不进入 `plan.json`/备份。只有课程、作业、学情等教学记录真的要引用某份
-资料时，才通过 `POST /api/projects/:id/resources` 登记一条 Resource（`kind` 由用户/助手按枚举选择，
-不按扩展名猜）。扫描只读元数据，不打开文件内容，也不写 `/home/fuurin/exam`。
-
-- 索引文件：`dataDir/library-index.json`（0600、同目录临时文件 + rename 原子写），形状
-  `{root, scannedAt, count, items}`；`items` 按 `path` 排序，条目为
-  `{path,name,ext,sizeBytes,mtime}`，`path` 是相对库根的 POSIX 路径，`mtime` 为 Unix 秒。
-  索引不属于计划/备份；换目录或重新授权后旧索引会被标记为 stale，不对外提供。
-- 扫描规则：不跟随符号链接；跳过隐藏文件/目录、`node_modules`、`.git`；默认最多 50000 条、
-  单次最多 30 秒，超限返回已收集的前缀并标记 `truncated`。
-- `POST /api/library/scan` — 重新扫描并返回摘要
-  `{hasIndex,count,byExt,byKind,byTop,scannedAt,durationMs,truncated}`。未授权 403。同一时刻只跑一次：
-  并发请求**等待同一次扫描的结果**（`scannedAt`/`durationMs` 相同），不会各自重扫。授权成功后会自动
-  异步触发一次扫描，失败只记日志，不阻塞授权响应。
-- `GET /api/library/stats` — 授权与索引状态：`{authorized,directory,hasIndex,stale?,reason?,root,
-  scannedAt,count,byExt,byKind,byTop}`；没有索引时 `hasIndex:false`、计数为 0。
-- `GET /api/library/items?q=&kind=&offset=&limit=&projectId=` — 索引分页搜索（limit 1–100，默认 40）。
-  `kind` 既接受浏览分组 `pdf`/`image`/`audio`/`video`/`doc`/`other`，也接受单个扩展名（如 `docx`）；
-  `q` 匹配文件名与相对路径。带 `projectId` 时按「顶层目录 → 项目 name」的最佳匹配过滤
-  （如 `math`↔数学一、`eng`↔英语一、`408`↔408、`politics`↔政治、`教学安排`↔教学安排）；
-  匹配不到时**不过滤，返回全部条目**。返回
-  `{authorized,hasIndex,total,offset,limit,filtered,matchedDirs,items}`，条目额外带
-  `kind`（浏览分组）、`mimeType`、`previewable`（已知 MIME 且 ≤20 MiB）。没有索引时返回
-  `hasIndex:false` 与空 `items`。
-- `GET /api/library/file?path=<相对路径>&access=<token>[&download=1]` — 按索引里的相对路径流式读取
-  原件。必须带 `/api/file-token` 令牌；路径先经 `ProjectLibrary.resolveLibraryPath` 的
-  `safeRelative`/`noSymlinks`/`inside` 校验，再要求它确实在当前索引的 `items` 里。`..`、绝对路径、
-  库内指向库外的符号链接都返回 400（与项目资料一致），非索引路径返回 404；未授权 403，
-  无索引或索引 stale 409。
-  支持单段 `Range`（206/416）与 20 MiB 预览上限，超出时 `download=1` 仍可下载。
+- 每个项目独立授权目录，没有共享库回退。新建项目须提供已存在的专用绝对目录；旧项目或备份恢复后需要用户在项目页重新授权。授权记录写在 `dataDir/project-grants.json`（0600），不进计划/备份。runtime 启动时删除退役的 `library-grant.json` 和 `library-index.json`，保留项目授权。目录不得经过符号链接、指向根/整个主目录/应用数据目录，也不得与其他项目授权目录重叠。
+- `GET /api/projects/:id/grant` 返回 `{projectId,authorized,directory,reason?}`；`POST /api/projects/:id/authorize` 接受 `{directory}`，由项目页的用户操作触发。目录失联或绑定与授权不一致时拒绝文件访问。助手的 `education` 工具不能授权目录。
+- `POST /api/projects/:id/library/scan` 递归扫描该项目目录，仅保存文件元数据到 `dataDir/project-library-indexes/<sha256(projectId)>.json`（0600），不读正文、不写教学资源；同项目并发扫描共享结果。跳过隐藏项、`node_modules`、`.git` 和符号链接，默认最多 50000 条、30 秒，超限标记 `truncated`。
+- `GET /api/projects/:id/library/stats` 返回授权、索引与扩展名/类型/顶层子目录统计；`GET /api/projects/:id/library/items?q=&kind=&offset=&limit=` 分页搜索（limit 1–100，默认 40）。索引只包含当前项目目录；改绑后旧索引标为 `stale`。条目 `{path,name,ext,sizeBytes,mtime,kind,mimeType,previewable}` 的路径相对该项目根。
+- `GET /api/projects/:id/library/file?path=<相对路径>&access=<token>[&download=1]` 只读取当前索引内且仍位于授权目录的普通文件，支持单段 Range；预览限已知 MIME 且 ≤20 MiB，下载不受该限。路径穿越、绝对路径和符号链接拒绝。
+- `POST /api/projects/:id/files?path=<相对路径>` 的 body 是文件字节流；项目页的文件选择器可多选，目录选择器递归列出文件，并以 `webkitRelativePath` 保留选中目录及子目录层级。端点只在当前项目根内创建子目录，同名文件返回 409 且不覆盖；UI 上传后扫描并批量登记到该项目。隐藏项与依赖目录跳过。子目录分类可选，单文件可以直接放项目根。
+- `POST /api/projects/:id/resources/import` 接受 `{paths?: string[]}`，把当前项目索引的选中条目或全部条目登记为教学资源；重复路径跳过。索引描述磁盘文件，登记用于教学引用，二者语义不同；应试教育卡片的 `resourceCounts` 直接从同一份 `education.resources` 按项目派生。
 
 **导出端点（偏好设置页用）**：
 
@@ -168,7 +126,7 @@ UI 不再按页面堆端点，而是「取一份全量状态 + 提交 Action」�
   需要完整数据时加 `?full=1`（MCP/助手侧要核对 ID 历史时用），它同时作用于
   `/api/state` 与 `/api/dispatch` 返回的 `snapshot`（两者保持同形）。
 - 教学资源按层级返回（完整导入后资源明细约 1.4MB，UI 默认不需要）：
-  - 默认：`data.education.resources` 为空数组（课程/试卷/学期等其它教学字段仍完整）；
+  - 默认：`data.education.resources` 为空数组，但 `resourceCounts` 保留各项目真实登记数量（课程/试卷/学期等其它教学字段仍完整）；
   - `?education=lite`：`resources` 只保留 `{id, projectId, title, kind, path}`；
   - `?education=full`：完整 `topics`/`source`/`edition`。
   统计/目录页需要资源清单时用 `lite`，需要完整记录时用 `full`。
@@ -197,14 +155,14 @@ MCP 端点：`/mcp` streamable HTTP，Bearer token（数据目录 `agent/connect
 - `POST /guard` `{ "command": "fullscreen", "enabled": true|false }`：显式设置 DSH 全屏（当前接入 niri 的 Wayland foreign-toplevel 接口），重复调用不反转状态。保护期间保持全屏；解锁后跟随沉浸层的状态。
 - `POST /guard` `{ "command": "notify", "title": ..., "body": ... }`
 - `POST /guard` `{ "command": "focus" }` → 把 DeepSeek Harness 窗口切到前台。响应 `{ "ok": true, "focused": bool, "window": string|null }`。
-  提醒到点或一轮结束**不再**由 runtime 自动调用它（只发系统通知与前端音效）；`focus` 保留给显式调用与桌面冒烟。niri 锁机期间仍可激活保护目标 DSH，其他后端的自建锁窗期间返回 `focused=false`。
+  runtime 在任务新提醒到点或一轮计时结束时各拍至多自动调用一次，与系统通知开关无关；启动时已有的提醒与完成记录不补聚焦。guard 失败只记日志，不影响计时或提醒；`focus` 也可显式调用。niri 锁机期间可激活保护目标 DSH；目标窗口意外消失并由独立锁窗接管后，与其他自建锁窗后端一样返回 `focused=false`。
   窗口识别：应用 ID `dsh-desktop`（桌面窗口）或标题含 `DeepSeek Harness`（浏览器标签）；
   没有 DSH 窗口时 `focused=false`，不是错误。
 - `GET /guard/status` → `{ "locked": bool, "whitelist": [...], "pid": ..., "backend": "<实际后端名>" }`
   （backend 取 guard 实际检测到的后端显示名，如 "Sway / Wayland"、"EWMH / X11"，供 runtime 诊断）
 - `GET /guard/apps` → `{ "apps": ["app-id", ...] }`：当前有窗口的应用 ID，去重；同样需要 Bearer token，不返回窗口标题或 PID
 - guard 无长期状态；runtime 每次专注会话重发锁屏命令（guard 崩溃由 runtime 重启并重发）。
-- niri 的保护目标是实际 DSH 窗口，不另建空白锁窗。锁机模式、快速锁机与定时锁机始终发送空白名单，只允许该 DSH 窗口；白名单专注模式才传递有效白名单。守卫每 600ms 检查焦点，切回 DSH 时再次请求全屏。runtime 每秒核对守卫实际锁定状态，进程重启或保护线程退出后重新预检/锁定。
+- niri 正常保护时全屏实际 DSH 窗口；若该窗口被关闭（例如 Mod+Q），守卫改建独立全屏锁窗，保持锁定并继续拦截白名单外窗口。DSH 重开后重新全屏并接管，解锁时恢复窗口状态。锁机模式、快速锁机与定时锁机始终发送空白名单；白名单专注模式才传递有效白名单。守卫每 600ms 检查焦点；runtime 每秒核对守卫实际锁定状态，进程重启或保护线程退出后重新预检/锁定。
 
 ## 数据形状
 

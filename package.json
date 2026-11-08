@@ -1,6 +1,6 @@
 {
   "name": "tomato-todo-rewrite",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.10.1",
@@ -11,12 +11,14 @@
     "build:host-tools": "node scripts/build-host-tools.mjs",
     "check:host-tools": "node scripts/build-host-tools.mjs --check",
     "format": "prettier --write \"packages/**/*.ts\" \"runtime/**/*.{ts,mjs}\" \"plugin/**/*.{js,json,yml}\" \"scripts/**/*.{mjs,js}\"",
+    "format:check": "prettier --check \"packages/**/*.ts\" \"runtime/**/*.{ts,mjs}\" \"plugin/**/*.{js,json,yml}\" \"scripts/**/*.{mjs,js}\"",
+    "typecheck:core": "tsc --project packages/core/tsconfig.json --noEmit",
     "check": "pnpm check:host-tools && pnpm core:test && pnpm runtime:test && pnpm check:client",
     "check:handbook": "python3 scripts/check-handbook.py",
     "build:client": "node scripts/build-client.mjs",
     "check:client": "node scripts/build-client.mjs && node scripts/smoke-client.mjs",
     "check:client:live": "node scripts/build-client.mjs && SMOKE_LIVE=1 node scripts/smoke-client.mjs",
-    "test:tools": "node --test scripts/export-sqlite.test.mjs scripts/import-backup.test.mjs scripts/install.test.mjs scripts/persona-switch.test.mjs scripts/modal-ssr.test.mjs scripts/navigation-filter.test.mjs scripts/attention.test.mjs scripts/refresh-navigation.test.mjs scripts/plugin-host.test.mjs scripts/markdown.test.mjs scripts/install-dsh.test.mjs"
+    "test:tools": "node --test scripts/export-sqlite.test.mjs scripts/import-backup.test.mjs scripts/install.test.mjs scripts/persona-switch.test.mjs scripts/modal-ssr.test.mjs scripts/navigation-filter.test.mjs scripts/attention.test.mjs scripts/exit-guard.test.mjs scripts/refresh-navigation.test.mjs scripts/plugin-host.test.mjs scripts/markdown.test.mjs scripts/install-dsh.test.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/schemastery": "^3.19.0",

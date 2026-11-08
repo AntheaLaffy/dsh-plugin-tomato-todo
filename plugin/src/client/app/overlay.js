@@ -8,15 +8,12 @@ import { restore } from "./navigation.js";
 import { Hud } from "./hud.js";
 import { Immersive } from "./immersive.js";
 
-// 启动导航每次页面加载只判定一次：冷启动进今日专注，刷新静默恢复上次的面板
-// 与页。放在 effect 里而不是 apply 里——apply 阶段 DSH 的 layout 未必可调用，
-// 且静态渲染（冒烟）不应因为启动逻辑改变输出。
-let restored = false;
+// 每次 overlay 挂载时按会话记录恢复；DSH 重载插件会卸载并重挂这个 slot。
+// restore 本身幂等：用户已切回对话时不会再次拉开番茄面板。
+// 放在 effect 里而不是 apply 里，避免静态渲染改变输出。
 
 function useStartupNavigation() {
   useEffect(() => {
-    if (restored) return;
-    restored = true;
     restore();
   }, []);
 }

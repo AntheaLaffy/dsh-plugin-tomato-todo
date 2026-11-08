@@ -67,54 +67,49 @@ export function postDispatch(action, opts) {
   });
 }
 
-// 共享资料库：只在应试教育页给用户点选；不存在助手/MCP 入口（目录授权
-// 只能由用户设置）。GET / POST 返回同一形状：{authorized, directory,
-// projects, sharedProjects}；DELETE 只取消共享授权，保留项目单独授权。
-export function getLibraryGrant(opts) {
-  return request("/api/library/grant", opts);
+// 每个项目独立授权与扫描；索引不进计划/备份，也不等于资源登记。
+export function scanProjectLibraryIndex(projectId, opts) {
+  return request(
+    "/api/projects/" + encodeURIComponent(projectId) + "/library/scan",
+    {
+      method: "POST",
+      timeoutMs: 120000,
+      ...opts,
+    },
+  );
 }
 
-export function authorizeLibrary(directory, opts) {
-  return request("/api/library/authorize", {
-    ...opts,
-    method: "POST",
-    body: { directory },
-  });
+export function getProjectLibraryStats(projectId, opts) {
+  return request(
+    "/api/projects/" + encodeURIComponent(projectId) + "/library/stats",
+    {
+      timeoutMs: 8000,
+      ...opts,
+    },
+  );
 }
 
-export function revokeLibraryGrant(opts) {
-  return request("/api/library/grant", { ...opts, method: "DELETE" });
-}
-
-// 共享库索引：扫描只把文件清单写进 dataDir/library-index.json，不写计划、
-// 不写备份，也不等于 education.resources；浏览/搜索都走这组端点。
-export function scanLibrary(opts) {
-  return request("/api/library/scan", {
-    method: "POST",
-    timeoutMs: 120000,
-    ...opts,
-  });
-}
-
-export function getLibraryStats(opts) {
-  return request("/api/library/stats", { timeoutMs: 8000, ...opts });
-}
-
-export function getLibraryItems(
-  { projectId, q = "", kind = "", offset = 0, limit = 40 } = {},
+export function getProjectLibraryItems(
+  projectId,
+  { q = "", kind = "", offset = 0, limit = 40 } = {},
   opts,
 ) {
   const params = new URLSearchParams({
     offset: String(offset),
     limit: String(limit),
   });
-  if (projectId) params.set("projectId", projectId);
   if (q) params.set("q", q);
   if (kind) params.set("kind", kind);
-  return request("/api/library/items?" + params.toString(), {
-    timeoutMs: 15000,
-    ...opts,
-  });
+  return request(
+    "/api/projects/" +
+      encodeURIComponent(projectId) +
+      "/library/items?" +
+      params.toString(),
+    {
+      timeoutMs: 15000,
+      ...opts,
+    },
+  );
 }
 
 /** 文件读取令牌（进程内生成，只用于本机 ?access= 查询参数）。 */
@@ -148,11 +143,51 @@ export function resourceFileUrl(id, access, download = false) {
   );
 }
 
-/** 索引文件的直链；预览与下载共用，令牌随 URL 过期于 runtime 退出。 */
-export function libraryFileUrl(path, access, download = false) {
+/** 项目索引文件的直链；令牌随 runtime 进程有效。 */
+export function projectLibraryFileUrl(
+  projectId,
+  path,
+  access,
+  download = false,
+) {
   const params = new URLSearchParams({ path, access });
   if (download) params.set("download", "1");
-  return API_BASE + "/api/library/file?" + params.toString();
+  return (
+    API_BASE +
+    "/api/projects/" +
+    encodeURIComponent(projectId) +
+    "/library/file?" +
+    params.toString()
+  );
+}
+
+/** 保留可选的目录相对路径，不覆盖同名文件；传输全程流式。 */
+export async function uploadProjectFile(projectId, file, path = file.name) {
+  let res;
+  try {
+    res = await fetch(
+      API_BASE +
+        "/api/projects/" +
+        encodeURIComponent(projectId) +
+        "/files?path=" +
+        encodeURIComponent(path),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: file,
+      },
+    );
+  } catch {
+    throw new ApiError("无法连接番茄 runtime（127.0.0.1:43987）", 0);
+  }
+  let payload;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) throw new ApiError(payload?.error || "文件导入失败", res.status);
+  return payload;
 }
 
 // 项目资料目录授权与已登记资源的维护。授权/取消都只改 grant 文件，不移动、

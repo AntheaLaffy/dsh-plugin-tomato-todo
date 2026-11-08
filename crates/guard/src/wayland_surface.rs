@@ -5,7 +5,7 @@
 //! xdg_toplevel 后 set_title/set_app_id/set_fullscreen(None)/commit；xdg_surface
 //! 的 configure 事件 ack_configure 并首次 attach。缓冲区用 memfd
 //! （libc::syscall(SYS_memfd_create)）+ ftruncate + memmap2 映射，涂满番茄红
-//! 0xD96D55（RGBX8888），经 wl_shm_pool + wl_buffer attach+damage+commit。
+//! 0xD96D55（Wayland 必选的 ARGB8888），经 wl_shm_pool + wl_buffer attach+damage+commit。
 //! 不抓取键盘/指针：enforce 循环每 600ms 会把白名单外的前台窗口切回来，
 //! 锁面本身不拦截输入。主循环用 stop 标志可中断：prepare_read + libc poll
 //! （约 100ms 超时）→ read → dispatch_pending；stop 置位或出错即退出线程
@@ -27,7 +27,7 @@ use wayland_client::{
 };
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
-/// 锁面缓冲：32×32 RGBX8888，全涂番茄红 0xD96D55；compositor 会把小缓冲
+/// 锁面缓冲：32×32 ARGB8888，全涂番茄红 0xD96D55；compositor 会把小缓冲
 /// 放大铺满全屏 surface，无需按 configure 尺寸重绘。
 const WIDTH: i32 = 32;
 const HEIGHT: i32 = 32;
@@ -192,13 +192,13 @@ fn shm_buffer(
     let size = (STRIDE * HEIGHT) as usize;
     let fd = Fd::memfd(size)?;
     let mut map = unsafe { memmap2::MmapMut::map_mut(&fd) }.map_err(|e| e.to_string())?;
-    // RGBX8888 的内存布局是 [R, G, B, X]；小端 u32 即 0xFF556DD9。
-    let red = u32::from_ne_bytes([0xD9, 0x6D, 0x55, 0xFF]);
+    // ARGB8888 的像素值是 0xAARRGGBB；to_ne_bytes 适配主机字节序。
+    let red = 0xFFD9_6D55_u32;
     for chunk in map.chunks_exact_mut(4) {
         chunk.copy_from_slice(&red.to_ne_bytes());
     }
     let pool = shm.create_pool(fd.as_fd(), size as i32, qh, ());
-    let buffer = pool.create_buffer(0, WIDTH, HEIGHT, STRIDE, wl_shm::Format::Rgbx8888, qh, ());
+    let buffer = pool.create_buffer(0, WIDTH, HEIGHT, STRIDE, wl_shm::Format::Argb8888, qh, ());
     Ok((pool, buffer, map))
 }
 

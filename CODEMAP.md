@@ -23,10 +23,10 @@ generated_at: 2026-11-07
 | --- | --- | --- | --- |
 | 任务/习惯/模板/阻塞时段/锁机/统计的领域逻辑 | 业务核心 | packages/core/src/ 对应模块（engine.ts 为引擎入口） | docs/HANDBOOK/ 对应章、docs/PLAN_FORMAT.md、packages/core/test/ |
 | 番茄计时、提醒调度、数据落盘 | runtime | runtime/src/engine.ts | runtime/test/engine.test.mjs、API.md |
-| HTTP API 与 MCP 入口 | runtime | runtime/src/server.mjs、project-library.mjs（资料目录授权与共享库）、mcp.mjs、mcp-stdio.mjs；局部地图 runtime/CODEMAP.md | API.md、docs/MCP.md、runtime/test/、runtime/test/library.test.mjs、runtime/test/connection.test.mjs |
+| HTTP API 与 MCP 入口 | runtime | runtime/src/server.mjs、project-library.mjs（项目资料目录授权）、mcp.mjs、mcp-stdio.mjs；局部地图 runtime/CODEMAP.md | API.md、docs/MCP.md、runtime/test/、runtime/test/library.test.mjs、runtime/test/connection.test.mjs |
 | guard 客户端与 --guard-status | runtime | runtime/src/guard-client.ts | API.md guard 命令协议、runtime/test/ |
 | 项目资料库的本机授权与文件读取 | runtime | runtime/src/project-library.mjs、runtime/src/server.mjs（`/api/projects*`、`/api/resources/*`）、runtime/src/engine.ts 的 `validateResourceAction` | docs/EDUCATION.md、API.md「项目资料库」、docs/HANDBOOK/06-安全与隐私边界.md |
-| 共享资料库扫描、索引浏览与项目目录映射 | runtime | runtime/src/library-index.mjs、runtime/src/server.mjs（`/api/library/{scan,items,stats,file}`）、runtime/test/library-index.test.mjs | API.md「资料库索引」、docs/EDUCATION.md「索引 vs 登记」、runtime/CODEMAP.md、plugin/src/client/pages/education.js |
+| 项目目录扫描与索引浏览 | runtime | runtime/src/library-index.mjs、runtime/src/server.mjs（`/api/projects/:id/library/*`）、runtime/test/library-index.test.mjs | API.md「项目资料目录与索引」、docs/EDUCATION.md「资料查找、预览与清理」、runtime/CODEMAP.md、plugin/src/client/pages/project-materials.js |
 | DSH 插件 host 工具（15 个 `tomato_*`） | 插件 | plugin/index.js、plugin/host-tool-specs.js（由 scripts/build-host-tools.mjs 生成） | runtime/src/tools.mjs、scripts/plugin-host.test.mjs、plugin/README.md、API.md、docs/MCP.md |
 | DSH 插件内置技能与跨 agent 链接 | 插件 | plugin/skills.js（技能提供者）、plugin/skills/（文件清单见 plugin/CODEMAP.md）、plugin/link-skills.js（挂载时软链）与 link-skills.mjs（命令行） | plugin/README.md、plugin/CODEMAP.md |
 | 插件界面与展示语言（zh/en/ja） | 插件 | plugin/src/client/shared/copy.js、plugin/src/client/shared/ja.js、plugin/locale/ja.json | plugin/README.md、API.md「插件契约」、plugin/CODEMAP.md |

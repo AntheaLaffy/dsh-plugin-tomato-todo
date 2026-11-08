@@ -92,6 +92,23 @@ export function parseArgs(argv) {
   return opts;
 }
 
+/** 返回新提醒 ID，并为这拍的新提醒或计时完成请求一次 DSH 窗口聚焦。 */
+export function focusForDesktopEvents(guard, prev, next, log = console.error) {
+  const before = new Set(prev.reminderIds);
+  const fresh = next.reminderIds.filter((id) => !before.has(id));
+  if (next.serial > prev.serial || fresh.length > 0) {
+    // 让 guard 的网络错误只进日志，不能打断计时循环或后续系统通知。
+    void Promise.resolve()
+      .then(() => guard.focus())
+      .then((result) => {
+        if (!result.ok)
+          log("guard focus 失败：" + (result.error ?? result.status));
+      })
+      .catch((error) => log("guard focus 失败：" + (error?.message ?? error)));
+  }
+  return fresh;
+}
+
 export async function main(argv) {
   const opts = parseArgs(argv);
 
@@ -142,17 +159,18 @@ export async function main(argv) {
   // 到点这件事本身已经由前端提醒条与音效呈现。
   const notifyDesktop = (title, body) => {
     if (!engine.data.settings.notifications) return;
-    void guard.notify({ title, body }).then((result) => {
-      if (!result.ok) {
-        console.error(
-          `guard notify 失败：${result.error ?? `HTTP ${result.status}`}`,
-        );
-      }
-    });
-  };
-  const newlyPending = (beforeIds, afterIds) => {
-    const before = new Set(beforeIds);
-    return afterIds.filter((id) => !before.has(id));
+    void guard
+      .notify({ title, body })
+      .then((result) => {
+        if (!result.ok) {
+          console.error(
+            `guard notify 失败：${result.error ?? `HTTP ${result.status}`}`,
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("guard notify 失败：" + (error?.message ?? error));
+      });
   };
   const reminderIds = () =>
     engine.data.tasks
@@ -173,8 +191,8 @@ export async function main(argv) {
       serial: Number(engine.data.timer.completionSerial) || 0,
       reminderIds: reminderIds(),
     };
-    // 首次 tick 只建立基线：启动时已有的 pending 提醒不补发通知。
-    const fresh = newlyPending(prev.reminderIds, next.reminderIds);
+    // 启动时已建立基线：已有提醒和计时完成记录不补聚焦或通知。
+    const fresh = focusForDesktopEvents(guard, prev, next);
     if (next.serial > prev.serial || fresh.length > 0) {
       if (next.serial > prev.serial) {
         notifyDesktop("番茄 Todo", "这一轮专注结束了，起来动一动。");

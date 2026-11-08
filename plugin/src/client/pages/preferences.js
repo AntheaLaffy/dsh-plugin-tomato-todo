@@ -1,9 +1,10 @@
 // 偏好设置：番茄钟、学习计划、体验与提醒、桌面集成、网络、数据与备份。
 //
-// 数据来源只有一个：/api/state 的 data.settings。页面把快照克隆成本地草稿，
+// Todo 设置从 /api/state 的 data.settings 读取。页面把快照克隆成本地草稿，
 // 用户改动只落在草稿里，点「保存设置」时把完整 Settings 一次 submit 给
 // saveSettings（必须完整：core 校验全部字段，且不能把 protection 清掉）。
 // 离开页面不自动保存，避免轮询/卸载时序里把半截草稿写进 runtime。
+// DSH 的语言、外观和对话工作步骤分别写 locale/theme/configForms，即改即生效。
 import { h, useState, useEffect, useRef } from "../runtime.js";
 import { t, registerCopy, useLocale } from "../shared/copy.js";
 import {
@@ -70,13 +71,25 @@ registerCopy("prefs", {
     importInvalid: "文件不是合法的 JSON",
     importReadFailed: "读取文件失败：{error}",
     sectionExperience: "体验与提醒",
+    sectionDsh: "DSH 同步设置",
     language: "界面语言",
-    languageHint: "与 DSH 的语言设置同步；首次启动按浏览器或系统语言选择。",
+    languageHint: "与 DSH 语言设置同步，修改立即生效。",
     appearance: "外观主题",
     appearanceNote:
-      "外观跟随 DSH「设置 → 外观」的深浅色偏好；番茄皮肤自动覆盖纸色系。",
-    simpleMode: "简洁模式",
-    simpleModeNote: "界面密度由 DSH 接管；番茄主视图保持纸色导航与九页布局。",
+      "与 DSH「设置 → 外观」同步，修改立即生效；番茄皮肤沿用纸色系。",
+    themeSystem: "跟随系统",
+    themeLight: "浅色",
+    themeDark: "深色",
+    themeChangeFailed: "切换 DSH 外观失败：{error}",
+    workDetails: "工作步骤展示",
+    workDetailsHint: "与 DSH 对话设置同步，修改立即生效。",
+    workCompact: "简洁",
+    workStandard: "标准",
+    workDetailed: "详细",
+    workVerbose: "完全展开",
+    workChangeFailed: "切换 DSH 工作步骤展示失败",
+    dshLoading: "读取 DSH 设置中…",
+    dshUnavailable: "DSH 设置不可用",
     personaBackdrop: "角色背景板",
     personaBackdropHint:
       "在普通页面背景显示当前人格的立绘；专注与保护界面不显示。",
@@ -97,9 +110,9 @@ registerCopy("prefs", {
     autostartValue:
       "由安装脚本与 systemd 用户服务管理（见 docs/CROSS_PLATFORM.md）。",
     tray: "关闭窗口后留在托盘",
-    trayValue: "DSH 没有系统托盘；关闭主视图不影响 runtime 继续计时与提醒。",
+    trayValue: "由 DSH 桌面壳托盘负责；收起主视图不影响计时与提醒。",
     quit: "退出应用",
-    quitValue: "从 DSH 退出；退出前会自动保存计时与设置。",
+    quitValue: "从 DSH 退出；专注保护期间不可退出。",
     sectionNetwork: "网络代理",
     networkHint:
       "插件只直连本机 runtime（127.0.0.1），不经过外部网络代理；代理由 DSH 与系统设置决定。",
@@ -164,15 +177,27 @@ registerCopy("prefs", {
     importInvalid: "This file is not valid JSON",
     importReadFailed: "Couldn't read the file: {error}",
     sectionExperience: "Experience & reminders",
+    sectionDsh: "Synced DSH settings",
     language: "Language",
     languageHint:
-      "Synced with DSH settings; first launch follows your browser or system language.",
+      "Synced with DSH language settings; changes take effect immediately.",
     appearance: "Appearance",
     appearanceNote:
-      "Appearance follows DSH Settings → Appearance; the tomato skin layers the paper palette on top.",
-    simpleMode: "Compact mode",
-    simpleModeNote:
-      "UI density is managed by DSH; the tomato main view keeps its navigation and nine pages.",
+      "Synced with DSH Settings → Appearance; changes take effect immediately. The tomato skin keeps its paper palette.",
+    themeSystem: "System",
+    themeLight: "Light",
+    themeDark: "Dark",
+    themeChangeFailed: "Couldn't change DSH appearance: {error}",
+    workDetails: "Work details",
+    workDetailsHint:
+      "Synced with DSH chat settings; changes take effect immediately.",
+    workCompact: "Compact",
+    workStandard: "Standard",
+    workDetailed: "Detailed",
+    workVerbose: "Verbose",
+    workChangeFailed: "Couldn't change DSH work details",
+    dshLoading: "Loading DSH settings…",
+    dshUnavailable: "DSH settings unavailable",
     personaBackdrop: "Persona backdrop",
     personaBackdropHint:
       "Shows the current persona's artwork on ordinary page backgrounds; hidden in focus and guard views.",
@@ -198,9 +223,9 @@ registerCopy("prefs", {
       "Managed by the install script and a systemd user service (see docs/CROSS_PLATFORM.md).",
     tray: "Keep running in the tray after closing",
     trayValue:
-      "DSH has no system tray; closing the main view does not stop timers or reminders.",
+      "Handled by the DSH desktop tray; closing this view does not stop timers or reminders.",
     quit: "Quit the app",
-    quitValue: "Quit through DSH; timers and settings are saved before exit.",
+    quitValue: "Quit through DSH; quitting is blocked during protected focus.",
     sectionNetwork: "Network proxy",
     networkHint:
       "The plugin only talks to the local runtime (127.0.0.1); proxies follow DSH and system settings.",
@@ -431,8 +456,129 @@ function InfoRow({ label, value }) {
   );
 }
 
-function PreferencesPage(props) {
+function transcriptModeOf(snapshot) {
+  if (snapshot?.status !== "ready") return "";
+  const mode = snapshot.value?.transcriptView;
+  if (mode === "normal" || mode === "expanded") return "detailed";
+  return mode || ("dshDesktop" in globalThis ? "standard" : "detailed");
+}
+
+function DshPreferencesCard(props) {
   const language = useLocale();
+  const [themeSnapshot, setThemeSnapshot] = useState(
+    () => props.theme?.getTheme?.() ?? null,
+  );
+  useEffect(() => {
+    if (!props.theme?.getTheme || !props.subscribeTheme) return;
+    setThemeSnapshot(props.theme.getTheme());
+    return props.subscribeTheme((snapshot) => setThemeSnapshot(snapshot));
+  }, [props.theme, props.subscribeTheme]);
+  const [chatSnapshot, setChatSnapshot] = useState(
+    () => props.chatSettings?.getSnapshot?.() ?? null,
+  );
+  useEffect(() => {
+    if (!props.chatSettings) return;
+    setChatSnapshot(props.chatSettings.getSnapshot());
+    return props.chatSettings.subscribe(() =>
+      setChatSnapshot(props.chatSettings.getSnapshot()),
+    );
+  }, [props.chatSettings]);
+  const themeOptions = themeSnapshot
+    ? [
+        { value: "system", label: t("prefs.themeSystem") },
+        ...themeSnapshot.themes.map(({ id }) => ({
+          value: id,
+          label:
+            id === "light"
+              ? t("prefs.themeLight")
+              : id === "dark"
+                ? t("prefs.themeDark")
+                : id,
+        })),
+      ]
+    : [{ value: "", label: t("prefs.dshLoading") }];
+
+  return h(
+    Card,
+    { pad: 22 },
+    h(SectionTitle, { icon: "sparkle", title: t("prefs.sectionDsh") }),
+    h(
+      SettingRow,
+      { label: t("prefs.language"), hint: t("prefs.languageHint") },
+      h(Select, {
+        value: language,
+        width: 142,
+        options: [
+          { value: "zh", label: "中文" },
+          { value: "en", label: "English" },
+          { value: "ja", label: "日本語" },
+        ],
+        onChange: (next) => props.onLanguageChange?.(next),
+      }),
+    ),
+    h(Divider, null),
+    h(
+      SettingRow,
+      { label: t("prefs.appearance"), hint: t("prefs.appearanceNote") },
+      h(Select, {
+        value: themeSnapshot?.preference,
+        width: 142,
+        options: themeOptions,
+        disabled: !themeSnapshot || !props.theme?.setTheme,
+        onChange: (id) => {
+          try {
+            props.onThemeChange?.(id);
+          } catch (error) {
+            notify(
+              t("prefs.themeChangeFailed", {
+                error: error?.message || String(error),
+              }),
+              "danger",
+            );
+          }
+        },
+      }),
+    ),
+    h(Divider, null),
+    h(
+      SettingRow,
+      { label: t("prefs.workDetails"), hint: t("prefs.workDetailsHint") },
+      h(Select, {
+        value: transcriptModeOf(chatSnapshot),
+        width: 142,
+        options: [
+          ...(chatSnapshot?.status === "ready"
+            ? []
+            : [
+                {
+                  value: "",
+                  label: t(
+                    chatSnapshot?.status === "unavailable"
+                      ? "prefs.dshUnavailable"
+                      : "prefs.dshLoading",
+                  ),
+                },
+              ]),
+          { value: "compact", label: t("prefs.workCompact") },
+          { value: "standard", label: t("prefs.workStandard") },
+          { value: "detailed", label: t("prefs.workDetailed") },
+          { value: "verbose", label: t("prefs.workVerbose") },
+        ],
+        disabled: chatSnapshot?.status !== "ready" || !chatSnapshot.writable,
+        onChange: async (mode) => {
+          try {
+            if (await props.chatSettings.set("transcriptView", mode)) return;
+          } catch (error) {
+            console.warn("[tomato] DSH work details update failed", error);
+          }
+          notify(t("prefs.workChangeFailed"), "danger");
+        },
+      }),
+    ),
+  );
+}
+
+function PreferencesPage(props) {
   const state = useSnapshot();
   const liveSettings =
     state && state.data && state.data.settings ? state.data.settings : null;
@@ -621,6 +767,7 @@ function PreferencesPage(props) {
       "div",
       { className: "t-root" },
       header,
+      h(DshPreferencesCard, props),
       h(
         Card,
         { pad: 22 },
@@ -638,6 +785,7 @@ function PreferencesPage(props) {
       "div",
       { className: "t-root" },
       header,
+      h(DshPreferencesCard, props),
       h(
         Card,
         { pad: 6 },
@@ -803,31 +951,6 @@ function PreferencesPage(props) {
     Card,
     { pad: 22 },
     h(SectionTitle, { icon: "bell", title: t("prefs.sectionExperience") }),
-    h(
-      SettingRow,
-      { label: t("prefs.language"), hint: t("prefs.languageHint") },
-      h(Select, {
-        value: language,
-        width: 142,
-        options: [
-          { value: "zh", label: "中文" },
-          { value: "en", label: "English" },
-          { value: "ja", label: "日本語" },
-        ],
-        onChange: (next) => props.onLanguageChange?.(next),
-      }),
-    ),
-    h(Divider, null),
-    h(InfoRow, {
-      label: t("prefs.appearance"),
-      value: t("prefs.appearanceNote"),
-    }),
-    h(Divider, null),
-    h(InfoRow, {
-      label: t("prefs.simpleMode"),
-      value: t("prefs.simpleModeNote"),
-    }),
-    h(Divider, null),
     h(
       SettingRow,
       null,
@@ -1033,6 +1156,7 @@ function PreferencesPage(props) {
             minWidth: 0,
           },
         },
+        h(DshPreferencesCard, props),
         experienceCard,
         desktopCard,
         networkCard,

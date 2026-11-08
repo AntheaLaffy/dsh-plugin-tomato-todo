@@ -18,6 +18,9 @@ pnpm install
 pnpm core:test     # packages/core 的 vitest 测试（零依赖、全量语义覆盖）
 pnpm runtime:test  # runtime 的 node --test 测试
 pnpm check         # check:host-tools + core:test + runtime:test + check:client
+pnpm format:check  # 与 CI 相同的 Prettier 只读校验
+pnpm typecheck:core # 严格检查 core 源码与测试的 TypeScript 类型
+pnpm test:tools    # 安装、迁移、插件 Host 与客户端工具测试
 pnpm build:runtime # esbuild 把 @tomato/core 打进 runtime 产物（随插件分发）
 pnpm format        # Prettier（packages/ runtime/ plugin/ scripts）
 
@@ -57,6 +60,16 @@ git worktree add ../tomato-ts-<workflow> -b tomato-ts-<workflow>
 - **学习助手 = DSH 对话**：验证走插件 `tomato_*` Host 工具（每次一次性 `--mcp`）与外部 MCP 两种入口，不花用户模型额度；真实账号、联网与桌面行为由你自测，写清怎么复现。
 
 > **专注保护测试必须在独立的嵌套桌面里跑，不得在用户当前桌面自动启用保护**——它会真锁屏、真切窗口。运行前确认测试脚本自建的 niri/Xvfb 会话与你的桌面是隔离的。
+
+## CI 与合并门槛
+
+`main` 的每次 push、每个针对 `main` 的 PR（包括仅改文档）、每周一 03:17 UTC 及手动触发都会运行 [CI](.github/workflows/ci.yml)。锁文件固定 pnpm/Cargo 依赖；定时任务主要发现 runner 与工具链的兼容性变化。CI 不提交修复：失败时在本地修复并重新推送。
+
+- `quality`：格式、Host schema、core 类型与测试、runtime/工具测试、客户端构建与冒烟、手册结构；构建后比对入库的 `runtime/vendor/core.mjs` 和 `plugin/client.js`，漏提交产物会失败。
+- `guard`：Linux 上 rustfmt、测试、release 构建；`package`：用 guard 产物打包并对安装脚本做 dry-run。暂不运行 Windows/macOS 检查。
+- 合并前核对三个 Linux 检查：质量门、guard 与打包。启用分支保护时应要求 PR 与最新 `main` 的检查结果一致；不要为通过检查而跳过测试或手动改生成物。
+
+提交前至少运行 `pnpm format:check && pnpm typecheck:core && pnpm check && pnpm test:tools && pnpm check:handbook`；改 guard 时再运行 `cargo fmt --check --manifest-path crates/guard/Cargo.toml` 与 `cargo test --locked --manifest-path crates/guard/Cargo.toml`。改 core 或客户端源码时运行 `pnpm build:runtime` 或 `pnpm build:client`，并提交对应产物。真实 guard 锁屏行为仍只在独立嵌套桌面手动验收。
 
 ## 提交与 PR
 

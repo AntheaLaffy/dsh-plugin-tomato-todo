@@ -54,6 +54,11 @@
   （systemd user service / autostart 由 packaging 阶段安装）。
 - **guard（tomato-guard）可选**：未接入时设置页显示「未接入 guard」、
   专注锁定不可用；`tomato_guard_status` 工具如实报告 `guard.available`。
+- 客户端在进行中的专注、暂停专注或锁机时拦截页面卸载；桌面壳的原生
+  关窗/托盘退出还需由桌面壳自身查询 `/api/state` 并拒绝。niri 上 guard 在
+  DSH 窗口意外消失时改用独立锁窗，DSH 重开后恢复到原生全屏。
+  GTK/WebKit 桌面壳还需处理 `BEFORE_UNLOAD_CONFIRM`，专注中静默拒绝卸载；
+  仅靠浏览器的 `beforeunload` 无法隐藏「离开页面」按钮。
 - 插件本身不负责拉起或保活 runtime（安装/打包脚本负责常驻）。若 MCP 客户端
   提示 disconnected，先用插件的 `tomato_get_context` 或 `tomato_get_education`
   核对数据，不让学习助手要求用户手工转录作业。

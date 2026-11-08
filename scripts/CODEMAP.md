@@ -32,8 +32,9 @@ generated_at: 2026-11-07
 | modal-ssr.test.mjs | 验证 | 拿不到 react-dom 时对话框退回内联渲染而不抛错（无浏览器冒烟依赖它） |
 | navigation-filter.test.mjs | 验证 | 侧栏项目筛选信号只被消费一次，切页与筛选值分离 |
 | persona-switch.test.mjs | 验证 | 角色背景板切换列：四个角色、高亮、订阅广播 |
-| niri-guard.test.mjs | 验证 | 独立 Xvfb+niri 与真实 GTK 窗口：运行中应用枚举、全屏/退出、白名单、锁机忽略白名单、释放与确认抢焦；仅连接临时桌面 |
-| refresh-navigation.test.mjs | 验证 | 刷新/重挂载不抢页：冷启动才进今日专注、complete 才切页、reminder 只留提示、`{panel, page}` 静默恢复与旧 key 迁移 |
+| niri-guard.test.mjs | 验证 | 独立 Xvfb+niri 与真实 GTK 窗口：运行中应用枚举、全屏/退出、白名单、锁机忽略白名单、Mod+Q 后锁窗接管与 DSH 重开恢复、释放与确认抢焦；仅连接临时桌面 |
+| exit-guard.test.mjs | 验证 | 专注、暂停、锁定时的客户端页面卸载拦截及清理，不启用桌面保护 |
+| refresh-navigation.test.mjs | 验证 | 刷新/重挂载不抢页：冷启动才进今日专注、complete 才切页、reminder 只留提示、`{panel, page}` 静默恢复；卸载主面板不误记离开 |
 | plugin-host.test.mjs | 验证 | 全部 Host 工具注册与教学读取转发；`LIVE_TOMATO=1` 时只读联通当前实例 |
 | export-sqlite.test.mjs | 验证 | 旧库导出：迁移规则、计划形状、备份完整性、幂等、不改原库（临时目录自建库） |
 | import-backup.test.mjs | 验证 | 备份导入：合并结果、重复运行幂等、坏输入不写坏原文件 |

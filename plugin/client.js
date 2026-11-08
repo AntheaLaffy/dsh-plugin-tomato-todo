@@ -515,6 +515,10 @@ body{
   /* 窗光洗层整体不透明度：压在内容上，必须低到不改变中心栏文字对比。 */
   --tomato-wash:.10;
   --tomato-glass:color-mix(in srgb, #fffdf7 62%, transparent);
+  --tomato-immersive-top:#f1e9da;
+  --tomato-immersive-middle:#f7f1e5;
+  --tomato-immersive-bottom:#e9dfcc;
+  --tomato-immersive-number-shadow:#6b4a2f26;
 }
 body[data-ds-dark-theme]{
   --tomato-paper:#1c1916;
@@ -542,6 +546,10 @@ body[data-ds-dark-theme]{
   --tomato-sky-art:.20;
   --tomato-wash:.07;
   --tomato-glass:color-mix(in srgb, #262019 62%, transparent);
+  --tomato-immersive-top:#3a2a20;
+  --tomato-immersive-middle:#251b14;
+  --tomato-immersive-bottom:#16100c;
+  --tomato-immersive-number-shadow:#00000059;
 }
 `;
   var ATMOS_CSS = `
@@ -1399,54 +1407,6 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       projectMissing: "この学習プロジェクトは存在しません。",
       directory: "リソースフォルダ",
       directoryEmpty: "フォルダがバインドされていません",
-      libraryIndexNever: "ライブラリ索引はまだありません",
-      libraryIndexStale: "索引は以前のフォルダのものです。再スキャンしてください",
-      libraryIndexScanned: "{n}件をスキャン済み · {time}",
-      libraryIndexScanning: "ライブラリをスキャン中…",
-      libraryIndexHint: "索引はファイル一覧だけを保存し、計画やバックアップには入りません。教材として実際に参照するときだけ登録します。",
-      libraryIndexByKind: "種類別",
-      libraryIndexByTop: "フォルダ別",
-      libraryIndexKindPdf: "PDF",
-      libraryIndexKindImage: "画像",
-      libraryIndexKindAudio: "音声",
-      libraryIndexKindVideo: "動画",
-      libraryIndexKindDoc: "文書",
-      libraryIndexKindOther: "その他",
-      libraryIndexRootDir: "ライブラリ直下",
-      libraryIndexScan: "スキャン/再スキャン",
-      libraryIndexScanDone: "{n}件を{ms}ミリ秒でスキャンしました",
-      libraryIndexCheck: "登録済みを確認",
-      libraryIndexCheckDone: "登録{n}件を確認：利用可能{a}、欠落{m}、利用不可{u}",
-      libraryIndexNone: "ライブラリ索引がありません。共有ライブラリをスキャンすると、フォルダ別に全資料を閲覧できます。",
-      libraryIndexGenerate: "スキャンして索引を作成",
-      libraryIndexSearchPlaceholder: "ファイル名またはパスを検索",
-      libraryIndexAll: "すべての種類",
-      libraryIndexEmpty: "一致する資料はありません。",
-      libraryIndexTotal: "{n}件",
-      libraryIndexPage: "{page} / {pages}ページ",
-      libraryIndexPrev: "前へ",
-      libraryIndexNext: "次へ",
-      libraryIndexNoFilter: "プロジェクトのフォルダが見つからないため、全ファイルを表示します",
-      libraryIndexFiltered: "フォルダ {dirs} で絞り込み",
-      libraryIndexPreview: "プレビュー",
-      libraryIndexRegister: "登録",
-      libraryIndexUnpreviewable: "この種類またはサイズはプレビューできません。元ファイルをダウンロードしてください。",
-      libraryIndexDownload: "元ファイルをダウンロード",
-      libraryIndexLoading: "索引を読み込み中…",
-      libraryIndexLoadFailed: "索引を読み込めませんでした",
-      libraryIndexRegisterTitle: "プロジェクト資料として登録",
-      libraryIndexRegisterSubtitle: "登録すると教学記録に書き込まれます。授業・課題・学情が実際に参照する場合だけ使います。",
-      libraryIndexTitleLabel: "タイトル",
-      libraryIndexKindLabel: "種類",
-      libraryIndexSourceLabel: "出典",
-      libraryIndexEditionLabel: "版",
-      libraryIndexRegisterSubmit: "登録",
-      libraryIndexRegistered: "プロジェクト資料として登録しました",
-      libraryIndexRegisterRequired: "タイトルを入力してください",
-      libraryIndexFileTitle: "資料プレビュー",
-      libraryIndexFileLoading: "ファイルを読み込み中…",
-      libraryIndexFileFailed: "ファイルを読み込めませんでした",
-      libraryIndexFileMeta: "{kind} · {size}",
       syllabusLabel: "シラバス",
       pastPapersCount: "過去問{n}件",
       mockPapersCount: "模擬試験の問題{n}件",
@@ -1782,12 +1742,24 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       importInvalid: "このファイルは有効なJSONではありません",
       importReadFailed: "ファイルを読み取れませんでした: {error}",
       sectionExperience: "エクスペリエンスとリマインダー",
+      sectionDsh: "DSHと同期する設定",
       language: "言語",
-      languageHint: "DSH の言語設定と同期します。初回起動時はブラウザーまたはシステムの言語に従います。",
+      languageHint: "DSHの言語設定と同期し、変更はすぐ反映されます。",
       appearance: "外観",
-      appearanceNote: "外観はDSH設定 → 外観に従います。トマトスキンはペーパーパレットを上に重ねます。",
-      simpleMode: "コンパクトモード",
-      simpleModeNote: "UIの密度はDSHによって管理されます。トマトのメインビューはナビゲーションと9つのページを維持します。",
+      appearanceNote: "DSHの設定 → 外観と同期し、変更はすぐ反映されます。トマトスキンは紙色を保ちます。",
+      themeSystem: "システムに従う",
+      themeLight: "ライト",
+      themeDark: "ダーク",
+      themeChangeFailed: "DSHの外観を変更できませんでした: {error}",
+      workDetails: "作業の詳細",
+      workDetailsHint: "DSHのチャット設定と同期し、変更はすぐ反映されます。",
+      workCompact: "コンパクト",
+      workStandard: "標準",
+      workDetailed: "詳細",
+      workVerbose: "完全展開",
+      workChangeFailed: "DSHの作業表示を変更できませんでした",
+      dshLoading: "DSHの設定を読み込み中…",
+      dshUnavailable: "DSHの設定を利用できません",
       personaBackdrop: "ペルソナ背景",
       personaBackdropHint: "通常のページ背景に現在のペルソナのアートワークを表示します。フォーカスビューとガードビューでは非表示になります。",
       sound: "キーモーメントのサウンド",
@@ -1806,9 +1778,9 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       autostart: "ログイン時に起動",
       autostartValue: "インストールスクリプトとsystemdユーザーサービスによって管理されます（docs/CROSS_PLATFORM.mdを参照）。",
       tray: "閉じた後もトレイで実行を続ける",
-      trayValue: "DSHにはシステムトレイがありません。メインビューを閉じてもタイマーやリマインダーは停止しません。",
+      trayValue: "DSHのデスクトップトレイが担当します。この画面を閉じてもタイマーと通知は続きます。",
       quit: "アプリを終了",
-      quitValue: "DSHから終了します。タイマーと設定は終了前に保存されます。",
+      quitValue: "DSHから終了します。保護付き集中の間は終了できません。",
       sectionNetwork: "ネットワークプロキシ",
       networkHint: "プラグインはローカルランタイム（127.0.0.1）とのみ通信します。プロキシはDSHとシステム設定に従います。",
       sectionData: "データとバックアップ",
@@ -2835,7 +2807,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       )
     );
   }
-  function Select2({
+  function Select({
     value,
     options,
     onChange,
@@ -3383,7 +3355,6 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
   __export(api_exports, {
     API_BASE: () => API_BASE,
     ApiError: () => ApiError,
-    authorizeLibrary: () => authorizeLibrary,
     authorizeProjectDirectory: () => authorizeProjectDirectory,
     cleanupProjectResources: () => cleanupProjectResources,
     getApps: () => getApps,
@@ -3391,26 +3362,25 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
     getExportPlan: () => getExportPlan,
     getFileToken: () => getFileToken,
     getHealth: () => getHealth,
-    getLibraryGrant: () => getLibraryGrant,
-    getLibraryItems: () => getLibraryItems,
-    getLibraryStats: () => getLibraryStats,
     getProjectGrant: () => getProjectGrant,
+    getProjectLibraryItems: () => getProjectLibraryItems,
+    getProjectLibraryStats: () => getProjectLibraryStats,
     getProjectResources: () => getProjectResources,
     getResourceInfo: () => getResourceInfo,
     getState: () => getState,
     getStateWithResources: () => getStateWithResources,
     importProjectResources: () => importProjectResources,
-    libraryFileUrl: () => libraryFileUrl,
     ping: () => ping,
     postDispatch: () => postDispatch,
+    projectLibraryFileUrl: () => projectLibraryFileUrl,
     registerProjectResource: () => registerProjectResource,
     registerResource: () => registerResource,
     repairProjectResource: () => repairProjectResource,
     resourceFileUrl: () => resourceFileUrl,
-    revokeLibraryGrant: () => revokeLibraryGrant,
-    scanLibrary: () => scanLibrary,
     scanProjectLibrary: () => scanProjectLibrary,
-    setDesktopFullscreen: () => setDesktopFullscreen
+    scanProjectLibraryIndex: () => scanProjectLibraryIndex,
+    setDesktopFullscreen: () => setDesktopFullscreen,
+    uploadProjectFile: () => uploadProjectFile
   });
   var API_BASE = "http://127.0.0.1:43987";
   var ApiError = class extends Error {
@@ -3462,41 +3432,39 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       body: { action }
     });
   }
-  function getLibraryGrant(opts) {
-    return request("/api/library/grant", opts);
+  function scanProjectLibraryIndex(projectId, opts) {
+    return request(
+      "/api/projects/" + encodeURIComponent(projectId) + "/library/scan",
+      {
+        method: "POST",
+        timeoutMs: 12e4,
+        ...opts
+      }
+    );
   }
-  function authorizeLibrary(directory, opts) {
-    return request("/api/library/authorize", {
-      ...opts,
-      method: "POST",
-      body: { directory }
-    });
+  function getProjectLibraryStats(projectId, opts) {
+    return request(
+      "/api/projects/" + encodeURIComponent(projectId) + "/library/stats",
+      {
+        timeoutMs: 8e3,
+        ...opts
+      }
+    );
   }
-  function revokeLibraryGrant(opts) {
-    return request("/api/library/grant", { ...opts, method: "DELETE" });
-  }
-  function scanLibrary(opts) {
-    return request("/api/library/scan", {
-      method: "POST",
-      timeoutMs: 12e4,
-      ...opts
-    });
-  }
-  function getLibraryStats(opts) {
-    return request("/api/library/stats", { timeoutMs: 8e3, ...opts });
-  }
-  function getLibraryItems({ projectId, q = "", kind = "", offset = 0, limit = 40 } = {}, opts) {
+  function getProjectLibraryItems(projectId, { q = "", kind = "", offset = 0, limit = 40 } = {}, opts) {
     const params = new URLSearchParams({
       offset: String(offset),
       limit: String(limit)
     });
-    if (projectId) params.set("projectId", projectId);
     if (q) params.set("q", q);
     if (kind) params.set("kind", kind);
-    return request("/api/library/items?" + params.toString(), {
-      timeoutMs: 15e3,
-      ...opts
-    });
+    return request(
+      "/api/projects/" + encodeURIComponent(projectId) + "/library/items?" + params.toString(),
+      {
+        timeoutMs: 15e3,
+        ...opts
+      }
+    );
   }
   function getFileToken(opts) {
     return request("/api/file-token", opts);
@@ -3512,10 +3480,33 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
     if (download) params.set("download", "1");
     return API_BASE + "/api/resources/" + encodeURIComponent(id) + "/file?" + params.toString();
   }
-  function libraryFileUrl(path, access, download = false) {
+  function projectLibraryFileUrl(projectId, path, access, download = false) {
     const params = new URLSearchParams({ path, access });
     if (download) params.set("download", "1");
-    return API_BASE + "/api/library/file?" + params.toString();
+    return API_BASE + "/api/projects/" + encodeURIComponent(projectId) + "/library/file?" + params.toString();
+  }
+  async function uploadProjectFile(projectId, file, path = file.name) {
+    let res;
+    try {
+      res = await fetch(
+        API_BASE + "/api/projects/" + encodeURIComponent(projectId) + "/files?path=" + encodeURIComponent(path),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: file
+        }
+      );
+    } catch {
+      throw new ApiError("无法连接番茄 runtime（127.0.0.1:43987）", 0);
+    }
+    let payload;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
+    if (!res.ok) throw new ApiError(payload?.error || "文件导入失败", res.status);
+    return payload;
   }
   function getProjectGrant(id, opts) {
     return request("/api/projects/" + encodeURIComponent(id) + "/grant", opts);
@@ -4155,7 +4146,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       h(
         Row,
         { label: t("skinprefs.daypart") },
-        h(Select2, {
+        h(Select, {
           value: prefs.daypart,
           width: 132,
           options: [
@@ -4175,7 +4166,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
           hint: t("skinprefs.personaHint"),
           dim: !settings
         },
-        h(Select2, {
+        h(Select, {
           value: persona,
           width: 140,
           options: PERSONAS.map((p) => ({ value: p.id, label: t(p.nameKey) })),
@@ -4643,6 +4634,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
   var activeProjectId = null;
   var openPanelFn = null;
   var panelInfoObs = null;
+  var unbindPanelInfo = null;
   var coldStart = null;
   var lastCompleteSerial = 0;
   var listeners5 = /* @__PURE__ */ new Set();
@@ -4871,22 +4863,33 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
   function bindPanelOpener(fn) {
     openPanelFn = typeof fn === "function" ? fn : null;
   }
-  function bindPanelInfo(observer) {
+  function bindPanelInfo(observer, isTomatoRegistered = null) {
+    unbindPanelInfo?.();
+    unbindPanelInfo = null;
     panelInfoObs = observer && typeof observer.subscribe === "function" ? observer : null;
     if (panelInfoObs === null) return;
+    const source = panelInfoObs;
     let last = void 0;
     const sync = () => {
-      const panelId = panelInfoObs.getSnapshot?.()?.activePanelId ?? null;
+      const panelId = source.getSnapshot?.()?.activePanelId ?? null;
       if (last === void 0) {
         last = panelId;
         return;
       }
       if (panelId === last) return;
       last = panelId;
+      if (panelId !== "tomato" && typeof isTomatoRegistered === "function") {
+        try {
+          if (!isTomatoRegistered()) return;
+        } catch {
+          return;
+        }
+      }
       setPanelVisible(panelId === "tomato");
     };
     sync();
-    panelInfoObs.subscribe(sync);
+    const unsubscribe = source.subscribe(sync);
+    if (typeof unsubscribe === "function") unbindPanelInfo = unsubscribe;
   }
   function hasPanelInfo() {
     return panelInfoObs !== null;
@@ -5465,7 +5468,11 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
             api: props.api,
             onLeave: props.onLeave,
             onAssistant: props.onAssistant,
-            onLanguageChange: props.onLanguageChange
+            onLanguageChange: props.onLanguageChange,
+            theme: props.theme,
+            subscribeTheme: props.subscribeTheme,
+            onThemeChange: props.onThemeChange,
+            chatSettings: props.chatSettings
           }) : null
         )
       ),
@@ -6360,10 +6367,12 @@ ${JSON.stringify(refs, null, 2)}`;
     }, [active2]);
     return now;
   }
-  var INK = "#fbf3e6";
-  var INK_2 = "#c9b7a1";
-  var INK_3 = "#8f7d6b";
-  var HAIRLINE = "#ffffff12";
+  var INK = "var(--tomato-ink)";
+  var INK_2 = "var(--tomato-ink-2)";
+  var INK_3 = "var(--dsw-alias-label-tertiary, var(--tomato-ink-2))";
+  var HAIRLINE = "var(--tomato-line)";
+  var SOFT_FILL = "color-mix(in srgb, var(--tomato-ink) 5%, transparent)";
+  var FAINT_FILL = "color-mix(in srgb, var(--tomato-ink) 4%, transparent)";
   function EndDialog({
     strictActive,
     canEarly,
@@ -6985,7 +6994,7 @@ ${JSON.stringify(refs, null, 2)}`;
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
-          background: "radial-gradient(120% 120% at 50% -18%, #3a2a20 0%, #251b14 46%, #16100c 100%)",
+          background: "radial-gradient(120% 120% at 50% -18%, var(--tomato-immersive-top) 0%, var(--tomato-immersive-middle) 46%, var(--tomato-immersive-bottom) 100%)",
           color: INK
         }
       },
@@ -7001,7 +7010,7 @@ ${JSON.stringify(refs, null, 2)}`;
           height: "74vmax",
           borderRadius: "50%",
           pointerEvents: "none",
-          background: "radial-gradient(circle, #e8886c14 0%, #e8886c00 62%)",
+          background: "radial-gradient(circle, color-mix(in srgb, var(--tomato-brand) 8%, transparent) 0%, transparent 62%)",
           filter: "blur(30px)",
           animation: "t-breathe 9s ease-in-out infinite"
         }
@@ -7017,7 +7026,7 @@ ${JSON.stringify(refs, null, 2)}`;
           height: "66vmax",
           borderRadius: "50%",
           pointerEvents: "none",
-          background: "radial-gradient(circle, #f3d9c80d 0%, #f3d9c800 60%)",
+          background: "radial-gradient(circle, color-mix(in srgb, var(--tomato-accent) 5%, transparent) 0%, transparent 60%)",
           filter: "blur(36px)",
           animation: "t-breathe 13s ease-in-out infinite 1.6s"
         }
@@ -7033,14 +7042,14 @@ ${JSON.stringify(refs, null, 2)}`;
             right: 0,
             bottom: 0,
             height: 2,
-            background: "#ffffff0a"
+            background: FAINT_FILL
           }
         },
         h("div", {
           style: {
             height: "100%",
             width: `${progress * 100}%`,
-            background: "#e8886c66",
+            background: "color-mix(in srgb, var(--tomato-brand) 40%, transparent)",
             transition: "width 1s linear"
           }
         })
@@ -7060,10 +7069,10 @@ ${JSON.stringify(refs, null, 2)}`;
             padding: "7px 15px",
             borderRadius: 22,
             border: `1px solid ${HAIRLINE}`,
-            background: "#ffffff0d",
+            background: SOFT_FILL,
             fontSize: 12,
             letterSpacing: ".02em",
-            color: "#e8d8c2",
+            color: INK_2,
             maxWidth: "calc(100vw - 120px)",
             whiteSpace: "nowrap"
           }
@@ -7108,8 +7117,8 @@ ${JSON.stringify(refs, null, 2)}`;
               fontWeight: 250,
               letterSpacing: "-.035em",
               lineHeight: 1,
-              color: view.paused ? "#cbbca8" : INK,
-              textShadow: "0 8px 40px #00000059",
+              color: view.paused ? INK_2 : INK,
+              textShadow: "0 8px 40px var(--tomato-immersive-number-shadow)",
               transition: "color .4s ease",
               fontVariantNumeric: "tabular-nums"
             }
@@ -7126,7 +7135,7 @@ ${JSON.stringify(refs, null, 2)}`;
               padding: "5px 13px",
               borderRadius: 18,
               border: `1px solid ${HAIRLINE}`,
-              background: "#ffffff0d",
+              background: SOFT_FILL,
               fontSize: 12,
               color: INK_2
             }
@@ -7267,7 +7276,7 @@ ${JSON.stringify(refs, null, 2)}`;
             size: "sm",
             variant: "plain",
             style: {
-              color: "#d8b7a2",
+              color: "var(--tomato-accent-fg)",
               background: "transparent",
               border: `1px solid ${HAIRLINE}`
             },
@@ -7326,7 +7335,7 @@ ${JSON.stringify(refs, null, 2)}`;
           style: {
             color: INK_2,
             border: `1px solid ${HAIRLINE}`,
-            background: "#ffffff0a",
+            background: FAINT_FILL,
             borderRadius: 12
           },
           onClick: closeImmersive
@@ -7838,11 +7847,8 @@ ${JSON.stringify(refs, null, 2)}`;
   }
 
   // plugin/src/client/app/overlay.js
-  var restored = false;
   function useStartupNavigation() {
     useEffect(() => {
-      if (restored) return;
-      restored = true;
       restore();
     }, []);
   }
@@ -7856,6 +7862,22 @@ ${JSON.stringify(refs, null, 2)}`;
       h(Immersive, null),
       h(ToastHost, null)
     );
+  }
+
+  // plugin/src/client/app/exit-guard.js
+  function shouldBlockExit(state) {
+    if (state?.data?.lock?.active) return true;
+    const timer = timerView(state);
+    return timer.mode === "focus" && (timer.running || timer.paused);
+  }
+  function installExitGuard(target = window, readState = getSnapshot) {
+    const onBeforeUnload = (event) => {
+      if (!shouldBlockExit(readState())) return;
+      event.preventDefault();
+      event.returnValue = false;
+    };
+    target.addEventListener("beforeunload", onBeforeUnload);
+    return () => target.removeEventListener("beforeunload", onBeforeUnload);
   }
 
   // plugin/src/client/app/dock.js
@@ -8109,7 +8131,11 @@ ${JSON.stringify(refs, null, 2)}`;
         },
         view.running ? fmtClock(view.remainingSecs) : `${done} / ${goal}`
       ) : null,
-      wide ? h(Icon, { name: "arrowRight", size: 13, style: { opacity: 0.4, flex: "none" } }) : null
+      wide ? h(Icon, {
+        name: "arrowRight",
+        size: 13,
+        style: { opacity: 0.4, flex: "none" }
+      }) : null
     );
   }
   function SidebarTomatoIcon({ size = 18, active: active2 = false }) {
@@ -8216,13 +8242,13 @@ ${JSON.stringify(refs, null, 2)}`;
         style: inline ? {
           display: "inline-flex",
           alignItems: "center",
-          gap: 7,
-          height: 28,
-          padding: "0 6px 0 9px",
-          borderRadius: 9,
+          gap: 10,
+          height: 42,
+          padding: "0 9px 0 13px",
+          borderRadius: 12,
           border: "1px solid var(--tomato-line)",
           background: "color-mix(in srgb, var(--tomato-brand-soft) 70%, var(--tomato-surface))",
-          maxWidth: 430,
+          maxWidth: "min(600px, calc(100vw - 32px))",
           minWidth: 0,
           flex: "none",
           cursor: onOpen ? "pointer" : void 0
@@ -8241,14 +8267,14 @@ ${JSON.stringify(refs, null, 2)}`;
       },
       h(Icon, {
         name: "bell",
-        size: 14,
+        size: inline ? 17 : 14,
         style: { color: "var(--tomato-accent-fg)" }
       }),
       h(
         "span",
         {
           style: {
-            fontSize: 11.5,
+            fontSize: inline ? 13 : 11.5,
             fontWeight: 600,
             color: "var(--tomato-accent-fg)",
             letterSpacing: ".02em",
@@ -8268,9 +8294,9 @@ ${JSON.stringify(refs, null, 2)}`;
           style: {
             display: "inline-flex",
             alignItems: "center",
-            gap: 4,
-            fontSize: 11.5,
-            color: "var(--tomato-ink-3)",
+            gap: inline ? 6 : 4,
+            fontSize: inline ? 12.5 : 11.5,
+            color: inline ? "var(--tomato-ink-2)" : "var(--tomato-ink-3)",
             flex: "none"
           }
         },
@@ -8292,8 +8318,8 @@ ${JSON.stringify(refs, null, 2)}`;
           style: {
             flex: 1,
             minWidth: inline ? 40 : 120,
-            maxWidth: inline ? 156 : void 0,
-            fontSize: 12.5,
+            maxWidth: inline ? 240 : void 0,
+            fontSize: inline ? 14 : 12.5,
             fontWeight: 550,
             color: "var(--tomato-ink)",
             overflow: "hidden",
@@ -8307,7 +8333,7 @@ ${JSON.stringify(refs, null, 2)}`;
         "span",
         {
           style: {
-            fontSize: 11,
+            fontSize: 12,
             color: "var(--tomato-ink-3)",
             flex: "none"
           }
@@ -8351,7 +8377,7 @@ ${JSON.stringify(refs, null, 2)}`;
             icon: "play",
             disabled: busy,
             onClick: start,
-            style: { height: 24, fontSize: 11.5 }
+            style: { height: inline ? 32 : 24, fontSize: inline ? 13 : 11.5 }
           },
           t("reminder.start")
         )
@@ -8751,7 +8777,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("task.project") },
-          h(Select2, {
+          h(Select, {
             value: draft.projectId,
             options: [
               { value: "", label: t("task.noProject") },
@@ -8807,7 +8833,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("task.priority") },
-          h(Select2, {
+          h(Select, {
             value: String(draft.priority),
             options: priorityOptions,
             onChange: (value) => patch({ priority: Number(value) }),
@@ -9628,10 +9654,10 @@ ${JSON.stringify(refs, null, 2)}`;
       answerSheetsEmpty: "项目里还没有登记答卷文件",
       registerSheet: "从资料库选文件并登记为答卷",
       pickerTitle: "选择答卷文件",
-      pickerSubtitle: "选一条共享资料库索引里的文件，登记为这个项目的答卷。",
+      pickerSubtitle: "从本项目资料目录选文件，登记为答卷。",
       pickerSearch: "搜索文件",
       pickerEmpty: "资料库里没有可用文件",
-      pickerNoIndex: "还没有共享资料库索引，请先到应试教育页扫描资料库。",
+      pickerNoIndex: "本项目还没有资料索引，请先到项目页扫描目录。",
       pickerError: "读取资料库失败：{error}",
       register: "登记为答卷",
       registering: "登记中…",
@@ -9705,10 +9731,10 @@ ${JSON.stringify(refs, null, 2)}`;
       answerSheetsEmpty: "No answer sheets registered for this project",
       registerSheet: "Pick a library file and register it as an answer sheet",
       pickerTitle: "Choose an answer sheet",
-      pickerSubtitle: "Pick a file from the shared library index and register it as this project's answer sheet.",
+      pickerSubtitle: "Pick a file from this project's materials folder and register it as an answer sheet.",
       pickerSearch: "Search files",
       pickerEmpty: "No usable files in the library",
-      pickerNoIndex: "The shared library index is missing; scan it on the Education page first.",
+      pickerNoIndex: "This project has no materials index yet; scan its folder on the project page first.",
       pickerError: "Could not read the library: {error}",
       register: "Register as answer sheet",
       registering: "Registering…",
@@ -9782,10 +9808,10 @@ ${JSON.stringify(refs, null, 2)}`;
       answerSheetsEmpty: "このプロジェクトには答案が登録されていません",
       registerSheet: "資料庫からファイルを選んで答案として登録",
       pickerTitle: "答案ファイルを選択",
-      pickerSubtitle: "共有資料庫の索引から 1 件選び、このプロジェクトの答案として登録します。",
+      pickerSubtitle: "このプロジェクトの資料フォルダから選び、答案として登録します。",
       pickerSearch: "ファイルを検索",
       pickerEmpty: "資料庫に使えるファイルがありません",
-      pickerNoIndex: "共有資料庫の索引がありません。先に教育ページでスキャンしてください。",
+      pickerNoIndex: "このプロジェクトの索引がありません。先にプロジェクトページでスキャンしてください。",
       pickerError: "資料庫を読み込めません：{error}",
       register: "答案として登録",
       registering: "登録中…",
@@ -10223,8 +10249,9 @@ ${JSON.stringify(refs, null, 2)}`;
       let cancelled = false;
       setPickerLoading(true);
       setPickerError(null);
-      getLibraryItems(
-        { projectId, q: pickerApplied, limit: PICKER_LIMIT },
+      getProjectLibraryItems(
+        projectId,
+        { q: pickerApplied, limit: PICKER_LIMIT },
         { timeoutMs: 15e3 }
       ).then((result) => {
         if (cancelled) return;
@@ -14504,7 +14531,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("template.project") },
-          h(Select2, {
+          h(Select, {
             value: draft.projectId,
             options: [
               { value: "", label: t("template.noProject") },
@@ -14520,7 +14547,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("template.priority") },
-          h(Select2, {
+          h(Select, {
             value: String(draft.priority),
             options: priorityOptions,
             onChange: (value) => patch({ priority: Number(value) }),
@@ -15483,7 +15510,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("print.template") },
-          h(Select2, {
+          h(Select, {
             value: activeTemplateId,
             options: list.map((item) => ({
               value: item.id,
@@ -16125,19 +16152,19 @@ ${JSON.stringify(refs, null, 2)}`;
               style: { position: "absolute", right: 6 }
             }) : null
           ),
-          h(Select2, {
+          h(Select, {
             value: projectId,
             options: projectOptions,
             onChange: onProjectId,
             width: 132
           }),
-          h(Select2, {
+          h(Select, {
             value: priority,
             options: priorityOptions,
             onChange: onPriority,
             width: 118
           }),
-          h(Select2, {
+          h(Select, {
             value: sort,
             options: sortOptions,
             onChange: onSort,
@@ -17942,28 +17969,21 @@ ${JSON.stringify(refs, null, 2)}`;
       grantStatusLoading: "读取授权状态…",
       grantStatusError: "授权状态读取失败",
       grantUnauthorized: "未授权",
-      grantShared: "共享资料库",
-      grantOwn: "项目专属目录",
+      grantOwn: "项目资料目录",
       grantLoading: "读取授权状态…",
-      grantNotAuthorizedHint: "这个项目还没有资料目录。先授权共享资料库根目录或专属子目录，才能浏览、导入并按资料绑定应试内容。",
-      grantNotAuthorizedNoLibraryHint: "共享资料库也尚未授权。可以先在这里给项目一个专属目录，或到「应试教育」页授权整个资料库。",
-      grantSharedHint: "本项目使用共享资料库根目录；索引覆盖整个共享库，导入时按项目目录筛选。",
-      grantOwnHint: "本项目使用共享库内的专属子目录；浏览与导入都只在这个目录范围内。",
-      grantReadOnly: "授权只是读取许可，不移动文件。",
+      grantNotAuthorizedHint: "这个项目还没有授权资料目录。请选择项目自己的目录后再浏览或导入。",
+      grantOwnHint: "浏览、扫描和导入只针对这个项目目录及其子目录。",
+      grantReadOnly: "授权不移动文件；上传外部文件时才会复制进项目目录。",
       grantAuthorize: "授权目录",
       grantChange: "更换",
-      grantUseShared: "使用共享库",
-      grantUsingShared: "使用中",
       grantSwitching: "正在切换…",
       grantRefresh: "刷新",
       grantPathRequired: "请填写绝对路径",
       grantModalTitle: "授权项目资料目录",
-      grantModalSubtitle: "选择一个已存在的绝对目录；授权只给读取许可，不移动任何文件。",
+      grantModalSubtitle: "选择一个已存在的项目目录；授权本身不会移动文件。",
       grantPathLabel: "绝对路径",
-      grantModalHint: "必须在共享资料库内（若已授权）；不能是根目录、整个主目录或应用内部目录。",
+      grantModalHint: "项目目录不能互相重叠，也不能是根目录、整个主目录或应用内部目录。",
       grantSaved: "资料目录已授权",
-      grantSharedMissing: "共享资料库尚未授权，请先到「应试教育」页授权整个资料库。",
-      grantSharedDone: "已切换为使用共享资料库",
       grantConfirm: "授权",
       importAvailable: "索引内 {n} 个文件",
       importSelected: "导入选中（{n}）",
@@ -17974,6 +17994,13 @@ ${JSON.stringify(refs, null, 2)}`;
       importConfirmSubmit: "导入 {n} 个",
       importBusy: "正在导入…",
       importDone: "已登记 {registered} 条，跳过 {skipped} 条（已登记过）",
+      uploadFiles: "从外部添加文件",
+      uploadFolder: "添加整个目录",
+      uploadBusy: "正在复制文件…",
+      uploadProgress: "已复制 {done}/{total}",
+      uploadSkipped: "隐藏文件或依赖目录不导入",
+      uploadDone: "已复制 {n} 个文件到项目目录并登记",
+      uploadCopiedUnregistered: "已复制 {n} 个文件，但尚未登记",
       selectItem: "选择 {name}",
       clearSelection: "取消选择",
       exportHint: "只导出元数据，不导出文件内容。",
@@ -18011,28 +18038,21 @@ ${JSON.stringify(refs, null, 2)}`;
       grantStatusLoading: "Reading authorization…",
       grantStatusError: "Could not read authorization",
       grantUnauthorized: "Not authorized",
-      grantShared: "Shared library",
-      grantOwn: "Project folder",
+      grantOwn: "Project materials folder",
       grantLoading: "Reading authorization…",
-      grantNotAuthorizedHint: "This project has no materials folder yet. Authorize the shared library root or a project subfolder before browsing, importing, or binding exam materials.",
-      grantNotAuthorizedNoLibraryHint: "The shared library is not authorized either. Give this project its own folder here, or authorize the whole library on the study page.",
-      grantSharedHint: "This project uses the shared library root; the index covers the whole library and imports are filtered by project folder.",
-      grantOwnHint: "This project uses a subfolder inside the shared library; browsing and importing stay inside that folder.",
-      grantReadOnly: "Authorization is read-only permission; files are never moved.",
+      grantNotAuthorizedHint: "Authorize this project's materials folder before browsing or importing files.",
+      grantOwnHint: "Scanning, browsing, and importing stay inside this project folder and its subfolders.",
+      grantReadOnly: "Authorization itself does not move files; uploading copies files into this folder.",
       grantAuthorize: "Authorize folder",
       grantChange: "Change",
-      grantUseShared: "Use shared library",
-      grantUsingShared: "In use",
       grantSwitching: "Switching…",
       grantRefresh: "Refresh",
       grantPathRequired: "Enter an absolute path",
       grantModalTitle: "Authorize the project materials folder",
-      grantModalSubtitle: "Choose an existing absolute folder; authorization only grants read access and never moves a file.",
+      grantModalSubtitle: "Choose an existing project folder; authorization itself does not move files.",
       grantPathLabel: "Absolute path",
-      grantModalHint: "It must be inside the shared library when one is authorized; the root, the whole home folder, and app data folders are rejected.",
+      grantModalHint: "Project folders cannot overlap; the root, whole home folder, and app data folders are rejected.",
       grantSaved: "Materials folder authorized",
-      grantSharedMissing: "The shared library is not authorized; authorize the whole library on the study page first.",
-      grantSharedDone: "Switched to the shared library",
       grantConfirm: "Authorize",
       importAvailable: "{n} files in the index",
       importSelected: "Import selected ({n})",
@@ -18043,6 +18063,13 @@ ${JSON.stringify(refs, null, 2)}`;
       importConfirmSubmit: "Import {n}",
       importBusy: "Importing…",
       importDone: "Registered {registered}, skipped {skipped} already registered",
+      uploadFiles: "Add external files",
+      uploadFolder: "Add a whole folder",
+      uploadBusy: "Copying files…",
+      uploadProgress: "Copied {done}/{total}",
+      uploadSkipped: "Hidden files and dependency folders are skipped",
+      uploadDone: "Copied and registered {n} files in this project",
+      uploadCopiedUnregistered: "Copied {n} files but could not register them",
       selectItem: "Select {name}",
       clearSelection: "Clear selection",
       exportHint: "Metadata only; file contents are never exported.",
@@ -18080,28 +18107,21 @@ ${JSON.stringify(refs, null, 2)}`;
       grantStatusLoading: "認可状態を読み込み中…",
       grantStatusError: "認可状態を読み込めません",
       grantUnauthorized: "未認可",
-      grantShared: "共有ライブラリ",
-      grantOwn: "プロジェクト専用フォルダ",
+      grantOwn: "プロジェクト資料フォルダ",
       grantLoading: "認可状態を読み込み中…",
-      grantNotAuthorizedHint: "このプロジェクトには資料フォルダがありません。共有ライブラリのルートか専用サブフォルダを認可すると、閲覧・取り込み・試験資料の紐付けができます。",
-      grantNotAuthorizedNoLibraryHint: "共有ライブラリも未認可です。ここで専用フォルダを認可するか、学習ページでライブラリ全体を認可してください。",
-      grantSharedHint: "このプロジェクトは共有ライブラリのルートを使います。索引はライブラリ全体を対象にし、取り込みはプロジェクトのフォルダで絞り込みます。",
-      grantOwnHint: "このプロジェクトは共有ライブラリ内の専用サブフォルダを使います。閲覧と取り込みはそのフォルダ内だけです。",
-      grantReadOnly: "認可は読み取り許可だけです。ファイルは移動しません。",
+      grantNotAuthorizedHint: "このプロジェクトの資料フォルダを認可してから、閲覧や取り込みを行ってください。",
+      grantOwnHint: "スキャン・閲覧・取り込みはこのプロジェクトのフォルダとサブフォルダ内だけです。",
+      grantReadOnly: "認可だけではファイルを移動しません。アップロード時にコピーします。",
       grantAuthorize: "フォルダを認可",
       grantChange: "変更",
-      grantUseShared: "共有ライブラリを使う",
-      grantUsingShared: "使用中",
       grantSwitching: "切り替え中…",
       grantRefresh: "更新",
       grantPathRequired: "絶対パスを入力してください",
       grantModalTitle: "プロジェクト資料フォルダを認可",
       grantModalSubtitle: "既存の絶対フォルダを選択してください。認可は読み取り許可だけで、ファイルは移動しません。",
       grantPathLabel: "絶対パス",
-      grantModalHint: "共有ライブラリが認可済みならその内側である必要があります。ルート、ホーム全体、アプリ内部フォルダは拒否されます。",
+      grantModalHint: "プロジェクトのフォルダは重複不可です。ルート、ホーム全体、アプリ内部フォルダは拒否されます。",
       grantSaved: "資料フォルダを認可しました",
-      grantSharedMissing: "共有ライブラリが未認可です。先に学習ページでライブラリ全体を認可してください。",
-      grantSharedDone: "共有ライブラリの使用に切り替えました",
       grantConfirm: "認可",
       importAvailable: "索引内 {n} ファイル",
       importSelected: "選択をインポート（{n}）",
@@ -18112,6 +18132,13 @@ ${JSON.stringify(refs, null, 2)}`;
       importConfirmSubmit: "{n} 件をインポート",
       importBusy: "インポート中…",
       importDone: "{registered} 件を登録、{skipped} 件をスキップ（登録済み）",
+      uploadFiles: "外部ファイルを追加",
+      uploadFolder: "フォルダごと追加",
+      uploadBusy: "ファイルをコピー中…",
+      uploadProgress: "{done}/{total} 件コピー済み",
+      uploadSkipped: "隠しファイルと依存フォルダは取り込みません",
+      uploadDone: "{n} 件をコピーして登録しました",
+      uploadCopiedUnregistered: "{n} 件をコピーしましたが、登録できませんでした",
       selectItem: "{name} を選択",
       clearSelection: "選択を解除",
       exportHint: "メタデータのみを出力します。ファイルの中身は出力しません。",
@@ -18211,7 +18238,10 @@ ${JSON.stringify(refs, null, 2)}`;
     let offset = 0;
     let total = Infinity;
     while (offset < total) {
-      const page = await getLibraryItems({ projectId, offset, limit: 100 });
+      const page = await getProjectLibraryItems(projectId, {
+        offset,
+        limit: 100
+      });
       const list = Array.isArray(page && page.items) ? page.items : [];
       total = Number(page && page.total) || 0;
       if (list.length === 0) break;
@@ -18247,7 +18277,7 @@ ${JSON.stringify(refs, null, 2)}`;
     }
     return fileTokenPromise;
   }
-  function LibraryPreview({ item, onClose }) {
+  function LibraryPreview({ item, projectId, onClose }) {
     const [access, setAccess] = useState("");
     const [error, setError] = useState("");
     useEffect(() => {
@@ -18271,8 +18301,8 @@ ${JSON.stringify(refs, null, 2)}`;
       name: item.name,
       kind: item.kind,
       sizeBytes: item.sizeBytes,
-      viewUrl: access ? libraryFileUrl(item.path, access) : "",
-      downloadUrl: access ? libraryFileUrl(item.path, access, true) : "",
+      viewUrl: access ? projectLibraryFileUrl(projectId, item.path, access) : "",
+      downloadUrl: access ? projectLibraryFileUrl(projectId, item.path, access, true) : "",
       previewable: item.previewable !== false && error === "",
       emptyHint: error !== "" ? error : t("project.previewUnsupported")
     });
@@ -18308,18 +18338,15 @@ ${JSON.stringify(refs, null, 2)}`;
     const projectId = project.id;
     const [grant, setGrant] = useState(null);
     const [grantError, setGrantError] = useState("");
-    const [library, setLibrary] = useState(null);
     const [reloadKey, setReloadKey] = useState(0);
     const [indexReload, setIndexReload] = useState(0);
     const [authorizeOpen, setAuthorizeOpen] = useState(false);
     const [directory, setDirectory] = useState("");
     const [busy, setBusy] = useState(false);
-    const [sharedBusy, setSharedBusy] = useState(false);
     const [actionError, setActionError] = useState("");
     useEffect(() => {
       setGrant(null);
       setGrantError("");
-      setLibrary(null);
       setAuthorizeOpen(false);
       setDirectory("");
       setActionError("");
@@ -18334,19 +18361,12 @@ ${JSON.stringify(refs, null, 2)}`;
       }).catch((error) => {
         if (!cancelled) setGrantError(errorText(error));
       });
-      getLibraryGrant().then((result) => {
-        if (!cancelled) setLibrary(result);
-      }).catch(() => {
-        if (!cancelled) setLibrary(null);
-      });
       return () => {
         cancelled = true;
       };
     }, [projectId, reloadKey]);
     const loading = grant === null && grantError === "";
     const authorized = grant !== null && grant.authorized === true;
-    const shared = authorized && grant.shared === true;
-    const libraryReady = library !== null && library !== void 0 && library.authorized === true && typeof library.directory === "string" && library.directory !== "";
     function acceptGrant(next) {
       setGrant(next);
       setGrantError("");
@@ -18385,31 +18405,8 @@ ${JSON.stringify(refs, null, 2)}`;
         setBusy(false);
       }
     }
-    async function useSharedLibrary() {
-      if (sharedBusy) return;
-      setSharedBusy(true);
-      setActionError("");
-      try {
-        const nextLibrary = await getLibraryGrant();
-        setLibrary(nextLibrary);
-        if (!nextLibrary || nextLibrary.authorized !== true || typeof nextLibrary.directory !== "string" || nextLibrary.directory === "") {
-          setActionError(t("project.grantSharedMissing"));
-          return;
-        }
-        const next = await authorizeProjectDirectory(
-          projectId,
-          nextLibrary.directory
-        );
-        acceptGrant(next);
-        notify(t("project.grantSharedDone"), "brand");
-      } catch (error) {
-        setActionError(errorText(error));
-      } finally {
-        setSharedBusy(false);
-      }
-    }
-    const statusChip = loading ? h(Chip, { tone: "neutral" }, t("project.grantStatusLoading")) : grantError !== "" ? h(Chip, { tone: "danger" }, t("project.grantStatusError")) : !authorized ? h(Chip, { tone: "neutral" }, t("project.grantUnauthorized")) : shared ? h(Chip, { tone: "brand", icon: "folder" }, t("project.grantShared")) : h(Chip, { tone: "leaf", icon: "folder" }, t("project.grantOwn"));
-    const grantHint = !authorized ? libraryReady ? t("project.grantNotAuthorizedHint") : t("project.grantNotAuthorizedNoLibraryHint") : shared ? t("project.grantSharedHint") : t("project.grantOwnHint");
+    const statusChip = loading ? h(Chip, { tone: "neutral" }, t("project.grantStatusLoading")) : grantError !== "" ? h(Chip, { tone: "danger" }, t("project.grantStatusError")) : !authorized ? h(Chip, { tone: "neutral" }, t("project.grantUnauthorized")) : h(Chip, { tone: "leaf", icon: "folder" }, t("project.grantOwn"));
+    const grantHint = !authorized ? t("project.grantNotAuthorizedHint") : t("project.grantOwnHint");
     const pathText = loading ? t("project.grantLoading") : grantError !== "" ? t("project.grantStatusError") : grant && grant.directory ? grant.directory : authorized ? t("project.grantUnauthorized") : t("project.grantUnauthorized");
     const grantPanel = h(
       "div",
@@ -18454,7 +18451,7 @@ ${JSON.stringify(refs, null, 2)}`;
             variant: "plain",
             size: "sm",
             icon: "refresh",
-            disabled: loading || busy || sharedBusy,
+            disabled: loading || busy,
             onClick: () => setReloadKey((value) => value + 1)
           },
           t("project.grantRefresh")
@@ -18498,28 +18495,11 @@ ${JSON.stringify(refs, null, 2)}`;
             variant: authorized ? "soft" : "primary",
             size: "sm",
             icon: "folder",
-            disabled: loading || busy || sharedBusy,
+            disabled: loading || busy,
             onClick: openAuthorize
           },
           authorized ? t("project.grantChange") : t("project.grantAuthorize")
-        ),
-        h(
-          Btn,
-          {
-            variant: "ghost",
-            size: "sm",
-            icon: "folder",
-            disabled: !libraryReady || shared || loading || busy || sharedBusy,
-            title: libraryReady ? void 0 : t("project.grantSharedMissing"),
-            onClick: useSharedLibrary
-          },
-          sharedBusy ? t("project.grantSwitching") : t("project.grantUseShared")
-        ),
-        shared ? h(
-          Chip,
-          { tone: "brand", icon: "check" },
-          t("project.grantUsingShared")
-        ) : null
+        )
       )
     );
     const authorizeDialog = h(
@@ -18657,6 +18637,9 @@ ${JSON.stringify(refs, null, 2)}`;
     const [importing, setImporting] = useState(false);
     const [importingAll, setImportingAll] = useState(false);
     const [importError, setImportError] = useState("");
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
+    const [uploadError, setUploadError] = useState("");
     const [lastImport, setLastImport] = useState(null);
     const [confirmImportAll, setConfirmImportAll] = useState(false);
     const [exporting, setExporting] = useState(false);
@@ -18676,6 +18659,7 @@ ${JSON.stringify(refs, null, 2)}`;
       setPreview(null);
       setSelected(/* @__PURE__ */ new Set());
       setImportError("");
+      setUploadError("");
       setLastImport(null);
       setExportError2("");
     }, [projectId]);
@@ -18688,7 +18672,7 @@ ${JSON.stringify(refs, null, 2)}`;
     }, [query]);
     useEffect(() => {
       let cancelled = false;
-      getLibraryStats().then((result) => {
+      getProjectLibraryStats(projectId).then((result) => {
         if (cancelled) return;
         setStats(result);
         setStatsError("");
@@ -18707,8 +18691,7 @@ ${JSON.stringify(refs, null, 2)}`;
       let cancelled = false;
       setLoading(true);
       setLoadError("");
-      getLibraryItems({
-        projectId,
+      getProjectLibraryItems(projectId, {
         q: appliedQuery,
         kind,
         offset,
@@ -18741,7 +18724,7 @@ ${JSON.stringify(refs, null, 2)}`;
         return void 0;
       }
       let cancelled = false;
-      getLibraryItems({ projectId, offset: 0, limit: 1 }).then((result) => {
+      getProjectLibraryItems(projectId, { offset: 0, limit: 1 }).then((result) => {
         if (cancelled) return;
         if (result && result.hasIndex === false) setMissing(true);
         else setAllCount(Math.max(0, Number(result && result.total) || 0));
@@ -18756,7 +18739,7 @@ ${JSON.stringify(refs, null, 2)}`;
       if (scanning) return;
       setScanning(true);
       try {
-        const result = await scanLibrary();
+        const result = await scanProjectLibraryIndex(projectId);
         notify(
           t("project.libraryScanDone", {
             n: Number(result && result.count) || 0
@@ -18790,6 +18773,7 @@ ${JSON.stringify(refs, null, 2)}`;
         registered > 0 ? "brand" : "neutral"
       );
       bump();
+      refresh();
       onImported?.();
     }
     async function importSelected() {
@@ -18831,6 +18815,67 @@ ${JSON.stringify(refs, null, 2)}`;
       } finally {
         setImportingAll(false);
       }
+    }
+    async function uploadFiles(event) {
+      const files = Array.from(event.target.files || []).map((file) => ({
+        file,
+        path: file.webkitRelativePath || file.name
+      }));
+      event.target.value = "";
+      if (uploading || files.length === 0) return;
+      setUploading(true);
+      setUploadError("");
+      setUploadProgress({ done: 0, total: files.length });
+      const paths = [];
+      const errors = [];
+      let next = 0;
+      let done = 0;
+      const workers = Array.from(
+        { length: Math.min(files.length, 4) },
+        async () => {
+          while (next < files.length) {
+            const { file, path } = files[next++];
+            try {
+              if (path.split("/").some((part) => part.startsWith(".") || part === "node_modules"))
+                throw new Error(t("project.uploadSkipped"));
+              const result = await uploadProjectFile(projectId, file, path);
+              paths.push(result.path);
+            } catch (error) {
+              errors.push(path + "：" + errorText(error));
+            }
+            done += 1;
+            if (done % 20 === 0 || done === files.length)
+              setUploadProgress({ done, total: files.length });
+          }
+        }
+      );
+      await Promise.all(workers);
+      if (paths.length > 0) {
+        try {
+          await scanProjectLibraryIndex(projectId);
+          setMissing(false);
+          let registered = 0;
+          let skipped = 0;
+          for (let offset2 = 0; offset2 < paths.length; offset2 += 1e3) {
+            const result = await importProjectResources(projectId, {
+              paths: paths.slice(offset2, offset2 + 1e3)
+            });
+            registered += Number(result.registered) || 0;
+            skipped += Number(result.skipped) || 0;
+          }
+          acceptImport({ registered, skipped });
+          notify(t("project.uploadDone", { n: paths.length }), "brand");
+        } catch (error) {
+          errors.push(
+            t("project.uploadCopiedUnregistered", { n: paths.length }) + "：" + errorText(error)
+          );
+          bump();
+        }
+      }
+      setUploadError(
+        errors.slice(0, 10).join("\n") + (errors.length > 10 ? "\n…" : "")
+      );
+      setUploading(false);
     }
     async function exportIndex(format) {
       if (exporting) return;
@@ -18906,6 +18951,32 @@ ${JSON.stringify(refs, null, 2)}`;
             onClick: scan
           },
           scanning ? t("project.libraryScanning") : t("project.libraryScan")
+        ),
+        h(
+          "label",
+          { style: { fontSize: 12, cursor: "pointer", alignSelf: "center" } },
+          uploading ? t("project.uploadProgress", uploadProgress) : t("project.uploadFiles"),
+          h("input", {
+            type: "file",
+            multiple: true,
+            disabled: uploading,
+            onChange: uploadFiles,
+            style: { display: "block", fontSize: 11 }
+          })
+        ),
+        h(
+          "label",
+          { style: { fontSize: 12, cursor: "pointer", alignSelf: "center" } },
+          uploading ? t("project.uploadBusy") : t("project.uploadFolder"),
+          h("input", {
+            type: "file",
+            webkitdirectory: "",
+            directory: "",
+            multiple: true,
+            disabled: uploading,
+            onChange: uploadFiles,
+            style: { display: "block", fontSize: 11 }
+          })
         )
       )
     );
@@ -18945,7 +19016,7 @@ ${JSON.stringify(refs, null, 2)}`;
             style: { paddingLeft: 32, height: 34, fontSize: 12.5 }
           })
         ),
-        h(Select2, {
+        h(Select, {
           value: kind,
           options: kindOptions,
           onChange: (value) => {
@@ -19017,6 +19088,68 @@ ${JSON.stringify(refs, null, 2)}`;
             onClick: openImportAll
           },
           allCount !== null ? t("project.importAllCount", { n: allCount }) : t("project.importAll")
+        ),
+        h(
+          "label",
+          {
+            style: {
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "7px 11px",
+              border: "1px solid var(--tomato-line)",
+              borderRadius: 9,
+              cursor: uploading ? "wait" : "pointer",
+              color: "var(--tomato-ink)",
+              fontSize: 12
+            }
+          },
+          uploading ? t("project.uploadProgress", uploadProgress) : t("project.uploadFiles"),
+          h("input", {
+            type: "file",
+            multiple: true,
+            disabled: uploading,
+            onChange: uploadFiles,
+            style: {
+              position: "absolute",
+              inset: 0,
+              opacity: 0,
+              width: "100%",
+              cursor: "pointer"
+            }
+          })
+        ),
+        h(
+          "label",
+          {
+            style: {
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "7px 11px",
+              border: "1px solid var(--tomato-line)",
+              borderRadius: 9,
+              cursor: uploading ? "wait" : "pointer",
+              color: "var(--tomato-ink)",
+              fontSize: 12
+            }
+          },
+          t("project.uploadFolder"),
+          h("input", {
+            type: "file",
+            webkitdirectory: "",
+            directory: "",
+            multiple: true,
+            disabled: uploading,
+            onChange: uploadFiles,
+            style: {
+              position: "absolute",
+              inset: 0,
+              opacity: 0,
+              width: "100%",
+              cursor: "pointer"
+            }
+          })
         )
       ),
       lastImport !== null ? h(
@@ -19292,8 +19425,13 @@ ${JSON.stringify(refs, null, 2)}`;
       "div",
       null,
       statsError !== "" ? alertBox(statsError) : null,
+      uploadError !== "" ? alertBox(uploadError) : null,
       missing ? missingBlock : listBlock,
-      h(LibraryPreview, { item: preview, onClose: () => setPreview(null) }),
+      h(LibraryPreview, {
+        item: preview,
+        projectId,
+        onClose: () => setPreview(null)
+      }),
       importAllDialog
     );
   }
@@ -19397,6 +19535,7 @@ ${JSON.stringify(refs, null, 2)}`;
         setStates(null);
         setScanSummary("");
         setLocalReload((value) => value + 1);
+        if (removed > 0) refresh();
         onChanged?.();
       } catch (error) {
         setCleanupError(errorText(error));
@@ -20089,7 +20228,7 @@ ${JSON.stringify(refs, null, 2)}`;
               kind: resourceKindLabel3("syllabus")
             }) : void 0
           },
-          h(Select2, {
+          h(Select, {
             value: syllabus,
             options: syllabusOptions,
             onChange: setSyllabus,
@@ -20244,11 +20383,11 @@ ${JSON.stringify(refs, null, 2)}`;
       noProject: "还没有选择项目",
       noProjectHint: "从左侧「我的项目」点一个项目进来。",
       libraryTitle: "项目资料",
-      libraryHint: "来自共享资料库索引，按项目目录过滤。",
+      libraryHint: "扫描并浏览本项目目录；需要时登记为教学资料。",
       libraryMissing: "资料库尚未建索引",
       libraryMissingHint: "先在本页授权资料目录，然后扫描一次；这里会列出该项目目录下的文件。",
       libraryUnauthorized: "资料目录尚未授权",
-      libraryUnauthorizedHint: "先在本页授权共享资料库根目录或项目专属目录。",
+      libraryUnauthorizedHint: "先在本页授权项目资料目录。",
       libraryScan: "扫描资料库",
       libraryScanning: "正在扫描…",
       libraryScanDone: "已索引 {n} 个文件",
@@ -20319,11 +20458,11 @@ ${JSON.stringify(refs, null, 2)}`;
       noProject: "No project selected",
       noProjectHint: "Pick one from “My projects” in the sidebar.",
       libraryTitle: "Project materials",
-      libraryHint: "From the shared library index, filtered to this project folder.",
+      libraryHint: "Scanned from this project's materials folder.",
       libraryMissing: "The library has no index yet",
       libraryMissingHint: "Authorize the folder here, then scan once; files under this project folder will show up here.",
       libraryUnauthorized: "Materials folder not authorized",
-      libraryUnauthorizedHint: "Authorize the shared library root or a project folder here first.",
+      libraryUnauthorizedHint: "Authorize this project's materials folder here first.",
       libraryScan: "Scan library",
       libraryScanning: "Scanning…",
       libraryScanDone: "Indexed {n} files",
@@ -20394,11 +20533,11 @@ ${JSON.stringify(refs, null, 2)}`;
       noProject: "プロジェクトが選択されていません",
       noProjectHint: "左の「マイプロジェクト」から選んでください。",
       libraryTitle: "プロジェクト資料",
-      libraryHint: "共有ライブラリの索引から、このプロジェクトのフォルダで絞り込みます。",
+      libraryHint: "このプロジェクトの資料フォルダをスキャンして表示します。",
       libraryMissing: "ライブラリの索引がまだありません",
       libraryMissingHint: "このページで資料フォルダを認可してから一度スキャンしてください。このプロジェクトのフォルダ内のファイルがここに表示されます。",
       libraryUnauthorized: "資料フォルダが未認可です",
-      libraryUnauthorizedHint: "このページで共有ライブラリのルートかプロジェクト専用フォルダを認可してください。",
+      libraryUnauthorizedHint: "このページでプロジェクトの資料フォルダを認可してください。",
       libraryScan: "ライブラリをスキャン",
       libraryScanning: "スキャン中…",
       libraryScanDone: "{n}件のファイルを索引しました",
@@ -21886,7 +22025,7 @@ ${JSON.stringify(refs, null, 2)}`;
       h(
         Field,
         { label: t("habits.habitProject") },
-        h(Select2, {
+        h(Select, {
           value: projectId,
           options: projectOptions,
           onChange: setProjectId,
@@ -22138,7 +22277,7 @@ ${JSON.stringify(refs, null, 2)}`;
       h(
         Field,
         { label: t("habits.visionProject") },
-        h(Select2, {
+        h(Select, {
           value: projectId,
           options: projectOptions,
           onChange: setProjectId,
@@ -24002,7 +24141,7 @@ ${JSON.stringify(refs, null, 2)}`;
         h(
           Field,
           { label: t("calendar.attentionLabel") },
-          h(Select2, {
+          h(Select, {
             value: editor.attention,
             options: [
               { value: "required", label: t("calendar.attentionRequired") },
@@ -24666,7 +24805,7 @@ ${JSON.stringify(refs, null, 2)}`;
       projectsTitle: "学习项目",
       projectsHint: "{n} 个",
       emptyProjectsTitle: "还没有学习项目",
-      emptyProjectsHint: "学习项目由对话中的学习助手创建并绑定资料目录，这里负责展示与执行。",
+      emptyProjectsHint: "在项目页创建并授权资料目录后，学习助手即可整理教学资料。",
       targetLabel: "目标",
       examMode: "应试模式",
       examDateLabel: "考试日期",
@@ -24727,83 +24866,6 @@ ${JSON.stringify(refs, null, 2)}`;
       projectMissing: "这个学习项目已不存在。",
       directory: "资料目录",
       directoryEmpty: "未绑定资料目录",
-      directorySharedLabel: "共享资料库",
-      libraryTitle: "资料库",
-      libraryAuthorized: "已授权",
-      libraryUnauthorized: "未授权",
-      libraryProjects: "{n} 个项目可用",
-      librarySharedHint: "一次授权后所有学习项目共用；项目单独授权只能指向它里面的子目录。",
-      libraryMissingHint: "授权一次，所有学习项目共用同一份资料，不必逐个项目绑定。",
-      libraryAuthorize: "授权目录",
-      libraryChange: "更换",
-      libraryScan: "扫描",
-      libraryRevoke: "取消授权",
-      libraryScanning: "正在检查资料…",
-      libraryScanNone: "还没有学习项目可扫描。",
-      libraryScanDone: "已检查 {n} 份资料：可用 {a}，缺失 {m}，不可用 {u}",
-      libraryDialogTitle: "授权共享资料库",
-      libraryDialogSubtitle: "输入本机绝对路径，例如 /home/fuurin/exam。一次授权后所有学习项目共用；项目单独授权只能收窄到它里面的子目录。",
-      libraryDialogLabel: "目录绝对路径",
-      libraryDialogPlaceholder: "/home/fuurin/exam",
-      libraryDialogHint: "只能选真实存在的普通目录；根目录、整个主目录、应用数据目录和经过符号链接的路径都会被拒绝。",
-      libraryPathRequired: "请先输入资料库的绝对路径",
-      librarySaving: "正在授权…",
-      librarySaved: "共享资料库已授权",
-      libraryRevoking: "正在取消…",
-      libraryRevoked: "已取消共享资料库授权",
-      libraryRevokeTitle: "取消共享资料库授权？",
-      libraryRevokeWarning: "取消后，没有单独授权的项目会立即失去资料访问；按项目的单独授权会保留，并继续按原目录挂载。",
-      libraryLoading: "正在读取资料库授权…",
-      libraryUnavailable: "无法读取资料库状态，runtime 可能未连接。",
-      libraryRetry: "重试",
-      libraryIndexNever: "尚未生成资料库索引",
-      libraryIndexStale: "索引属于旧目录，请重新扫描",
-      libraryIndexScanned: "已扫描 {n} 个文件 · {time}",
-      libraryIndexScanning: "正在扫描资料库…",
-      libraryIndexHint: "索引只记录文件清单，不写入计划或备份；只有真正引用某份资料时才登记。",
-      libraryIndexByKind: "按类型",
-      libraryIndexByTop: "按目录",
-      libraryIndexKindPdf: "PDF",
-      libraryIndexKindImage: "图片",
-      libraryIndexKindAudio: "音频",
-      libraryIndexKindVideo: "视频",
-      libraryIndexKindDoc: "文档",
-      libraryIndexKindOther: "其他",
-      libraryIndexRootDir: "库根目录",
-      libraryIndexScan: "扫描/重新扫描",
-      libraryIndexScanDone: "已扫描 {n} 个文件，用时 {ms} 毫秒",
-      libraryIndexCheck: "检查已登记",
-      libraryIndexCheckDone: "已检查 {n} 份登记：可用 {a}，缺失 {m}，不可用 {u}",
-      libraryIndexNone: "还没有资料库索引。点下面的按钮扫描共享库，之后可按目录浏览全部资料。",
-      libraryIndexGenerate: "扫描生成索引",
-      libraryIndexSearchPlaceholder: "搜索文件名或路径",
-      libraryIndexAll: "全部类型",
-      libraryIndexEmpty: "没有匹配的资料。",
-      libraryIndexTotal: "{n} 个文件",
-      libraryIndexPage: "第 {page} / {pages} 页",
-      libraryIndexPrev: "上一页",
-      libraryIndexNext: "下一页",
-      libraryIndexNoFilter: "未匹配到项目目录，显示全部文件",
-      libraryIndexFiltered: "按目录 {dirs} 过滤",
-      libraryIndexPreview: "预览",
-      libraryIndexRegister: "登记",
-      libraryIndexUnpreviewable: "此类型或大小不支持预览，可下载原件。",
-      libraryIndexDownload: "下载原件",
-      libraryIndexLoading: "正在读取索引…",
-      libraryIndexLoadFailed: "索引读取失败",
-      libraryIndexRegisterTitle: "登记为项目资料",
-      libraryIndexRegisterSubtitle: "登记会写入教学记录；只在课程、作业或学情要引用这份资料时才需要。",
-      libraryIndexTitleLabel: "标题",
-      libraryIndexKindLabel: "类型",
-      libraryIndexSourceLabel: "来源",
-      libraryIndexEditionLabel: "版本",
-      libraryIndexRegisterSubmit: "登记",
-      libraryIndexRegistered: "已登记为项目资料",
-      libraryIndexRegisterRequired: "请填写标题",
-      libraryIndexFileTitle: "资料预览",
-      libraryIndexFileLoading: "正在获取文件…",
-      libraryIndexFileFailed: "无法读取文件",
-      libraryIndexFileMeta: "{kind} · {size}",
       syllabusLabel: "考纲",
       pastPapersCount: "真题 {n} 份",
       mockPapersCount: "模拟题 {n} 份",
@@ -24875,7 +24937,7 @@ ${JSON.stringify(refs, null, 2)}`;
       projectsTitle: "Study projects",
       projectsHint: "{n}",
       emptyProjectsTitle: "No study projects yet",
-      emptyProjectsHint: "The study assistant creates projects and binds their folders in conversation; this page shows and runs them.",
+      emptyProjectsHint: "Create a project and authorize its folder on the project page before organizing materials with the study assistant.",
       targetLabel: "Target",
       examMode: "Exam mode",
       examDateLabel: "Exam date",
@@ -24936,89 +24998,12 @@ ${JSON.stringify(refs, null, 2)}`;
       projectMissing: "This study project no longer exists.",
       directory: "Resource folder",
       directoryEmpty: "No folder bound",
-      directorySharedLabel: "Shared library",
-      libraryTitle: "Resource library",
-      libraryAuthorized: "Authorized",
-      libraryUnauthorized: "Not authorized",
-      libraryProjects: "{n} projects available",
-      librarySharedHint: "Authorize once and every study project shares it; per-project grants can only narrow to a subfolder.",
-      libraryMissingHint: "Authorize one folder and every study project shares it — no per-project binding needed.",
-      libraryAuthorize: "Authorize folder",
-      libraryChange: "Change",
-      libraryScan: "Scan",
-      libraryRevoke: "Revoke",
-      libraryScanning: "Checking resources…",
-      libraryScanNone: "No study projects to scan yet.",
-      libraryScanDone: "Checked {n} resources: {a} available, {m} missing, {u} unavailable",
-      libraryDialogTitle: "Authorize shared library",
-      libraryDialogSubtitle: "Enter an absolute path on this machine, e.g. /home/fuurin/exam. One authorization covers every study project; per-project grants can only narrow to a subfolder.",
-      libraryDialogLabel: "Absolute folder path",
-      libraryDialogPlaceholder: "/home/fuurin/exam",
-      libraryDialogHint: "Must be an existing ordinary folder; root, your whole home, app data folders and paths through symlinks are rejected.",
-      libraryPathRequired: "Enter the absolute path of the library first",
-      librarySaving: "Authorizing…",
-      librarySaved: "Shared library authorized",
-      libraryRevoking: "Revoking…",
-      libraryRevoked: "Shared library authorization revoked",
-      libraryRevokeTitle: "Revoke shared library authorization?",
-      libraryRevokeWarning: "Projects without their own grant immediately lose resource access; per-project grants stay and keep mounting their own folders.",
-      libraryLoading: "Reading library authorization…",
-      libraryUnavailable: "Could not read the library state; runtime may be offline.",
-      libraryRetry: "Retry",
-      libraryIndexNever: "No library index yet",
-      libraryIndexStale: "The index belongs to a previous folder; scan again.",
-      libraryIndexScanned: "Scanned {n} files · {time}",
-      libraryIndexScanning: "Scanning the resource library…",
-      libraryIndexHint: "The index only stores the file list; it is not part of the plan or backups. A resource is registered only when teaching records actually reference it.",
-      libraryIndexByKind: "By type",
-      libraryIndexByTop: "By folder",
-      libraryIndexKindPdf: "PDF",
-      libraryIndexKindImage: "Images",
-      libraryIndexKindAudio: "Audio",
-      libraryIndexKindVideo: "Video",
-      libraryIndexKindDoc: "Documents",
-      libraryIndexKindOther: "Other",
-      libraryIndexRootDir: "Library root",
-      libraryIndexScan: "Scan / rescan",
-      libraryIndexScanDone: "Scanned {n} files in {ms} ms",
-      libraryIndexCheck: "Check registered",
-      libraryIndexCheckDone: "Checked {n} registrations: {a} available, {m} missing, {u} unavailable",
-      libraryIndexNone: "No library index yet. Scan the shared library to browse every file by folder without registering them one by one.",
-      libraryIndexGenerate: "Scan to build index",
-      libraryIndexSearchPlaceholder: "Search file name or path",
-      libraryIndexAll: "All types",
-      libraryIndexEmpty: "No matching files.",
-      libraryIndexTotal: "{n} files",
-      libraryIndexPage: "Page {page} / {pages}",
-      libraryIndexPrev: "Previous",
-      libraryIndexNext: "Next",
-      libraryIndexNoFilter: "No project folder matched; showing all indexed files.",
-      libraryIndexFiltered: "Filtered by folder {dirs}",
-      libraryIndexPreview: "Preview",
-      libraryIndexRegister: "Register",
-      libraryIndexUnpreviewable: "This type or size cannot be previewed; download the original instead.",
-      libraryIndexDownload: "Download original",
-      libraryIndexLoading: "Reading the index…",
-      libraryIndexLoadFailed: "Could not read the index",
-      libraryIndexRegisterTitle: "Register as project resource",
-      libraryIndexRegisterSubtitle: "Registration writes a teaching record. Use it only when a lesson, assignment, or progress note actually references this file.",
-      libraryIndexTitleLabel: "Title",
-      libraryIndexKindLabel: "Type",
-      libraryIndexSourceLabel: "Source",
-      libraryIndexEditionLabel: "Edition",
-      libraryIndexRegisterSubmit: "Register",
-      libraryIndexRegistered: "Registered as a project resource",
-      libraryIndexRegisterRequired: "Enter a title",
-      libraryIndexFileTitle: "Resource preview",
-      libraryIndexFileLoading: "Loading file…",
-      libraryIndexFileFailed: "Could not read the file",
-      libraryIndexFileMeta: "{kind} · {size}",
       syllabusLabel: "Syllabus",
       pastPapersCount: "{n} past papers",
       mockPapersCount: "{n} mock papers",
       resourceGroups: "By kind",
       resourceList: "Resources",
-      resourceEmpty: "No resources yet. The assistant imports them and authorizes the folder.",
+      resourceEmpty: "No materials registered yet. Add them on the project page or ask the assistant after authorizing its folder.",
       progressHistory: "Progress records",
       completedTasksTitle: "Recently completed study tasks",
       completedTasksEmpty: "No completed study tasks yet.",
@@ -25085,16 +25070,6 @@ ${JSON.stringify(refs, null, 2)}`;
       reviewAction: "宿題を再確認"
     }
   });
-  var RESOURCE_KINDS2 = [
-    "syllabus",
-    "course",
-    "book",
-    "pastPaper",
-    "mockPaper",
-    "reference",
-    "attachment",
-    "answerSheet"
-  ];
   var RESOURCE_KIND_COPY2 = {
     syllabus: "resourceKindSyllabus",
     course: "resourceKindCourse",
@@ -25105,25 +25080,6 @@ ${JSON.stringify(refs, null, 2)}`;
     attachment: "resourceKindAttachment",
     answerSheet: "resourceKindAnswerSheet"
   };
-  var INDEX_KINDS = ["pdf", "image", "audio", "video", "doc", "other"];
-  var INDEX_KIND_COPY = {
-    pdf: "libraryIndexKindPdf",
-    image: "libraryIndexKindImage",
-    audio: "libraryIndexKindAudio",
-    video: "libraryIndexKindVideo",
-    doc: "libraryIndexKindDoc",
-    other: "libraryIndexKindOther"
-  };
-  function indexKindLabel2(kind) {
-    const key = INDEX_KIND_COPY[kind];
-    return key ? t(`education.${key}`) : strOr2(kind);
-  }
-  function formatBytes2(n) {
-    const value = numOr2(n, 0);
-    if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`;
-    return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
-  }
   function asArray2(value) {
     return Array.isArray(value) ? value : [];
   }
@@ -25167,10 +25123,18 @@ ${JSON.stringify(refs, null, 2)}`;
   function normalizeEducation(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const list = (key) => asArray2(src[key]).filter((item) => item && typeof item === "object");
+    const resourceCounts = src.resourceCounts && typeof src.resourceCounts === "object" ? src.resourceCounts : Object.fromEntries(
+      list("resources").reduce((counts, resource) => {
+        const id = resource.projectId;
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+        return counts;
+      }, /* @__PURE__ */ new Map())
+    );
     return {
       focusTasks: list("focusTasks"),
       projects: list("projects"),
       resources: list("resources"),
+      resourceCounts,
       semesters: list("semesters"),
       semesterHistory: list("semesterHistory"),
       lessons: list("lessons"),
@@ -25764,1103 +25728,6 @@ ${JSON.stringify(refs, null, 2)}`;
       ) : h("div", { style: { flex: 1, minWidth: 0 } }, titleBlock)
     );
   }
-  function LibraryCard({ library, projectIds, onChange, onReload }) {
-    const [dialog, setDialog] = useState(null);
-    const [directory, setDirectory] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState("");
-    const [check, setCheck] = useState("");
-    const [stats, setStats] = useState(null);
-    const [statsError, setStatsError] = useState("");
-    const [scanning, setScanning] = useState(false);
-    const loading = library === null || library === void 0;
-    const authorized = library !== null && library !== void 0 && library.authorized === true;
-    const unavailable = library !== null && library !== void 0 && library.unavailable === true;
-    const path = strOr2(library?.directory);
-    useEffect(() => {
-      if (!authorized) {
-        setStats(null);
-        setStatsError("");
-        return void 0;
-      }
-      let cancelled = false;
-      let timer = null;
-      const load3 = () => {
-        getLibraryStats({ timeoutMs: 8e3 }).then((next) => {
-          if (cancelled) return;
-          setStats(next);
-          setStatsError("");
-          if (next && next.hasIndex === true && timer !== null) {
-            clearInterval(timer);
-            timer = null;
-          }
-        }).catch((e) => {
-          if (!cancelled)
-            setStatsError(e && e.userMessage ? e.userMessage : String(e));
-        });
-      };
-      load3();
-      timer = setInterval(load3, 2500);
-      return () => {
-        cancelled = true;
-        if (timer !== null) clearInterval(timer);
-      };
-    }, [authorized, path]);
-    const openAuthorize = () => {
-      setDirectory(path || "");
-      setError("");
-      setDialog("authorize");
-    };
-    const openRevoke = () => {
-      setError("");
-      setDialog("revoke");
-    };
-    const closeDialog = () => {
-      if (busy) return;
-      setDialog(null);
-      setError("");
-    };
-    const submit = async () => {
-      const value = directory.trim();
-      if (!value) {
-        setError(t("education.libraryPathRequired"));
-        return;
-      }
-      setBusy(true);
-      setError("");
-      try {
-        const next = await authorizeLibrary(value);
-        onChange(next);
-        setDialog(null);
-        setStats(null);
-        setStatsError("");
-        notify(t("education.librarySaved"), "brand");
-      } catch (e) {
-        setError(e && e.userMessage ? e.userMessage : String(e));
-      } finally {
-        setBusy(false);
-      }
-    };
-    const revoke = async () => {
-      setBusy(true);
-      setError("");
-      try {
-        const next = await revokeLibraryGrant();
-        onChange(next);
-        setDialog(null);
-        notify(t("education.libraryRevoked"), "neutral");
-      } catch (e) {
-        setError(e && e.userMessage ? e.userMessage : String(e));
-      } finally {
-        setBusy(false);
-      }
-    };
-    const scanIndex = async () => {
-      setBusy(true);
-      setScanning(true);
-      try {
-        const result = await scanLibrary();
-        setStats({ ...result, authorized: true, hasIndex: true });
-        notify(
-          t("education.libraryIndexScanDone", {
-            n: result.count,
-            ms: result.durationMs
-          }),
-          "brand"
-        );
-      } catch (e) {
-        notify(e && e.userMessage ? e.userMessage : String(e), "danger");
-      } finally {
-        setBusy(false);
-        setScanning(false);
-      }
-    };
-    const checkRegistered = async () => {
-      if (projectIds.length === 0) {
-        notify(t("education.libraryScanNone"), "neutral");
-        return;
-      }
-      setBusy(true);
-      setCheck(t("education.libraryScanning"));
-      try {
-        const results = await Promise.all(
-          projectIds.map((id) => scanProjectLibrary(id))
-        );
-        const items = results.flatMap(
-          (result) => result && Array.isArray(result.resources) ? result.resources : []
-        );
-        const count = (state) => items.filter((item) => item.state === state).length;
-        const available = count("available");
-        const missing = count("missing");
-        setCheck(
-          t("education.libraryIndexCheckDone", {
-            n: items.length,
-            a: available,
-            m: missing,
-            u: items.length - available - missing
-          })
-        );
-      } catch (e) {
-        setCheck("");
-        notify(e && e.userMessage ? e.userMessage : String(e), "danger");
-      } finally {
-        setBusy(false);
-      }
-    };
-    const statusChip = loading ? h(Chip, { tone: "neutral" }, t("education.libraryLoading")) : authorized ? h(Chip, { tone: "brand" }, t("education.libraryAuthorized")) : h(Chip, { tone: "neutral" }, t("education.libraryUnauthorized"));
-    const pathBox = h(
-      "div",
-      {
-        className: "t-mono",
-        style: {
-          fontSize: 12,
-          lineHeight: 1.6,
-          color: "var(--tomato-ink-2)",
-          background: "var(--tomato-surface-2)",
-          borderRadius: 9,
-          padding: "9px 11px",
-          wordBreak: "break-all"
-        }
-      },
-      loading ? t("education.libraryLoading") : path || (unavailable ? t("education.libraryUnavailable") : t("education.directoryEmpty"))
-    );
-    const statsBlock = (() => {
-      if (loading || !authorized) return null;
-      if (statsError)
-        return h(
-          "div",
-          { style: { fontSize: 11.5, color: "#b8503f", marginTop: 9 } },
-          statsError
-        );
-      if (stats === null)
-        return h(
-          "div",
-          {
-            style: {
-              fontSize: 11.5,
-              color: "var(--tomato-ink-3)",
-              marginTop: 9
-            }
-          },
-          t("education.libraryIndexLoading")
-        );
-      if (stats.hasIndex !== true)
-        return h(
-          "div",
-          { style: { marginTop: 9 } },
-          h(
-            "div",
-            { style: { fontSize: 12, color: "var(--tomato-ink-2)" } },
-            stats.stale ? t("education.libraryIndexStale") : t("education.libraryIndexNever")
-          ),
-          h(
-            "div",
-            {
-              style: {
-                fontSize: 11.5,
-                color: "var(--tomato-ink-3)",
-                lineHeight: 1.55,
-                marginTop: 4
-              }
-            },
-            t("education.libraryIndexHint")
-          )
-        );
-      const kindChips = INDEX_KINDS.filter(
-        (kind) => numOr2(stats.byKind?.[kind], 0) > 0
-      ).map(
-        (kind) => h(
-          Chip,
-          { key: kind, tone: "neutral" },
-          `${indexKindLabel2(kind)} ${stats.byKind[kind]}`
-        )
-      );
-      const topChips = Object.entries(stats.byTop ?? {}).slice(0, 8).map(
-        ([top, count]) => h(
-          Chip,
-          { key: top, tone: "neutral", icon: "folder" },
-          `${top === "." ? t("education.libraryIndexRootDir") : top} ${count}`
-        )
-      );
-      return h(
-        "div",
-        { style: { marginTop: 9 } },
-        h(
-          "div",
-          { style: { fontSize: 12, color: "var(--tomato-ink-2)" } },
-          t("education.libraryIndexScanned", {
-            n: stats.count,
-            time: fmtDateTime2(stats.scannedAt)
-          })
-        ),
-        h(
-          "div",
-          {
-            style: {
-              fontSize: 11.5,
-              color: "var(--tomato-ink-3)",
-              lineHeight: 1.55,
-              marginTop: 4
-            }
-          },
-          t("education.libraryIndexHint")
-        ),
-        h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-              marginTop: 7
-            }
-          },
-          h(
-            "span",
-            { style: { fontSize: 11, color: "var(--tomato-ink-3)" } },
-            t("education.libraryIndexByKind")
-          ),
-          ...kindChips
-        ),
-        topChips.length > 0 ? h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-              marginTop: 6
-            }
-          },
-          h(
-            "span",
-            { style: { fontSize: 11, color: "var(--tomato-ink-3)" } },
-            t("education.libraryIndexByTop")
-          ),
-          ...topChips
-        ) : null
-      );
-    })();
-    const card = h(
-      Card,
-      { pad: 20 },
-      h(SectionTitle, {
-        icon: "folder",
-        title: t("education.libraryTitle"),
-        hint: authorized ? t("education.libraryProjects", { n: library.projects ?? 0 }) : null,
-        action: statusChip
-      }),
-      pathBox,
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 12,
-            color: "var(--tomato-ink-3)",
-            lineHeight: 1.6,
-            marginTop: 9
-          }
-        },
-        authorized ? t("education.librarySharedHint") : t("education.libraryMissingHint")
-      ),
-      statsBlock,
-      unavailable ? h(
-        "div",
-        {
-          style: {
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            marginTop: 9
-          }
-        },
-        h(
-          "span",
-          { style: { fontSize: 12, color: "#b8503f" } },
-          strOr2(library.reason) || t("education.libraryUnavailable")
-        ),
-        onReload ? h(
-          Btn,
-          {
-            variant: "ghost",
-            size: "sm",
-            icon: "refresh",
-            onClick: onReload
-          },
-          t("education.libraryRetry")
-        ) : null
-      ) : null,
-      h(
-        "div",
-        { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 } },
-        loading ? null : authorized ? [
-          h(
-            Btn,
-            {
-              key: "change",
-              variant: "soft",
-              size: "sm",
-              icon: "folder",
-              onClick: openAuthorize
-            },
-            t("education.libraryChange")
-          ),
-          h(
-            Btn,
-            {
-              key: "scan",
-              variant: "soft",
-              size: "sm",
-              icon: "refresh",
-              onClick: scanIndex,
-              disabled: busy || scanning
-            },
-            scanning ? t("education.libraryIndexScanning") : t("education.libraryIndexScan")
-          ),
-          h(
-            Btn,
-            {
-              key: "check",
-              variant: "ghost",
-              size: "sm",
-              icon: "eye",
-              onClick: checkRegistered,
-              disabled: busy
-            },
-            t("education.libraryIndexCheck")
-          ),
-          h(
-            Btn,
-            {
-              key: "revoke",
-              variant: "ghost",
-              size: "sm",
-              icon: "trash",
-              onClick: openRevoke
-            },
-            t("education.libraryRevoke")
-          )
-        ] : h(
-          Btn,
-          {
-            variant: "primary",
-            size: "sm",
-            icon: "folder",
-            onClick: openAuthorize
-          },
-          t("education.libraryAuthorize")
-        )
-      ),
-      check ? h(
-        "div",
-        {
-          style: {
-            fontSize: 11.5,
-            color: "var(--tomato-ink-3)",
-            marginTop: 9
-          }
-        },
-        check
-      ) : null
-    );
-    const errorLine = error ? h(
-      "div",
-      {
-        style: {
-          fontSize: 12,
-          color: "#b8503f",
-          lineHeight: 1.55,
-          marginTop: 10
-        }
-      },
-      error
-    ) : null;
-    const authorizeDialog = h(
-      Modal,
-      {
-        open: dialog === "authorize",
-        onClose: closeDialog,
-        title: t("education.libraryDialogTitle"),
-        subtitle: t("education.libraryDialogSubtitle"),
-        icon: "folder",
-        footer: h(
-          "div",
-          { style: { display: "flex", justifyContent: "flex-end", gap: 8 } },
-          h(
-            Btn,
-            { variant: "ghost", onClick: closeDialog, disabled: busy },
-            t("common.cancel")
-          ),
-          h(
-            Btn,
-            { variant: "primary", onClick: submit, disabled: busy },
-            busy ? t("education.librarySaving") : t("education.libraryAuthorize")
-          )
-        )
-      },
-      h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 10 } },
-        h(
-          Field,
-          {
-            label: t("education.libraryDialogLabel"),
-            hint: t("education.libraryDialogHint")
-          },
-          h(Input, {
-            value: directory,
-            onChange: (value) => {
-              setDirectory(value);
-              setError("");
-            },
-            placeholder: t("education.libraryDialogPlaceholder"),
-            mono: true,
-            autoFocus: true,
-            onKeyDown: (e) => {
-              if (e.key === "Enter") void submit();
-            }
-          })
-        ),
-        errorLine
-      )
-    );
-    const revokeDialog = h(
-      Modal,
-      {
-        open: dialog === "revoke",
-        onClose: closeDialog,
-        title: t("education.libraryRevokeTitle"),
-        subtitle: t("education.libraryRevokeWarning"),
-        icon: "trash",
-        footer: h(
-          "div",
-          { style: { display: "flex", justifyContent: "flex-end", gap: 8 } },
-          h(
-            Btn,
-            { variant: "ghost", onClick: closeDialog, disabled: busy },
-            t("common.cancel")
-          ),
-          h(
-            Btn,
-            { variant: "danger", onClick: revoke, disabled: busy },
-            busy ? t("education.libraryRevoking") : t("education.libraryRevoke")
-          )
-        )
-      },
-      errorLine ? h("div", null, errorLine) : null
-    );
-    return h(
-      "div",
-      { style: { marginBottom: 16 } },
-      card,
-      authorizeDialog,
-      revokeDialog
-    );
-  }
-  function FilePreviewDialog({ item, onClose }) {
-    const open = item !== null && item !== void 0;
-    const path = strOr2(item?.path);
-    const [access, setAccess] = useState("");
-    const [error, setError] = useState("");
-    const [reloadKey, setReloadKey] = useState(0);
-    useEffect(() => {
-      if (!open) return void 0;
-      let cancelled = false;
-      setAccess("");
-      setError("");
-      getFileToken({ timeoutMs: 5e3 }).then((next) => {
-        if (!cancelled) setAccess(strOr2(next?.access));
-      }).catch((e) => {
-        if (!cancelled)
-          setError(e && e.userMessage ? e.userMessage : String(e));
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [open, path, reloadKey]);
-    if (!open) return null;
-    const previewable = item.previewable === true;
-    const viewUrl = access ? libraryFileUrl(path, access, false) : "";
-    const downloadUrl = access ? libraryFileUrl(path, access, true) : "";
-    let body = null;
-    if (!previewable) {
-      body = mutedText(t("education.libraryIndexUnpreviewable"));
-    } else if (error !== "") {
-      body = h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 10 } },
-        h("div", { style: { fontSize: 12.5, color: "#b8503f" } }, error),
-        h(
-          Btn,
-          {
-            variant: "ghost",
-            size: "sm",
-            icon: "refresh",
-            onClick: () => setReloadKey((value) => value + 1)
-          },
-          t("education.libraryRetry")
-        )
-      );
-    } else if (access === "") {
-      body = h(Skeleton, { w: "100%", h: 220 });
-    } else if (item.kind === "image") {
-      body = h("img", {
-        src: viewUrl,
-        alt: strOr2(item.name),
-        style: {
-          display: "block",
-          maxWidth: "100%",
-          maxHeight: "66vh",
-          margin: "0 auto",
-          borderRadius: 8
-        }
-      });
-    } else if (item.kind === "audio") {
-      body = h("audio", {
-        controls: true,
-        src: viewUrl,
-        style: { width: "100%" }
-      });
-    } else if (item.kind === "video") {
-      body = h("video", {
-        controls: true,
-        src: viewUrl,
-        style: { display: "block", maxWidth: "100%", maxHeight: "66vh" }
-      });
-    } else {
-      body = h("iframe", {
-        title: strOr2(item.name),
-        src: viewUrl,
-        style: {
-          width: "100%",
-          height: "66vh",
-          border: "none",
-          borderRadius: 8,
-          background: "#fff"
-        }
-      });
-    }
-    return h(
-      Modal,
-      {
-        open,
-        onClose,
-        title: strOr2(item.name, t("education.libraryIndexFileTitle")),
-        subtitle: t("education.libraryIndexFileMeta", {
-          kind: indexKindLabel2(item.kind),
-          size: formatBytes2(item.sizeBytes)
-        }),
-        icon: "eye",
-        width: 920,
-        bodyStyle: { paddingTop: 6 },
-        footer: h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              justifyContent: "flex-end",
-              alignItems: "center",
-              gap: 10
-            }
-          },
-          error !== "" ? h(
-            Btn,
-            {
-              variant: "ghost",
-              size: "sm",
-              icon: "refresh",
-              onClick: () => setReloadKey((value) => value + 1)
-            },
-            t("education.libraryRetry")
-          ) : null,
-          downloadUrl ? h(
-            "a",
-            {
-              href: downloadUrl,
-              style: {
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--tomato-brand-deep)",
-                textDecoration: "none",
-                padding: "6px 10px",
-                borderRadius: 9,
-                background: "var(--tomato-brand-soft)"
-              }
-            },
-            t("education.libraryIndexDownload")
-          ) : null,
-          h(
-            Btn,
-            { variant: "ghost", size: "sm", onClick: onClose },
-            t("common.close")
-          )
-        )
-      },
-      body
-    );
-  }
-  function RegisterResourceDialog({ item, projectId, onClose }) {
-    const open = item !== null && item !== void 0;
-    const [title, setTitle] = useState("");
-    const [kind, setKind] = useState("attachment");
-    const [source, setSource] = useState("");
-    const [edition, setEdition] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState("");
-    useEffect(() => {
-      if (!open) return;
-      setTitle(strOr2(item?.name));
-      setKind("attachment");
-      setSource("");
-      setEdition("");
-      setError("");
-    }, [open, strOr2(item?.path)]);
-    if (!open) return null;
-    const submit = async () => {
-      if (title.trim() === "") {
-        setError(t("education.libraryIndexRegisterRequired"));
-        return;
-      }
-      setBusy(true);
-      setError("");
-      try {
-        await registerResource(projectId, {
-          title: title.trim(),
-          kind,
-          path: item.path,
-          source: source.trim(),
-          edition: edition.trim(),
-          topics: []
-        });
-        await refresh();
-        notify(t("education.libraryIndexRegistered"), "brand");
-        onClose();
-      } catch (e) {
-        setError(e && e.userMessage ? e.userMessage : String(e));
-      } finally {
-        setBusy(false);
-      }
-    };
-    return h(
-      Modal,
-      {
-        open,
-        onClose: busy ? void 0 : onClose,
-        title: t("education.libraryIndexRegisterTitle"),
-        subtitle: t("education.libraryIndexRegisterSubtitle"),
-        icon: "tag",
-        footer: h(
-          "div",
-          { style: { display: "flex", justifyContent: "flex-end", gap: 8 } },
-          h(
-            Btn,
-            { variant: "ghost", onClick: onClose, disabled: busy },
-            t("common.cancel")
-          ),
-          h(
-            Btn,
-            { variant: "primary", onClick: submit, disabled: busy },
-            t("education.libraryIndexRegisterSubmit")
-          )
-        )
-      },
-      h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 10 } },
-        h(
-          Field,
-          { label: t("education.libraryIndexTitleLabel") },
-          h(Input, {
-            value: title,
-            onChange: (value) => {
-              setTitle(value);
-              setError("");
-            },
-            autoFocus: true
-          })
-        ),
-        h(
-          Field,
-          { label: t("education.libraryIndexKindLabel") },
-          h(Select, {
-            value: kind,
-            options: RESOURCE_KINDS2.map((value) => ({
-              value,
-              label: resourceKindLabel4(value)
-            })),
-            onChange: setKind
-          })
-        ),
-        h(
-          Field,
-          { label: t("education.libraryIndexSourceLabel") },
-          h(Input, { value: source, onChange: setSource })
-        ),
-        h(
-          Field,
-          { label: t("education.libraryIndexEditionLabel") },
-          h(Input, { value: edition, onChange: setEdition })
-        ),
-        h(
-          "div",
-          {
-            className: "t-mono",
-            style: {
-              fontSize: 11,
-              color: "var(--tomato-ink-3)",
-              background: "var(--tomato-surface-2)",
-              borderRadius: 8,
-              padding: "7px 9px",
-              wordBreak: "break-all"
-            }
-          },
-          strOr2(item.path)
-        ),
-        error ? h("div", { style: { fontSize: 12, color: "#b8503f" } }, error) : null
-      )
-    );
-  }
-  function LibraryBrowser({ projectId }) {
-    const limit = 40;
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [qInput, setQInput] = useState("");
-    const [q, setQ] = useState("");
-    const [kind, setKind] = useState("");
-    const [offset, setOffset] = useState(0);
-    const [reloadKey, setReloadKey] = useState(0);
-    const [scanning, setScanning] = useState(false);
-    const [preview, setPreview] = useState(null);
-    const [registerItem, setRegisterItem] = useState(null);
-    useEffect(() => {
-      let cancelled = false;
-      setLoading(true);
-      setError("");
-      getLibraryItems({ projectId, q, kind, offset, limit }, { timeoutMs: 15e3 }).then((next) => {
-        if (cancelled) return;
-        setData(next);
-        setLoading(false);
-      }).catch((e) => {
-        if (cancelled) return;
-        setError(e && e.userMessage ? e.userMessage : String(e));
-        setLoading(false);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [projectId, q, kind, offset, reloadKey]);
-    const scanIndex = async () => {
-      setScanning(true);
-      setError("");
-      try {
-        const result = await scanLibrary();
-        notify(
-          t("education.libraryIndexScanDone", {
-            n: result.count,
-            ms: result.durationMs
-          }),
-          "brand"
-        );
-        setOffset(0);
-        setReloadKey((value) => value + 1);
-      } catch (e) {
-        setError(e && e.userMessage ? e.userMessage : String(e));
-      } finally {
-        setScanning(false);
-      }
-    };
-    if (loading && data === null)
-      return h(
-        "div",
-        {
-          style: {
-            marginTop: 14,
-            paddingTop: 12,
-            borderTop: "1px solid var(--tomato-line)",
-            fontSize: 12,
-            color: "var(--tomato-ink-3)"
-          }
-        },
-        t("education.libraryIndexLoading")
-      );
-    if (data !== null && data.hasIndex !== true) {
-      return h(
-        "div",
-        {
-          style: {
-            marginTop: 14,
-            paddingTop: 12,
-            borderTop: "1px solid var(--tomato-line)"
-          }
-        },
-        mutedText(t("education.libraryIndexNone")),
-        h(
-          Btn,
-          {
-            variant: "soft",
-            size: "sm",
-            icon: "refresh",
-            onClick: scanIndex,
-            disabled: scanning,
-            style: { marginTop: 8 }
-          },
-          scanning ? t("education.libraryIndexScanning") : t("education.libraryIndexGenerate")
-        ),
-        error ? h(
-          "div",
-          { style: { fontSize: 12, color: "#b8503f", marginTop: 8 } },
-          error
-        ) : null
-      );
-    }
-    const items = asArray2(data?.items);
-    const total = numOr2(data?.total, 0);
-    const pages = Math.max(1, Math.ceil(total / limit));
-    const page = Math.floor(offset / limit) + 1;
-    const matchedDirs = asArray2(data?.matchedDirs);
-    const filterHint = data ? data.filtered === true ? t("education.libraryIndexFiltered", {
-      dirs: matchedDirs.join("、")
-    }) : t("education.libraryIndexNoFilter") : "";
-    const searchRow = h(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-          marginTop: 10
-        }
-      },
-      h(Input, {
-        value: qInput,
-        onChange: setQInput,
-        placeholder: t("education.libraryIndexSearchPlaceholder"),
-        style: { flex: 1, minWidth: 180 },
-        onKeyDown: (e) => {
-          if (e.key === "Enter") {
-            setQ(qInput.trim());
-            setOffset(0);
-          }
-        }
-      }),
-      h(
-        Btn,
-        {
-          variant: "soft",
-          size: "sm",
-          icon: "search",
-          onClick: () => {
-            setQ(qInput.trim());
-            setOffset(0);
-          }
-        },
-        t("common.search")
-      ),
-      h(Select, {
-        value: kind,
-        options: [
-          { value: "", label: t("education.libraryIndexAll") },
-          ...INDEX_KINDS.map((value) => ({
-            value,
-            label: indexKindLabel2(value)
-          }))
-        ],
-        onChange: (value) => {
-          setKind(value);
-          setOffset(0);
-        },
-        width: 130
-      }),
-      h(
-        Btn,
-        {
-          variant: "ghost",
-          size: "sm",
-          icon: "refresh",
-          onClick: scanIndex,
-          disabled: scanning
-        },
-        scanning ? t("education.libraryIndexScanning") : t("education.libraryIndexScan")
-      )
-    );
-    return h(
-      "div",
-      {
-        style: {
-          marginTop: 14,
-          paddingTop: 12,
-          borderTop: "1px solid var(--tomato-line)"
-        }
-      },
-      h(
-        "div",
-        {
-          style: {
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap"
-          }
-        },
-        h(
-          "div",
-          { style: { fontSize: 12.5, fontWeight: 600 } },
-          t("education.libraryIndexTotal", { n: total })
-        ),
-        filterHint ? h(
-          "span",
-          { style: { fontSize: 11, color: "var(--tomato-ink-3)" } },
-          filterHint
-        ) : null
-      ),
-      searchRow,
-      error ? h(
-        "div",
-        { style: { fontSize: 12, color: "#b8503f", marginTop: 8 } },
-        error
-      ) : null,
-      items.length === 0 ? h(
-        "div",
-        { style: { marginTop: 10 } },
-        mutedText(t("education.libraryIndexEmpty"))
-      ) : h(
-        "div",
-        {
-          className: "t-scroll",
-          style: {
-            maxHeight: 380,
-            overflowY: "auto",
-            marginTop: 6,
-            paddingRight: 4
-          }
-        },
-        items.map(
-          (item) => h(
-            "div",
-            { key: strOr2(item.path), style: ROW2 },
-            h(
-              "div",
-              { style: { flex: 1, minWidth: 0 } },
-              h(
-                "div",
-                {
-                  style: {
-                    fontSize: 13,
-                    color: "var(--tomato-ink)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap"
-                  }
-                },
-                strOr2(item.name)
-              ),
-              h(
-                "div",
-                { style: { ...META2, overflow: "hidden" } },
-                h(Chip, { tone: "neutral" }, indexKindLabel2(item.kind)),
-                h("span", null, formatBytes2(item.sizeBytes)),
-                h(
-                  "span",
-                  {
-                    style: {
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }
-                  },
-                  strOr2(item.path)
-                )
-              )
-            ),
-            h(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  flex: "none"
-                }
-              },
-              h(
-                Btn,
-                {
-                  variant: "ghost",
-                  size: "sm",
-                  icon: "eye",
-                  onClick: () => setPreview(item)
-                },
-                t("education.libraryIndexPreview")
-              ),
-              h(
-                Btn,
-                {
-                  variant: "ghost",
-                  size: "sm",
-                  icon: "tag",
-                  onClick: () => setRegisterItem(item)
-                },
-                t("education.libraryIndexRegister")
-              )
-            )
-          )
-        )
-      ),
-      total > limit ? h(
-        "div",
-        {
-          style: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 8,
-            marginTop: 8
-          }
-        },
-        h(
-          Btn,
-          {
-            variant: "ghost",
-            size: "sm",
-            icon: "chevronLeft",
-            onClick: () => setOffset(Math.max(0, offset - limit)),
-            disabled: offset === 0
-          },
-          t("education.libraryIndexPrev")
-        ),
-        h(
-          "span",
-          { style: { fontSize: 11.5, color: "var(--tomato-ink-3)" } },
-          t("education.libraryIndexPage", { page, pages })
-        ),
-        h(
-          Btn,
-          {
-            variant: "ghost",
-            size: "sm",
-            iconRight: "chevronRight",
-            onClick: () => setOffset(offset + limit),
-            disabled: offset + limit >= total
-          },
-          t("education.libraryIndexNext")
-        )
-      ) : null,
-      h(FilePreviewDialog, {
-        item: preview,
-        onClose: () => setPreview(null)
-      }),
-      h(RegisterResourceDialog, {
-        item: registerItem,
-        projectId,
-        onClose: () => setRegisterItem(null)
-      })
-    );
-  }
   function ProjectDetail({
     data,
     edu,
@@ -26869,7 +25736,6 @@ ${JSON.stringify(refs, null, 2)}`;
     today,
     at,
     index,
-    library,
     onBack,
     onAssistant,
     onOpenAssignment
@@ -26877,20 +25743,10 @@ ${JSON.stringify(refs, null, 2)}`;
     const projectId = strOr2(study.projectId);
     const color = projectColor(data, projectId);
     const name = project && strOr2(project.name) ? project.name : t("education.unnamedProject");
-    const sharedLibrary = library && library.authorized === true ? strOr2(library.directory) : "";
     const projectDirectory = strOr2(study.directory);
-    const sharedIds = library && Array.isArray(library.sharedProjects) ? library.sharedProjects : null;
-    const usesSharedLibrary = sharedLibrary !== "" && (sharedIds !== null ? sharedIds.includes(projectId) : projectDirectory === "" || projectDirectory === sharedLibrary);
+    const resourceCount = Number(edu.resourceCounts[projectId]) || 0;
     const settings = data.settings && typeof data.settings === "object" ? data.settings : {};
     const protection = settings.protection && typeof settings.protection === "object" ? settings.protection : {};
-    const resources = edu.resources.filter(
-      (item) => item.projectId === projectId
-    );
-    const sortedResources = resources.slice().sort((a, b) => {
-      const ai = RESOURCE_KINDS2.indexOf(a.kind);
-      const bi = RESOURCE_KINDS2.indexOf(b.kind);
-      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi) || strOr2(a.title).localeCompare(strOr2(b.title));
-    });
     const progress = sortDesc(
       edu.progress.filter((item) => item.projectId === projectId),
       "recordedAt"
@@ -26946,14 +25802,6 @@ ${JSON.stringify(refs, null, 2)}`;
       const result = await tryDispatch({ type: "toggleTask", id });
       if (!result.ok) notify(result.error, "danger");
     };
-    const kindCounts = {};
-    for (const resource of resources) {
-      const kind = strOr2(resource.kind, "other");
-      kindCounts[kind] = (kindCounts[kind] || 0) + 1;
-    }
-    const resourceKindCount = RESOURCE_KINDS2.filter(
-      (kind) => kindCounts[kind]
-    ).length;
     const headerCard = h(
       Card,
       { pad: 22 },
@@ -27040,7 +25888,7 @@ ${JSON.stringify(refs, null, 2)}`;
       h(Stat, {
         icon: "folder",
         label: t("education.statResources"),
-        value: resources.length,
+        value: resourceCount,
         tone: "brand",
         style: { minWidth: 0 }
       }),
@@ -27084,7 +25932,7 @@ ${JSON.stringify(refs, null, 2)}`;
             wordBreak: "break-all"
           }
         },
-        usesSharedLibrary ? `${t("education.directorySharedLabel")} · ${sharedLibrary}` : projectDirectory || t("education.directoryEmpty")
+        projectDirectory || t("education.directoryEmpty")
       ),
       h(
         "div",
@@ -27098,11 +25946,6 @@ ${JSON.stringify(refs, null, 2)}`;
           }
         },
         study.examMode === true ? h(Chip, { tone: "brand" }, t("education.examMode")) : null,
-        usesSharedLibrary ? h(
-          Chip,
-          { tone: "neutral", icon: "folder" },
-          t("education.directorySharedLabel")
-        ) : null,
         study.syllabusId ? h(
           Chip,
           { tone: "neutral", icon: "tag" },
@@ -27121,101 +25964,6 @@ ${JSON.stringify(refs, null, 2)}`;
           t("education.mockPapersCount", {
             n: asArray2(study.mockPaperIds).length
           })
-        )
-      ),
-      usesSharedLibrary ? h(LibraryBrowser, { projectId }) : null
-    );
-    const resourcesCard = h(
-      Card,
-      { pad: 22 },
-      h(SectionTitle, {
-        icon: "folder",
-        title: t("education.resourceList"),
-        hint: t("education.resourcesCount", { n: resources.length })
-      }),
-      resources.length === 0 ? mutedText(t("education.resourceEmpty")) : h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 0 } },
-        subHeading(t("education.resourceGroups"), resourceKindCount),
-        h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              gap: 6,
-              flexWrap: "wrap",
-              marginBottom: 10
-            }
-          },
-          RESOURCE_KINDS2.map(
-            (kind) => kindCounts[kind] ? h(
-              Chip,
-              { key: kind, tone: "neutral" },
-              `${resourceKindLabel4(kind)} ${kindCounts[kind]}`
-            ) : null
-          )
-        ),
-        h(
-          "div",
-          {
-            className: "t-scroll",
-            style: { maxHeight: 360, overflowY: "auto", paddingRight: 4 }
-          },
-          sortedResources.map(
-            (resource, resourceIndex) => h(
-              "div",
-              { key: resource.id || `resource-${resourceIndex}`, style: ROW2 },
-              h(
-                "div",
-                { style: { flex: 1, minWidth: 0 } },
-                h(
-                  "div",
-                  {
-                    style: {
-                      fontSize: 13,
-                      color: "var(--tomato-ink)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }
-                  },
-                  strOr2(resource.title)
-                ),
-                h(
-                  "div",
-                  { style: META2 },
-                  h(
-                    Chip,
-                    { tone: "neutral" },
-                    resourceKindLabel4(resource.kind)
-                  ),
-                  strOr2(resource.source) ? h("span", null, strOr2(resource.source)) : null,
-                  strOr2(resource.edition) ? h("span", null, strOr2(resource.edition)) : null,
-                  h(
-                    "span",
-                    null,
-                    t("education.topicsCount", {
-                      n: asArray2(resource.topics).length
-                    })
-                  )
-                ),
-                asArray2(resource.topics).length > 0 ? h(
-                  "div",
-                  {
-                    style: {
-                      fontSize: 11,
-                      color: "var(--tomato-ink-3)",
-                      marginTop: 3,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }
-                  },
-                  asArray2(resource.topics).join(" · ")
-                ) : null
-              )
-            )
-          )
         )
       )
     );
@@ -27713,7 +26461,6 @@ ${JSON.stringify(refs, null, 2)}`;
             }
           },
           directoryCard,
-          resourcesCard,
           semesterCard,
           assessmentsCard,
           reviewsCard,
@@ -27741,23 +26488,26 @@ ${JSON.stringify(refs, null, 2)}`;
   function EducationPage({ onAssistant } = {}) {
     const state = useSnapshot();
     const [detailId, setDetailId] = useState(null);
-    const [library, setLibrary] = useState(null);
+    const [liteResources, setLiteResources] = useState([]);
     const [assignment, setAssignment] = useState(null);
-    const loadLibrary = () => {
-      getLibraryGrant({ timeoutMs: 4e3 }).then((next) => setLibrary(next)).catch(
-        (error) => setLibrary({
-          authorized: false,
-          directory: null,
-          projects: 0,
-          sharedProjects: [],
-          unavailable: true,
-          reason: error && error.userMessage ? error.userMessage : String(error)
-        })
-      );
-    };
+    const resourceCountsKey = JSON.stringify(
+      state?.data?.education?.resourceCounts ?? {}
+    );
     useEffect(() => {
-      loadLibrary();
-    }, []);
+      if (resourceCountsKey === "{}") {
+        setLiteResources([]);
+        return void 0;
+      }
+      let cancelled = false;
+      getStateWithResources().then((result) => {
+        if (!cancelled)
+          setLiteResources(asArray2(result?.data?.education?.resources));
+      }).catch(() => {
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [resourceCountsKey]);
     if (state === null) {
       return h(
         "div",
@@ -27841,7 +26591,6 @@ ${JSON.stringify(refs, null, 2)}`;
         today,
         at,
         index,
-        library,
         onBack: () => setDetailId(null),
         onAssistant,
         onOpenAssignment: setAssignment
@@ -27875,9 +26624,6 @@ ${JSON.stringify(refs, null, 2)}`;
       const project = projectById(data, strOr2(study.projectId));
       const name = project && strOr2(project.name) ? project.name : t("education.unnamedProject");
       const color = projectColor(data, study.projectId);
-      const resources = edu.resources.filter(
-        (item) => item.projectId === study.projectId
-      );
       const latest = sortDesc(
         edu.progress.filter((item) => item.projectId === study.projectId),
         "recordedAt"
@@ -27971,7 +26717,9 @@ ${JSON.stringify(refs, null, 2)}`;
               h(
                 Chip,
                 { tone: "neutral" },
-                t("education.resourcesCount", { n: resources.length })
+                t("education.resourcesCount", {
+                  n: Number(edu.resourceCounts[study.projectId]) || 0
+                })
               )
             )
           ),
@@ -28032,12 +26780,6 @@ ${JSON.stringify(refs, null, 2)}`;
           )
         )
       );
-    });
-    const librarySection = h(LibraryCard, {
-      library,
-      projectIds: edu.projects.map((item) => strOr2(item.projectId)).filter(Boolean),
-      onChange: (next) => setLibrary(next),
-      onReload: loadLibrary
     });
     const projectsSection = h(
       "div",
@@ -28292,8 +27034,14 @@ ${JSON.stringify(refs, null, 2)}`;
       for (const resourceId of asArray2(lesson.resourceIds))
         relatedResourceIds.add(resourceId);
     }
-    const weekResources = edu.resources.filter(
-      (resource) => relatedResourceIds.has(resource.id)
+    const resourceById = new Map(
+      (edu.resources.length > 0 ? edu.resources : liteResources).map(
+        (resource) => [resource.id, resource]
+      )
+    );
+    const weekResources = Array.from(
+      relatedResourceIds,
+      (id) => resourceById.get(id) ?? { id, title: id }
     );
     const weekCard = h(
       Card,
@@ -28465,7 +27213,6 @@ ${JSON.stringify(refs, null, 2)}`;
       "div",
       { className: "t-root" },
       header,
-      librarySection,
       projectsSection,
       h(
         "div",
@@ -30407,12 +29154,24 @@ ${JSON.stringify(refs, null, 2)}`;
       importInvalid: "文件不是合法的 JSON",
       importReadFailed: "读取文件失败：{error}",
       sectionExperience: "体验与提醒",
+      sectionDsh: "DSH 同步设置",
       language: "界面语言",
-      languageHint: "与 DSH 的语言设置同步；首次启动按浏览器或系统语言选择。",
+      languageHint: "与 DSH 语言设置同步，修改立即生效。",
       appearance: "外观主题",
-      appearanceNote: "外观跟随 DSH「设置 → 外观」的深浅色偏好；番茄皮肤自动覆盖纸色系。",
-      simpleMode: "简洁模式",
-      simpleModeNote: "界面密度由 DSH 接管；番茄主视图保持纸色导航与九页布局。",
+      appearanceNote: "与 DSH「设置 → 外观」同步，修改立即生效；番茄皮肤沿用纸色系。",
+      themeSystem: "跟随系统",
+      themeLight: "浅色",
+      themeDark: "深色",
+      themeChangeFailed: "切换 DSH 外观失败：{error}",
+      workDetails: "工作步骤展示",
+      workDetailsHint: "与 DSH 对话设置同步，修改立即生效。",
+      workCompact: "简洁",
+      workStandard: "标准",
+      workDetailed: "详细",
+      workVerbose: "完全展开",
+      workChangeFailed: "切换 DSH 工作步骤展示失败",
+      dshLoading: "读取 DSH 设置中…",
+      dshUnavailable: "DSH 设置不可用",
       personaBackdrop: "角色背景板",
       personaBackdropHint: "在普通页面背景显示当前人格的立绘；专注与保护界面不显示。",
       sound: "关键节点音效",
@@ -30431,9 +29190,9 @@ ${JSON.stringify(refs, null, 2)}`;
       autostart: "登录后自动启动",
       autostartValue: "由安装脚本与 systemd 用户服务管理（见 docs/CROSS_PLATFORM.md）。",
       tray: "关闭窗口后留在托盘",
-      trayValue: "DSH 没有系统托盘；关闭主视图不影响 runtime 继续计时与提醒。",
+      trayValue: "由 DSH 桌面壳托盘负责；收起主视图不影响计时与提醒。",
       quit: "退出应用",
-      quitValue: "从 DSH 退出；退出前会自动保存计时与设置。",
+      quitValue: "从 DSH 退出；专注保护期间不可退出。",
       sectionNetwork: "网络代理",
       networkHint: "插件只直连本机 runtime（127.0.0.1），不经过外部网络代理；代理由 DSH 与系统设置决定。",
       sectionData: "数据与备份",
@@ -30490,12 +29249,24 @@ ${JSON.stringify(refs, null, 2)}`;
       importInvalid: "This file is not valid JSON",
       importReadFailed: "Couldn't read the file: {error}",
       sectionExperience: "Experience & reminders",
+      sectionDsh: "Synced DSH settings",
       language: "Language",
-      languageHint: "Synced with DSH settings; first launch follows your browser or system language.",
+      languageHint: "Synced with DSH language settings; changes take effect immediately.",
       appearance: "Appearance",
-      appearanceNote: "Appearance follows DSH Settings → Appearance; the tomato skin layers the paper palette on top.",
-      simpleMode: "Compact mode",
-      simpleModeNote: "UI density is managed by DSH; the tomato main view keeps its navigation and nine pages.",
+      appearanceNote: "Synced with DSH Settings → Appearance; changes take effect immediately. The tomato skin keeps its paper palette.",
+      themeSystem: "System",
+      themeLight: "Light",
+      themeDark: "Dark",
+      themeChangeFailed: "Couldn't change DSH appearance: {error}",
+      workDetails: "Work details",
+      workDetailsHint: "Synced with DSH chat settings; changes take effect immediately.",
+      workCompact: "Compact",
+      workStandard: "Standard",
+      workDetailed: "Detailed",
+      workVerbose: "Verbose",
+      workChangeFailed: "Couldn't change DSH work details",
+      dshLoading: "Loading DSH settings…",
+      dshUnavailable: "DSH settings unavailable",
       personaBackdrop: "Persona backdrop",
       personaBackdropHint: "Shows the current persona's artwork on ordinary page backgrounds; hidden in focus and guard views.",
       sound: "Key-moment sounds",
@@ -30514,9 +29285,9 @@ ${JSON.stringify(refs, null, 2)}`;
       autostart: "Start at login",
       autostartValue: "Managed by the install script and a systemd user service (see docs/CROSS_PLATFORM.md).",
       tray: "Keep running in the tray after closing",
-      trayValue: "DSH has no system tray; closing the main view does not stop timers or reminders.",
+      trayValue: "Handled by the DSH desktop tray; closing this view does not stop timers or reminders.",
       quit: "Quit the app",
-      quitValue: "Quit through DSH; timers and settings are saved before exit.",
+      quitValue: "Quit through DSH; quitting is blocked during protected focus.",
       sectionNetwork: "Network proxy",
       networkHint: "The plugin only talks to the local runtime (127.0.0.1); proxies follow DSH and system settings.",
       sectionData: "Data & backups",
@@ -30719,8 +29490,115 @@ ${JSON.stringify(refs, null, 2)}`;
       )
     );
   }
-  function PreferencesPage(props) {
+  function transcriptModeOf(snapshot2) {
+    if (snapshot2?.status !== "ready") return "";
+    const mode = snapshot2.value?.transcriptView;
+    if (mode === "normal" || mode === "expanded") return "detailed";
+    return mode || ("dshDesktop" in globalThis ? "standard" : "detailed");
+  }
+  function DshPreferencesCard(props) {
     const language = useLocale();
+    const [themeSnapshot, setThemeSnapshot] = useState(
+      () => props.theme?.getTheme?.() ?? null
+    );
+    useEffect(() => {
+      if (!props.theme?.getTheme || !props.subscribeTheme) return;
+      setThemeSnapshot(props.theme.getTheme());
+      return props.subscribeTheme((snapshot2) => setThemeSnapshot(snapshot2));
+    }, [props.theme, props.subscribeTheme]);
+    const [chatSnapshot, setChatSnapshot] = useState(
+      () => props.chatSettings?.getSnapshot?.() ?? null
+    );
+    useEffect(() => {
+      if (!props.chatSettings) return;
+      setChatSnapshot(props.chatSettings.getSnapshot());
+      return props.chatSettings.subscribe(
+        () => setChatSnapshot(props.chatSettings.getSnapshot())
+      );
+    }, [props.chatSettings]);
+    const themeOptions = themeSnapshot ? [
+      { value: "system", label: t("prefs.themeSystem") },
+      ...themeSnapshot.themes.map(({ id }) => ({
+        value: id,
+        label: id === "light" ? t("prefs.themeLight") : id === "dark" ? t("prefs.themeDark") : id
+      }))
+    ] : [{ value: "", label: t("prefs.dshLoading") }];
+    return h(
+      Card,
+      { pad: 22 },
+      h(SectionTitle, { icon: "sparkle", title: t("prefs.sectionDsh") }),
+      h(
+        SettingRow,
+        { label: t("prefs.language"), hint: t("prefs.languageHint") },
+        h(Select, {
+          value: language,
+          width: 142,
+          options: [
+            { value: "zh", label: "中文" },
+            { value: "en", label: "English" },
+            { value: "ja", label: "日本語" }
+          ],
+          onChange: (next) => props.onLanguageChange?.(next)
+        })
+      ),
+      h(Divider, null),
+      h(
+        SettingRow,
+        { label: t("prefs.appearance"), hint: t("prefs.appearanceNote") },
+        h(Select, {
+          value: themeSnapshot?.preference,
+          width: 142,
+          options: themeOptions,
+          disabled: !themeSnapshot || !props.theme?.setTheme,
+          onChange: (id) => {
+            try {
+              props.onThemeChange?.(id);
+            } catch (error) {
+              notify(
+                t("prefs.themeChangeFailed", {
+                  error: error?.message || String(error)
+                }),
+                "danger"
+              );
+            }
+          }
+        })
+      ),
+      h(Divider, null),
+      h(
+        SettingRow,
+        { label: t("prefs.workDetails"), hint: t("prefs.workDetailsHint") },
+        h(Select, {
+          value: transcriptModeOf(chatSnapshot),
+          width: 142,
+          options: [
+            ...chatSnapshot?.status === "ready" ? [] : [
+              {
+                value: "",
+                label: t(
+                  chatSnapshot?.status === "unavailable" ? "prefs.dshUnavailable" : "prefs.dshLoading"
+                )
+              }
+            ],
+            { value: "compact", label: t("prefs.workCompact") },
+            { value: "standard", label: t("prefs.workStandard") },
+            { value: "detailed", label: t("prefs.workDetailed") },
+            { value: "verbose", label: t("prefs.workVerbose") }
+          ],
+          disabled: chatSnapshot?.status !== "ready" || !chatSnapshot.writable,
+          onChange: async (mode) => {
+            try {
+              if (await props.chatSettings.set("transcriptView", mode)) return;
+            } catch (error) {
+              console.warn("[tomato] DSH work details update failed", error);
+            }
+            notify(t("prefs.workChangeFailed"), "danger");
+          }
+        })
+      )
+    );
+  }
+  function PreferencesPage(props) {
     const state = useSnapshot();
     const liveSettings = state && state.data && state.data.settings ? state.data.settings : null;
     const [draft, setDraft] = useState(null);
@@ -30888,6 +29766,7 @@ ${JSON.stringify(refs, null, 2)}`;
         "div",
         { className: "t-root" },
         header,
+        h(DshPreferencesCard, props),
         h(
           Card,
           { pad: 22 },
@@ -30904,6 +29783,7 @@ ${JSON.stringify(refs, null, 2)}`;
         "div",
         { className: "t-root" },
         header,
+        h(DshPreferencesCard, props),
         h(
           Card,
           { pad: 6 },
@@ -31062,31 +29942,6 @@ ${JSON.stringify(refs, null, 2)}`;
       Card,
       { pad: 22 },
       h(SectionTitle, { icon: "bell", title: t("prefs.sectionExperience") }),
-      h(
-        SettingRow,
-        { label: t("prefs.language"), hint: t("prefs.languageHint") },
-        h(Select2, {
-          value: language,
-          width: 142,
-          options: [
-            { value: "zh", label: "中文" },
-            { value: "en", label: "English" },
-            { value: "ja", label: "日本語" }
-          ],
-          onChange: (next) => props.onLanguageChange?.(next)
-        })
-      ),
-      h(Divider, null),
-      h(InfoRow, {
-        label: t("prefs.appearance"),
-        value: t("prefs.appearanceNote")
-      }),
-      h(Divider, null),
-      h(InfoRow, {
-        label: t("prefs.simpleMode"),
-        value: t("prefs.simpleModeNote")
-      }),
-      h(Divider, null),
       h(
         SettingRow,
         null,
@@ -31284,6 +30139,7 @@ ${JSON.stringify(refs, null, 2)}`;
               minWidth: 0
             }
           },
+          h(DshPreferencesCard, props),
           experienceCard,
           desktopCard,
           networkCard,
@@ -31380,7 +30236,7 @@ ${JSON.stringify(refs, null, 2)}`;
           display: "flex",
           justifyContent: "center",
           pointerEvents: "auto",
-          maxWidth: "min(560px, calc(100vw - 40px))"
+          maxWidth: "min(680px, calc(100vw - 32px))"
         }
       },
       h(ReminderStrip, { variant: "inline", onOpen: openPanel })
@@ -31388,6 +30244,8 @@ ${JSON.stringify(refs, null, 2)}`;
   }
   function registerApp(ctx) {
     const locale = ctx.get ? ctx.get("locale") : null;
+    const theme = ctx.get ? ctx.get("theme") : null;
+    const chatSettings = ctx.configForms?.get?.("ui-chat") ?? null;
     const hasJapanese = locale && typeof locale.getLocale === "function" && locale.getLocale().locales?.some((item) => item.id === "ja");
     const removeJapanese = !hasJapanese && typeof locale?.addLanguage === "function" ? locale.addLanguage({ id: "ja", label: "日本語", fallback: "en" }) : null;
     let removeJapaneseSettings = null;
@@ -31407,7 +30265,11 @@ ${JSON.stringify(refs, null, 2)}`;
       removeLocale = locale.subscribe(() => setLocale(localeId(locale)));
     }
     const stopPolling2 = startPolling();
+    const stopExitGuard = installExitGuard();
     const cleanup = () => {
+      bindPanelInfo(null);
+      bindPanelOpener(null);
+      stopExitGuard();
       stopPolling2();
       dispose();
       try {
@@ -31423,7 +30285,10 @@ ${JSON.stringify(refs, null, 2)}`;
     bindPanelOpener(
       layout && typeof layout.selectPanel === "function" ? (panelId) => layout.selectPanel(panelId) : null
     );
-    bindPanelInfo(layout && layout.panelInfo ? layout.panelInfo : null);
+    bindPanelInfo(
+      layout && layout.panelInfo ? layout.panelInfo : null,
+      typeof layout?.hasMainPanel === "function" ? () => layout.hasMainPanel("tomato") : null
+    );
     try {
       if (typeof window !== "undefined" && window.__TOMATO_TEST__) {
         window.__tomatoDsh = {
@@ -31435,7 +30300,9 @@ ${JSON.stringify(refs, null, 2)}`;
           openAssistant: (...args) => openAssistant(...args),
           // 冒烟脚本直接渲染工作台/日程弹层：它们在页面与沉浸层内部。
           AssignmentDialog,
-          AgendaDialog
+          AgendaDialog,
+          openImmersive,
+          closeImmersive
         };
       }
     } catch {
@@ -31512,6 +30379,10 @@ ${JSON.stringify(refs, null, 2)}`;
         if (typeof locale?.setLocale === "function") locale.setLocale(id);
         else setLocale(id);
       },
+      theme,
+      subscribeTheme: (listener) => ctx.on("theme/change", listener),
+      onThemeChange: (id) => theme?.setTheme(id),
+      chatSettings,
       collapseSidebar,
       restoreSidebar
     };
@@ -31571,9 +30442,9 @@ ${JSON.stringify(refs, null, 2)}`;
   function createPlugin(require2) {
     installRuntime(require2);
     return {
-      // slots/timer/theme/locale/layout 全是 DSH 的 Client Service；
+      // slots/timer/theme/locale/layout/configForms 全是 DSH 的 Client Service；
       // 声明得越精确，插件被激活前的等待越短。
-      inject: ["slots", "timer", "theme", "locale", "layout"],
+      inject: ["slots", "timer", "theme", "locale", "layout", "configForms"],
       apply(ctx) {
         try {
           registerSkin(ctx);

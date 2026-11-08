@@ -1,6 +1,6 @@
 //! 进程内锁定状态与 enforce 工作线程。
 //! 无长期状态：进程退出即失去锁定，runtime 每次专注会话重发 lock 命令；
-//! niri 直接全屏/回焦 DSH，其他后端持有自建锁窗（RAII）。
+//! niri 优先全屏/回焦 DSH；窗口意外消失时改持自建锁窗，DSH 重开后恢复。
 use crate::guard::{self, LockWindow};
 use crate::protocol::Status;
 use std::sync::{
@@ -22,7 +22,7 @@ struct Inner {
     whitelist: Arc<Mutex<Vec<String>>>,
     worker: Option<std::thread::JoinHandle<()>>,
     stop: Option<Arc<AtomicBool>>,
-    native_target: Option<u64>,
+    native_target: Arc<Mutex<Option<u64>>>,
     immersive: bool,
 }
 
@@ -34,7 +34,7 @@ impl State {
                 whitelist: Arc::new(Mutex::new(Vec::new())),
                 worker: None,
                 stop: None,
-                native_target: None,
+                native_target: Arc::new(Mutex::new(None)),
                 immersive: false,
             }),
             backend: guard::Desktop::detect().name().to_string(),
@@ -68,7 +68,7 @@ impl State {
     pub fn focus(&self) -> Result<Option<String>, String> {
         {
             let inner = self.inner.lock().map_err(|e| e.to_string())?;
-            if inner.locked && inner.native_target.is_none() {
+            if inner.locked && inner.native_target.lock().unwrap().is_none() {
                 return Ok(None);
             }
         }
@@ -88,6 +88,8 @@ impl State {
         if inner.worker.as_ref().is_some_and(|w| w.is_finished()) {
             inner.worker.take().unwrap().join().ok();
             inner.locked = false;
+            inner.stop = None;
+            *inner.native_target.lock().unwrap() = None;
         }
         if inner.locked {
             *inner.whitelist.lock().unwrap() = whitelist;
@@ -117,14 +119,17 @@ impl State {
         let shared = Arc::clone(&inner.whitelist);
         *shared.lock().unwrap() = whitelist;
         let worker_stop = Arc::clone(&stop);
+        *inner.native_target.lock().unwrap() = native_target;
+        let worker_target = desktop
+            .native_dsh()
+            .then(|| Arc::clone(&inner.native_target));
         let worker = std::thread::Builder::new()
             .name("tomato-guard-enforce".into())
-            .spawn(move || enforce_worker(desktop, lock_window, native_target, worker_stop, shared))
+            .spawn(move || enforce_worker(desktop, lock_window, worker_target, worker_stop, shared))
             .map_err(|error| format!("无法启动保护循环：{error}"))?;
         inner.locked = true;
         inner.worker = Some(worker);
         inner.stop = Some(stop);
-        inner.native_target = native_target;
         Ok(())
     }
 
@@ -153,7 +158,8 @@ impl State {
         }
         inner.locked = false;
         *inner.whitelist.lock().unwrap() = Vec::new();
-        if let Some(id) = inner.native_target.take() {
+        let target_id = inner.native_target.lock().unwrap().take();
+        if let Some(id) = target_id {
             let desktop = guard::Desktop::detect();
             if let Some(target) = desktop.windows()?.into_iter().find(|w| w.id == id) {
                 desktop.fullscreen(&target, inner.immersive)?;
@@ -174,11 +180,12 @@ impl Default for State {
 fn enforce_worker(
     desktop: guard::Desktop,
     lock_window: Option<Box<dyn LockWindow + Send>>,
-    native_target: Option<u64>,
+    native_target: Option<Arc<Mutex<Option<u64>>>>,
     stop: Arc<AtomicBool>,
     whitelist: Arc<Mutex<Vec<String>>>,
 ) {
     let own_pid = std::process::id();
+    let mut lock_window = lock_window;
     let mut previous: Vec<guard::Window> = Vec::new();
     loop {
         std::thread::sleep(std::time::Duration::from_millis(TICK_MILLIS));
@@ -187,12 +194,51 @@ fn enforce_worker(
         }
         let whitelist = whitelist.lock().unwrap().clone();
         match desktop.windows() {
-            Ok(windows) => {
-                let decision = if let Some(id) = native_target {
-                    let Some(_) = windows.iter().find(|w| w.id == id) else {
-                        eprintln!("tomato-guard：DSH 窗口已关闭，等待 runtime 重新预检");
-                        break;
-                    };
+            Ok(mut windows) => {
+                if let Some(target) = native_target.as_ref() {
+                    let target_id = *target.lock().unwrap();
+                    if target_id.is_some_and(|id| !windows.iter().any(|w| w.id == id)) {
+                        match desktop.lock_window() {
+                            Ok(surface) => {
+                                lock_window = Some(surface);
+                                *target.lock().unwrap() = None;
+                                eprintln!("tomato-guard：DSH 窗口已关闭，改用独立锁窗");
+                                if let Ok(updated) = desktop.windows() {
+                                    windows = updated;
+                                }
+                            }
+                            Err(error) => {
+                                eprintln!("tomato-guard：无法接管已关闭的 DSH 窗口：{error}");
+                                break;
+                            }
+                        }
+                    }
+                    if target.lock().unwrap().is_none() {
+                        if let Ok(Some(next)) = desktop.dsh_window() {
+                            match desktop.fullscreen(&next, true).and_then(|()| {
+                                if next.is_focused || desktop.focus(next.id)? {
+                                    Ok(())
+                                } else {
+                                    Err("DSH 窗口尚未取得焦点".into())
+                                }
+                            }) {
+                                Ok(()) => {
+                                    *target.lock().unwrap() = Some(next.id);
+                                    drop(lock_window.take());
+                                    if let Ok(updated) = desktop.windows() {
+                                        windows = updated;
+                                    }
+                                    eprintln!("tomato-guard：DSH 窗口已恢复，重新全屏保护");
+                                }
+                                Err(error) => eprintln!("tomato-guard：恢复 DSH 失败：{error}"),
+                            }
+                        }
+                    }
+                }
+                let target_id = native_target
+                    .as_ref()
+                    .and_then(|target| *target.lock().unwrap());
+                let decision = if let Some(id) = target_id {
                     guard::decide_target(&windows, id, &whitelist)
                 } else {
                     guard::decide(&windows, own_pid, &whitelist)
@@ -200,7 +246,7 @@ fn enforce_worker(
                 match decision {
                     guard::Decision::Focus(id) => {
                         let blocked = windows.iter().find(|w| w.is_focused).cloned();
-                        if native_target.is_some() {
+                        if target_id.is_some() {
                             if let Some(target) = windows.iter().find(|w| w.id == id) {
                                 if let Err(error) = desktop.fullscreen(target, true) {
                                     eprintln!("tomato-guard：恢复 DSH 全屏失败：{error}");

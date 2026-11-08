@@ -9,9 +9,9 @@ import { registerApp } from "./app/main.js";
 export function createPlugin(require) {
   installRuntime(require);
   return {
-    // slots/timer/theme/locale/layout 全是 DSH 的 Client Service；
+    // slots/timer/theme/locale/layout/configForms 全是 DSH 的 Client Service；
     // 声明得越精确，插件被激活前的等待越短。
-    inject: ["slots", "timer", "theme", "locale", "layout"],
+    inject: ["slots", "timer", "theme", "locale", "layout", "configForms"],
     apply(ctx) {
       try {
         registerSkin(ctx);

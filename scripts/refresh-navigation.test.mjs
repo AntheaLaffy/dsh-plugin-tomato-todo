@@ -225,9 +225,8 @@ function fakePanelInfo(initial) {
 }
 
 test("面板真值源：DSH 切到番茄/切回对话都会写进 {panel}", () => {
-  beforeEach(() => nav.bindPanelInfo(null));
   const info = fakePanelInfo(null);
-  nav.bindPanelInfo(info);
+  nav.bindPanelInfo(info, () => true);
   assert.equal(nav.isPanelVisible(), false);
   info.set("tomato");
   assert.equal(nav.isPanelVisible(), true);
@@ -256,16 +255,24 @@ test("selectPanel 暂时抛错（面板未注册）时会重试到成功", async
   assert.equal(nav.isColdStart(), true);
   nav.navigate({ page: "calendar", reason: "user" });
   let attempts = 0;
-  nav.bindPanelOpener((panelId) => {
-    attempts += 1;
-    if (attempts < 3) throw new Error("main panel not registered");
-    return panelId;
+  const recovered = new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`expected retries, got ${attempts}`)),
+      2_000,
+    );
+    nav.bindPanelOpener((panelId) => {
+      attempts += 1;
+      if (attempts < 3) throw new Error("main panel not registered");
+      clearTimeout(timeout);
+      resolve();
+      return panelId;
+    });
   });
 
   nav.resetActivePageCache();
   nav.restore();
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  assert.ok(attempts >= 3, `expected retries, got ${attempts}`);
+  await recovered;
+  assert.equal(attempts, 3);
   nav.bindPanelOpener(null);
   nav.bindPanelInfo(null);
 });
@@ -292,4 +299,27 @@ test("面板真值源：加载时那次 null 只当基线，不覆盖存储里�
   info.set(null);
   assert.equal(nav.isPanelVisible(), false);
   nav.bindPanelInfo(null);
+});
+
+test("刷新卸载番茄槽位时不把主面板重置误记为主动离开", () => {
+  assert.equal(nav.isColdStart(), true);
+  nav.navigate({ page: "focus", reason: "user" });
+  const info = fakePanelInfo("tomato");
+  let registered = true;
+  nav.bindPanelInfo(info, () => registered);
+
+  // DSH 的 retainMainPanels 在插件槽位撤销时会把 activePanelId 置为 null。
+  registered = false;
+  info.set(null);
+  assert.equal(nav.isPanelVisible(), true);
+
+  nav.resetActivePageCache();
+  nav.bindPanelInfo(null);
+  registered = true;
+  info.set("other");
+  assert.equal(nav.isPanelVisible(), true, "解绑后旧观察器不能改写会话记录");
+  const calls = opener();
+  assert.equal(nav.restore(), true);
+  assert.deepEqual(calls, ["tomato"]);
+  assert.equal(nav.getActivePageId(), "focus");
 });
