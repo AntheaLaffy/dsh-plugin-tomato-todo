@@ -83,7 +83,7 @@ git worktree add ../tomato-ts-<workflow> -b tomato-ts-<workflow>
 - 读代码前的参考手册：[docs/HANDBOOK/](docs/HANDBOOK/README.md)——按域记录事实、取舍理由、机制与语义规则，**面向人读**；改哪动哪、文件与符号在哪看 [CODEMAP](CODEMAP.md)。改动某章涉及的实现后，同步那一章并跑 `python3 scripts/check-handbook.py`（结构、页眉版本、出处、对外措辞与隐私红线）；规模数字、测试索引与待补清单是生成物（`scripts/handbook-stats.py` / `handbook-tests.py` / `handbook-backlog.py`），不要手改；CI 只跑校验脚本。
 - 用户提供的课表与私人备考分析放在忽略版本管理的 `artifacts/planning/`，**不要**写进默认种子、安装包或示例文件。
 - 维护者技能在 [.agents/skills/](.agents/skills/README.md)：编码智能体从仓库根自动发现，覆盖导航、维护收尾、提交与文档、测试与性能、Git/Shell、智能体上下文与 CI/CD。
-- **发布到 npm 与插件市场**：先改 `plugin/package.json` 的版本，`cd plugin && npm publish --access public --otp=<验证码>`（账号开了 2FA，或换一个 bypass 2FA 的 granular token）；然后 `node scripts/update-market-index.mjs && git add -A && git commit && git push`，`market-pages.yml` 会把 `market/index.json` 重新部署到 Pages。索引里只收声明了 `dsh.bundle` 且未被弃用的版本，发布前的占位版本不会混进去。
+- **发布到 npm 与插件市场**：先改 `plugin/package.json` 的版本，`cd plugin && npm publish --access public --otp=<验证码>`（账号开了 2FA，或换一个 bypass 2FA 的 granular token）；然后 `node scripts/update-market-index.mjs && git add -A && git commit && git push`，`market-pages.yml` 会把 `market/index.json` 重新部署到 Pages。索引只收声明了 `dsh.bundle` 且未被弃用的版本；若 npm 尚未返回当前包版本，同步脚本会失败，等注册表完成处理后重试，不能提交旧索引。
 - **发布到 AUR**：`v*` 标签触发 Release 工作流产出 runtime+guard 的发行包后，用 `node scripts/publish-aur.mjs --push` 生成并推送 `tomato-todo-bin`。校验和由脚本从发行包**动态计算**，模板在 [packaging/aur/](packaging/aur/PKGBUILD.in)；不要把生成的 PKGBUILD 当手写文件改。
 
 ## 许可

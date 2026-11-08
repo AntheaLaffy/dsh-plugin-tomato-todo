@@ -40,6 +40,12 @@ if (versions.length === 0) {
   console.error(`${pkg.name} 还没有声明 dsh.bundle 的已发布版本`);
   process.exit(1);
 }
+if (!versions.some(({ version }) => version === pkg.version)) {
+  console.error(
+    `${pkg.name}@${pkg.version} 尚未出现在 npm registry，稍后重试索引同步`,
+  );
+  process.exit(1);
+}
 
 plugin.versions = versions.map(({ version, publishTimestamp }) => ({
   version,
