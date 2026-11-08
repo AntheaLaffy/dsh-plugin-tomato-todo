@@ -118,11 +118,29 @@ jobs:
             assets/*.tar.gz
             assets/*.sha256
 
+  # job-level if 不能直接读取 secrets，先在前置 job 中转成布尔输出。
+  aur_gate:
+    name: 检查 AUR 发布凭据
+    needs: publish
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          if [ -n "$AUR_SSH_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # AUR 是可选的：没有配置 AUR_SSH_KEY 时整步跳过，不阻塞 GitHub Release。
   aur:
     name: 推送 AUR -bin
-    needs: publish
-    if: ${{ secrets.AUR_SSH_KEY != '' }}
+    needs: aur_gate
+    if: ${{ needs.aur_gate.outputs.enabled == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -141,9 +159,11 @@ jobs:
           merge-multiple: true
 
       - name: Load AUR SSH key
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
           chmod 600 ~/.ssh/aur
           ssh-keyscan -t rsa aur.archlinux.org >> ~/.ssh/known_hosts
           cat >> ~/.ssh/config <<'EOF'
@@ -156,5 +176,5 @@ jobs:
         run: >-
           node scripts/publish-aur.mjs
           --version "${RELEASE_TAG#v}"
-          --tarball assets/tomato-todo-${RELEASE_TAG#v}-x86_64-linux.tar.gz
+          --tarball "assets/tomato-todo-${RELEASE_TAG#v}-x86_64-linux.tar.gz"
           --push
