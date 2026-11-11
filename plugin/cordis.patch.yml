@@ -1,9 +1,10 @@
 # 番茄 Todo 插件装载补丁。
 # DSH 对话只使用插件自带的 Host 工具，避免独立 MCP 客户端断线后
 # 学习助手无法控制番茄 Todo。runtime 的 MCP 入口仍供其他客户端使用。
-# tomatoBin 是 Host 工具的一次性 runtime 入口。
+#
+# 不写死路径：tomatoBin 的默认值由插件按当前用户主目录推出
+# （~/.local/bin/tomato-runtime，scripts/install.mjs 的安装位置），
+# 这样同一个包在任何账号下都能用；装到别处时在插件配置里覆盖。
 - insert:
     - id: tomato-dsh
       name: "dsh-plugin-tomato-todo"
-      config:
-        tomatoBin: /home/fuurin/.local/bin/tomato-runtime

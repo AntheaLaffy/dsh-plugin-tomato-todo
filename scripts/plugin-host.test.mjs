@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { TOOLS } from "../runtime/src/tools.mjs";
 import { HOST_TOOL_SPECS } from "../plugin/host-tool-specs.js";
@@ -73,6 +76,51 @@ test("plugin Host tools cover the runtime contract without an MCP client", async
   });
 });
 
+test("plugin derives its runtime path from the current user, not the author", async () => {
+  const spawned = [];
+  const registered = new Map();
+  const ctx = {
+    inject() {},
+    tools: {
+      register(tool) {
+        registered.set(tool.name, tool);
+      },
+    },
+    subprocess: {
+      spawn(options) {
+        spawned.push(options);
+        // --guard-status 打印一行自己的 JSON（不是 JSON-RPC 信封）。
+        const reply = JSON.stringify({ ok: true, guard: { available: false } });
+        return {
+          done: Promise.resolve({ exitCode: 0 }),
+          collected: { stdout: { readFrom: () => ({ text: reply + "\n" }) } },
+        };
+      },
+    },
+  };
+  apply(ctx, { linkSkills: false });
+  await registered.get("tomato_guard_status").execute({});
+
+  assert.equal(spawned.length, 1);
+  assert.equal(
+    spawned[0].argv[0],
+    join(homedir(), ".local/bin/tomato-runtime"),
+  );
+  // 继承宿主环境：runtime 按 $HOME / $XDG_DATA_HOME 找自己的连接文件，
+  // 钉死 HOME 会让别的账号上「插件看着正常、工具却全断」。
+  assert.equal(spawned[0].env, undefined);
+});
+
+test("shipped plugin files carry no author-specific paths", async () => {
+  for (const file of ["index.js", "cordis.patch.yml"]) {
+    const text = await readFile(
+      new URL(`../plugin/${file}`, import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(text, /\/home\//, `${file} 写死了家目录`);
+  }
+});
+
 test(
   "plugin Host can read the running Todo instance",
   { skip: process.env.LIVE_TOMATO !== "1" },
@@ -108,10 +156,9 @@ test(
         },
       },
     };
-    apply(ctx, {
-      tomatoBin: "/home/fuurin/.local/bin/tomato-runtime",
-      linkSkills: false,
-    });
+    // 不传 tomatoBin：默认入口（当前用户的 ~/.local/bin/tomato-runtime）本身也是
+    // 要验证的契约，写死路径会让这条冒烟只在作者机器上成立。
+    apply(ctx, { linkSkills: false });
     const context = await registered.get("tomato_get_context").execute({});
     assert.equal(typeof context, "object");
     const education = await registered.get("tomato_get_education").execute({

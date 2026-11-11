@@ -13,8 +13,8 @@ client 半由 esbuild 打成 `client.js`。契约见 [API.md](../API.md)「插�
 | skills.js | 技能 | 技能提供者 `tomato-bundled`：读 `skills/` 的 SKILL.md frontmatter，rank 350，插件挂载即可用 |
 | link-skills.js | 技能分发 | 把 `skills/` 软链进已存在的 agent 技能根（优先 `~/.agents/skills`）；只操作符号链接，不删真实文件；挂载时调用 |
 | link-skills.mjs | 技能分发 CLI | 人工入口：`--dir`/`--all`/`--check`/`--remove`/`--force`/`--relative`/`--dry-run` |
-| cordis.patch.yml | 装载 | DSH 插件补丁：只插入 `tomato-dsh` 一行，`tomatoBin` 指向 runtime 可执行文件 |
-| package.json | 包契约 | 版本 0.14.0、exports、`files`（含技能、语言与市场展示图）、`dsh.bundle`/`dsh.client` |
+| cordis.patch.yml | 装载 | DSH 插件补丁：只插入 `tomato-dsh` 一行；`tomatoBin` 默认由插件按当前用户主目录推出，补丁不写死路径 |
+| package.json | 包契约 | 版本 0.14.1、exports、`files`（含技能、语言与市场展示图）、`dsh.bundle`/`dsh.client` |
 | client.js | 构建产物 | **生成物**（`pnpm build:client`）：client 半单文件 IIFE，不手改 |
 | icon.svg | 静态资源 | 插件图标（boundary） |
 | screenshots.json | 市场展示 | 官方插件市场的截图清单；相对路径指向本目录内的位图 |

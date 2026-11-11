@@ -39,8 +39,9 @@
 
 ## 安装
 
-1. 确保 `tomato-runtime` 已构建，并软链到 `/home/fuurin/.local/bin/tomato-runtime`
-   （默认路径）。换机器时改 `cordis.patch.yml` 的 `config.tomatoBin`。
+1. 先装 runtime：发行包里的 `scripts/install.mjs` 会把它软链到
+   `~/.local/bin/tomato-runtime`，也就是 Host 工具的默认入口。装到别处时在
+   插件配置里覆盖 `tomatoBin`（默认值按当前用户主目录推出，补丁不写死路径）。
 2. 用 DSH 的 `plugin_manager` → `install_bundle` 安装本目录（绝对路径）。
    补丁会插入 `dsh-plugin-tomato-todo` 插件行。更新 Host 工具后
    重启 DSH Web 服务，让现有进程重新注册工具。
@@ -53,7 +54,7 @@
    node link-skills.mjs --remove                # 撤销本包创建的链接
    ```
 
-   不想要自动链接就在补丁里设 `linkSkills: false`（或给一个目录数组）。
+   不想要自动链接就在插件配置里设 `linkSkills: false`（或给一个目录数组）。
 
 4. 面板 UI 需要 runtime 的 HTTP 服务在运行（见下）；host 工具与 MCP 用
    一次性子进程，也需要 runtime 可执行（失败时按返回文案引导用户）。

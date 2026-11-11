@@ -12,6 +12,8 @@
 //        "whitelist":[],"pid":1234}}
 //     → {"ok":false,"error":"..."} (still exit 0 when it produced a reply)
 //   non-zero exit / no output means the runtime itself is not reachable.
+import { homedir } from "node:os";
+import { join } from "node:path";
 import z from "@deepseek-ai/schemastery";
 import { registerBundledSkills } from "./skills.js";
 import { installSkillLinks } from "./link-skills.js";
@@ -19,20 +21,19 @@ import { HOST_TOOL_SPECS } from "./host-tool-specs.js";
 
 export const inject = ["tools", "subprocess"];
 
-const DEFAULT_BIN = "/home/fuurin/.local/bin/tomato-runtime";
+// scripts/install.mjs links the runtime into the installing user's
+// ~/.local/bin. Deriving the default from that user's home is what makes one
+// published package work on every machine; a literal path would only ever
+// resolve on the machine it was written on.
+const DEFAULT_BIN = join(homedir(), ".local/bin/tomato-runtime");
 
 export const Config = z.object({
-  /** tomato-runtime 可执行文件；换机器时改这里，或改 cordis.patch.yml。 */
+  /** tomato-runtime 可执行文件；默认是当前用户 ~/.local/bin 下的安装位置，装到别处时改这里。 */
   tomatoBin: z.string().default(DEFAULT_BIN),
   /** 把随包技能软链给其他 agent：默认链进已存在的 agent 技能目录，false 关闭，数组指定目录。 */
   linkSkills: z.union([z.boolean(), z.array(z.string())]).default(true),
 });
 
-// Why a pinned HOME: the runtime resolves its data directory
-// (~/.local/share/studio.tomato.todo) and MCP token from $HOME. The host
-// process environment may differ from the user's login environment, so we pin
-// the real home instead of inheriting whatever the launcher had.
-const RUNTIME_HOME = "/home/fuurin";
 const GRACE_MS = 30000;
 const MAX_OUTPUT = 4 * 1024 * 1024;
 
@@ -61,11 +62,15 @@ function parseReply(raw) {
 // One-shot child process. stdinData is either a full request line or null for
 // "no stdin" (used by --guard-status). The process ends the call when stdin
 // closes, which keeps every probe self-cleaning.
+//
+// Why no env override: the runtime resolves its data directory and MCP token
+// from $XDG_DATA_HOME / $HOME, so the probe must see the environment of the
+// user who started the runtime — the same one DSH runs under. Pinning a home
+// here would make every other user's tools fail while looking healthy.
 async function runBinary(ctx, bin, args, stdinData) {
   const handle = ctx.subprocess.spawn({
     argv: [bin, ...args],
     cwd: "/",
-    env: { HOME: RUNTIME_HOME },
     stdio: {
       stdin: stdinData == null ? "ignore" : { data: stdinData },
       stdout: { maxBytes: MAX_OUTPUT },

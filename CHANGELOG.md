@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-11
+
+### 修复
+
+- 插件把作者的家目录写进了发布物：`plugin/index.js` 的默认 `tomatoBin` 和子进程 `HOME` 都是 `/home/fuurin`，`cordis.patch.yml` 又把同一路径插入 profile。别的账号装上是「能装、工具全断」——要么找不到 `tomato-runtime`，要么读不到运行实例的 `agent/connection.json`，而「对话助手与界面共用同一份本地记录」正是这个插件存在的理由。现在默认入口由插件按当前用户主目录推出（`~/.local/bin/tomato-runtime`，与 `scripts/install.mjs` 的安装位置一致），子进程继承宿主环境（runtime 靠自己环境里的 `$HOME` / `$XDG_DATA_HOME` 找连接文件），补丁不再写死 `tomatoBin`；装到别处时在插件配置里覆盖。`scripts/plugin-host.test.mjs` 增加两条回归：默认路径落在当前用户主目录、spawn 不钉 `HOME`，发布文件里不出现 `/home/`。
+
 ## [0.14.0] - 2026-11-08
 
 各项功能基本稳定下来；本版主要完成项目资料、偏好同步、专注页面与提醒行为的收尾。
