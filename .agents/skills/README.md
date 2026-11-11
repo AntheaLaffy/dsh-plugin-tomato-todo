@@ -25,7 +25,6 @@ Pi（以及兼容 Agent Skills 规范的工具）会从工作目录向仓库根�
 | `code-review` | 评审 PR / diff：给可操作建议、区分阻断与建议、解释为什么 |
 | `contributing-upstream` | 向上游（Pi SDK、Codex）报 bug、提 PR、写最小复现 |
 | `versioning-reproducibility` | 版本号、发布标签与可复现构建的一致性 |
-| `publish-portability` | 发布前自检：发布物不写死作者环境、前置与副作用如实披露、拆包验证并用回归测试锁契约 |
 
 ### 测试与性能
 
@@ -67,7 +66,6 @@ Pi（以及兼容 Agent Skills 规范的工具）会从工作目录向仓库根�
 
 - `codemap`：MIT（Copyright © 2026 htdxd），随附 `codemap/LICENSE`。
 - `project-maintenance`、`performance-gradient-optimization`：随原目录收录，未附独立许可声明。
-- `publish-portability`：自写，随仓库（MIT）。
 - 其余技能改编自 MIT《The Missing Semester》（CC BY-NC-SA 4.0），与应用自身的 MIT 不同；如需纯 MIT 分发，替换为自写版本。
 
 ## 未收录
