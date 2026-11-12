@@ -16,7 +16,7 @@ export interface Project {
 export interface HabitSlot {
   /** 1 = 周一 … 7 = 周日。 */
   days: number[];
-  time: string;
+  time: string | null;
 }
 
 export interface Habit {
@@ -43,9 +43,12 @@ export type TaskKind = "ordinary" | "habit";
 
 export interface Task {
   id: string;
-  templateId: string | null;
-  /** 印刷时冻结的重复来源；改模板不重写历史分类。 */
+  /** 保留本次任务的重复来源，关闭循环不改写历史分类。 */
   recurring: boolean;
+  repeat: Repeat;
+  repeatDays: number[];
+  /** 已生成的下一次任务 ID；删除下一次也不会重新生成。 */
+  nextTaskId: string | null;
   title: string;
   notes: string;
   projectId: string | null;
@@ -55,6 +58,8 @@ export interface Task {
   focusMinutes: number | null;
   /** 普通任务计划块结束后的静态重修窗口（分钟）；0 即到点作废。 */
   scrapMinutes: number;
+  /** 无精确提醒时间的非循环任务，发生日之后保留的自然日数。 */
+  expiryDays: number;
   priority: number;
   estimate: number;
   reminderFired: boolean;
@@ -93,11 +98,14 @@ export interface TaskDraft {
   reminderTime: string | null;
   focusMinutes: number | null;
   scrapMinutes: number;
+  /** 无精确提醒时间的非循环任务，发生日之后保留的自然日数。 */
+  expiryDays: number;
   priority: number;
   estimate: number;
   tags: string[];
   subtasks: Subtask[];
   repeat: Repeat;
+  repeatDays: number[];
 }
 
 export type GuardMode = "off" | "lock" | "whitelist";
@@ -221,54 +229,6 @@ export interface Block {
   notes: string;
 }
 
-// ---------- 模板与印刷 ----------
-
-export interface TemplateSubtask {
-  id: string;
-  title: string;
-}
-
-export interface Shape {
-  title: string;
-  notes: string;
-  projectId: string | null;
-  habitId: string | null;
-  focusMinutes: number | null;
-  scrapMinutes: number;
-  priority: number;
-  estimate: number;
-  tags: string[];
-  subtasks: TemplateSubtask[];
-}
-
-export interface PrintSlot {
-  days: number[];
-  time: string | null;
-}
-
-export interface CalendarSlot {
-  dates: string[];
-  time: string | null;
-}
-
-export type Printing =
-  | { kind: "once"; date: string | null; time: string | null }
-  | { kind: "calendar"; slots: CalendarSlot[] }
-  | { kind: "weekly"; slots: PrintSlot[] };
-
-export interface Template {
-  id: string;
-  shape: Shape;
-  printing: Printing;
-  automatic: boolean;
-  printAheadDays: number;
-}
-
-export interface PrintRecord {
-  templateId: string;
-  date: string | null;
-}
-
 // ---------- 永久 ID 登记 ----------
 
 export interface Identity {
@@ -279,7 +239,7 @@ export interface Identity {
   restoreTask: string | null;
 }
 
-// ---------- 计划文件 v6 ----------
+// ---------- 计划文件 v7 ----------
 
 export interface PlanProject {
   id: string;
@@ -297,10 +257,11 @@ export interface PlanSubtask {
 export interface PlanTask {
   id: string;
   title: string;
-  templateId: string | null;
   habitId: string | null;
   recurring: boolean;
   scrapMinutes: number;
+  /** 无精确提醒时间的非循环任务，发生日之后保留的自然日数。 */
+  expiryDays: number;
   notes: string;
   projectId: string | null;
   dueDate: string | null;
@@ -313,6 +274,7 @@ export interface PlanTask {
   tags: string[];
   subtasks: PlanSubtask[];
   repeat: Repeat;
+  repeatDays: number[];
 }
 
 export interface PlanFile {
@@ -322,8 +284,6 @@ export interface PlanFile {
   projects: PlanProject[];
   tasks: PlanTask[];
   blocks: Block[];
-  templates: Template[];
-  prints: PrintRecord[];
   habits: Habit[];
   /** 序列化时 false 省略。 */
   replace: boolean;
@@ -439,6 +399,8 @@ export interface Assessment {
   endsAt: number;
   instructions: string;
   reviewEvidence: string;
+  /** 本次作业/考试的试卷与参考资料；为空时界面回退到项目资料。 */
+  resourceIds: string[];
   questions: Question[];
   publishedAt: number;
   printedAt: number | null;
@@ -508,7 +470,7 @@ export interface TeachingEvent {
   createdAt: number;
 }
 
-export type TeachingTaskKind = "lesson" | "homework";
+export type TeachingTaskKind = "lesson" | "homework" | "exam";
 
 export interface TeachingTask {
   taskId: string;

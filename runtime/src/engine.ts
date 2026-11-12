@@ -83,6 +83,7 @@ function draftOf(task, overrides: Record<string, unknown> = {}) {
     reminderTime: task.reminderTime,
     focusMinutes: task.focusMinutes,
     scrapMinutes: task.scrapMinutes,
+    expiryDays: task.expiryDays,
     priority: task.priority,
     estimate: task.estimate,
     tags: [...task.tags],
@@ -91,7 +92,8 @@ function draftOf(task, overrides: Record<string, unknown> = {}) {
       title: s.title,
       done: s.done,
     })),
-    repeat: "none",
+    repeat: task.repeat,
+    repeatDays: [...task.repeatDays],
     ...overrides,
   };
 }
@@ -122,14 +124,16 @@ function draftFromInput(input: Record<string, unknown>) {
     reminderTime: input.reminderTime ?? null,
     focusMinutes: input.focusMinutes ?? null,
     scrapMinutes: input.scrapMinutes ?? 0,
+    expiryDays: input.expiryDays ?? 0,
     priority: input.priority ?? 0,
     estimate: input.estimate ?? 1,
     tags: input.tags ?? [],
     subtasks,
     repeat: input.repeat ?? "none",
+    repeatDays: input.repeatDays ?? [],
   };
   if (input.habitId != null) {
-    // core 的 saveTask 不接收 habitId（习惯归属由 saveHabit/template 维护），
+    // core 的 saveTask 不接收 habitId（习惯归属由 saveHabit 维护），
     // 旧 runtime 的 createTask(habitId) 没有等价动作，明确拒绝而不是悄悄丢失。
     throw new core.AppError(
       "新任务不能直接指定习惯组，请在习惯页建立习惯；或先建任务再编辑",
@@ -232,10 +236,21 @@ export class Engine {
       b.priority - a.priority ||
       a.createdAt - b.createdAt;
     const tasks = (data.tasks as unknown as Task[])
-      .filter((t) => t.dueDate === today)
+      .filter(
+        (t) =>
+          (t.dueDate === today ||
+            (!t.completed && (t.dueDate === null || t.dueDate < today))) &&
+          !core.taskIsVoid(t as unknown as core.Task),
+      )
       .sort(byTime);
     const overdue = (data.tasks as unknown as Task[])
-      .filter((t) => t.dueDate !== null && t.dueDate < today && !t.completed)
+      .filter(
+        (t) =>
+          t.dueDate !== null &&
+          t.dueDate < today &&
+          !t.completed &&
+          !core.taskIsVoid(t as unknown as core.Task),
+      )
       .sort(byTime)
       .slice(0, 100);
     const day = weekdayMonday(now);
@@ -289,6 +304,9 @@ export class Engine {
       "reminderTime",
       "focusMinutes",
       "scrapMinutes",
+      "expiryDays",
+      "repeat",
+      "repeatDays",
       "priority",
       "estimate",
       "tags",
@@ -301,9 +319,9 @@ export class Engine {
       }
     }
     if (changes.habitId !== undefined) {
-      // 习惯归属属于模板/习惯页；沿用旧值而不是静默改写冻结来源。
+      // 习惯归属属于习惯页；沿用旧值而不是静默改写冻结来源。
       if (changes.habitId !== task.habitId) {
-        throw new core.AppError("习惯归属请通过习惯页或模板调整");
+        throw new core.AppError("习惯归属请通过习惯页调整");
       }
     }
     const overrides: Record<string, unknown> = {};
@@ -911,18 +929,18 @@ export class Engine {
       raw != null &&
       typeof raw === "object" &&
       (raw as { format?: unknown }).format === "tomato-todo-plan" &&
-      (raw as { version?: unknown }).version === 6
+      (raw as { version?: unknown }).version === 7
     ) {
       action = { type: "importPlan", plan: raw } as never;
     } else if (
       raw != null &&
       typeof raw === "object" &&
-      (raw as { version?: unknown }).version === 4 &&
+      (raw as { version?: unknown }).version === 5 &&
       Array.isArray((raw as { tasks?: unknown }).tasks)
     ) {
       action = { type: "import", data: raw } as never;
     } else {
-      throw new core.AppError("无法识别的导出文件格式（需计划 v6 或备份 v4）");
+      throw new core.AppError("无法识别的导出文件格式（需计划 v7 或备份 v5）");
     }
     this.dispatch(action, now);
     return { applied: true, name, today: this.today(now).today };

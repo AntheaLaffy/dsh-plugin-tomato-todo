@@ -85,11 +85,13 @@ function draft(): TaskDraft {
     reminderTime: null,
     focusMinutes: null,
     scrapMinutes: 0,
+    expiryDays: 0,
     priority: 2,
     estimate: 2,
     tags: [],
     subtasks: [],
     repeat: "none",
+    repeatDays: [],
   };
 }
 
@@ -479,7 +481,7 @@ describe("crates/core/src/tests.rs 移植", () => {
   it("plan_defaults_and_protection_match_task_contract", () => {
     const plan = parsePlanFile(
       JSON.parse(
-        `{"format":"tomato-todo-plan","version":6,"pomodoroMinutes":25,"projects":[],"tasks":[{"id":"minimal","title":"最小任务","dueDate":"2026-10-12"}]}`,
+        `{"format":"tomato-todo-plan","version":7,"pomodoroMinutes":25,"projects":[],"tasks":[{"id":"minimal","title":"最小任务","dueDate":"2026-10-12"}]}`,
       ),
     );
     validatePlanFile(plan);
@@ -500,7 +502,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     const e = engine();
     const create = parsePlanFile(
       JSON.parse(
-        `{"format":"tomato-todo-plan","version":6,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d","appWhitelist":["org.mozilla.firefox"]}],"tasks":[{"id":"t1","title":"词汇","dueDate":"2026-10-12","projectId":"english"}]}`,
+        `{"format":"tomato-todo-plan","version":7,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d","appWhitelist":["org.mozilla.firefox"]}],"tasks":[{"id":"t1","title":"词汇","dueDate":"2026-10-12","projectId":"english"}]}`,
       ),
     );
     e.dispatch({ type: "importPlan", plan: create }, 1000);
@@ -509,7 +511,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     // A regenerated file replaces the list, which is the agent round-trip.
     const update = parsePlanFile(
       JSON.parse(
-        `{"format":"tomato-todo-plan","version":6,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d","appWhitelist":["org.mozilla.firefox","mdict"]}],"tasks":[]}`,
+        `{"format":"tomato-todo-plan","version":7,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d","appWhitelist":["org.mozilla.firefox","mdict"]}],"tasks":[]}`,
       ),
     );
     e.dispatch({ type: "importPlan", plan: update }, 1010);
@@ -521,7 +523,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     // Omitting the field keeps the local list instead of clearing it.
     const keep = parsePlanFile(
       JSON.parse(
-        `{"format":"tomato-todo-plan","version":6,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d"}],"tasks":[]}`,
+        `{"format":"tomato-todo-plan","version":7,"pomodoroMinutes":25,"projects":[{"id":"english","name":"英语一","color":"#849b7d"}],"tasks":[]}`,
       ),
     );
     e.dispatch({ type: "importPlan", plan: keep }, 1020);
@@ -683,7 +685,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     ).toThrow();
   });
 
-  it("expired_routines_count_as_misses_but_appointments_do_not", () => {
+  it("recurring_tasks_never_expire_but_timed_oneoffs_still_do", () => {
     const e = engine();
     const routine = draft();
     routine.dueDate = "2026-10-09";
@@ -700,13 +702,12 @@ describe("crates/core/src/tests.rs 移植", () => {
     appointment.estimate = 1;
     e.dispatch({ type: "saveTask", task: appointment }, friday(8, 0));
     const s = e.snapshot(friday(16, 0));
-    expect(
-      s.data.tasks
-        .filter((t) => t.dueDate === "2026-10-09")
-        .every((t) => t.reminderExpired),
-    ).toBe(true);
+    const [routineTask, oneoffTask] = s.data.tasks;
+    expect(routineTask!.reminderExpired).toBe(false);
+    expect(oneoffTask!.reminderExpired).toBe(true);
     const day = s.stats.days.find((d) => d.date === "2026-10-09")!;
-    expect(day.missed).toBe(1);
+    expect(day.missed).toBe(0);
+    expect(day.voided).toBe(1);
   });
 
   it("habits_materialize_today_once_and_detach_on_delete", () => {
@@ -727,15 +728,15 @@ describe("crates/core/src/tests.rs 移植", () => {
     );
     const habit = s.data.habits[0]!.id;
     const todays = s.data.tasks.filter((t) => t.habitId === habit);
-    expect(todays).toHaveLength(3);
+    expect(todays).toHaveLength(2);
     expect(new Set(todays.map((t) => t.dueDate!))).toEqual(
-      new Set(["2026-10-09", "2026-10-10", "2026-10-11"]),
+      new Set(["2026-10-09", "2026-10-10"]),
     );
     expect(todays[0]!.reminderTime).toBe("12:00");
     expect(todays[0]!.dueDate).toBe("2026-10-09");
     // Ticking again must not duplicate the occurrence.
     const s2 = e.snapshot(friday(8, 1));
-    expect(s2.data.tasks.filter((t) => t.habitId === habit)).toHaveLength(3);
+    expect(s2.data.tasks.filter((t) => t.habitId === habit)).toHaveLength(2);
     // Deleting the habit leaves the occurrence as an ordinary timed task.
     e.dispatch({ type: "deleteHabit", id: habit }, friday(8, 2));
     expect(
@@ -750,7 +751,6 @@ describe("crates/core/src/tests.rs 移植", () => {
       [slot([1, 2], "12:00"), slot([2, 3], "12:00")],
       [slot([], "12:00")],
       [slot([1], "25:00")],
-      [],
     ];
     for (const slots of cases) {
       expect(() =>
@@ -912,26 +912,13 @@ describe("crates/core/src/tests.rs 移植", () => {
     const s = e.dispatch({ type: "saveTask", task: d }, at);
     const taskId = s.data.tasks[0]!.id;
     const s2 = e.dispatch({ type: "toggleTask", id: taskId }, at);
-    // The whole workweek was printed at creation.
-    expect(s2.data.tasks).toHaveLength(5);
-    expect(new Set(s2.data.tasks.map((t) => t.dueDate!))).toEqual(
-      new Set([
-        "2026-10-05",
-        "2026-10-06",
-        "2026-10-07",
-        "2026-10-08",
-        "2026-10-09",
-      ]),
-    );
+    expect(s2.data.tasks).toHaveLength(2);
+    expect(s2.data.tasks[1]!.dueDate).toBe("2026-10-12");
+    expect(s2.data.tasks[1]!.subtasks[0]!.done).toBe(false);
     e.dispatch({ type: "toggleTask", id: taskId }, at);
     e.dispatch({ type: "toggleTask", id: taskId }, at);
-    expect(e.data.tasks).toHaveLength(5);
-    // Saturday
-    expect(e.snapshot(at + 86400).data.tasks).toHaveLength(5);
-    const monday = e.snapshot(at + 3 * 86400);
-    expect(monday.data.tasks).toHaveLength(10);
-    expect(monday.data.tasks[5]!.dueDate).toBe("2026-10-12");
-    expect(monday.data.tasks[5]!.subtasks[0]!.done).toBe(false);
+    expect(e.data.tasks).toHaveLength(2);
+    expect(e.snapshot(at + 10 * 86400).data.tasks).toHaveLength(2);
   });
 
   it("statistics_use_local_day_and_keep_partial_minutes_separate", () => {
@@ -1060,8 +1047,10 @@ describe("crates/core/src/tests.rs 移植", () => {
   it("completion_credit_is_assigned_to_completion_day_without_rewriting_actual_history", () => {
     const e = engine();
     const at = friday(12, 0);
-    const taskId = e.dispatch({ type: "saveTask", task: draft() }, at).data
-      .tasks[0]!.id;
+    const taskId = e.dispatch(
+      { type: "saveTask", task: { ...draft(), expiryDays: 30 } },
+      at,
+    ).data.tasks[0]!.id;
     e.dispatch({ type: "selectTask", id: taskId }, at);
     e.dispatch({ type: "startTimer" }, at);
     e.dispatch({ type: "resetTimer" }, at + 600);
@@ -1089,7 +1078,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     for (let day = 0; day < 3; day += 1) {
       const t = at + day * 86400;
       const taskId = e
-        .dispatch({ type: "saveTask", task: draft() }, t)
+        .dispatch({ type: "saveTask", task: { ...draft(), expiryDays: 30 } }, t)
         .data.tasks.at(-1)!.id;
       e.dispatch({ type: "toggleTask", id: taskId }, t);
     }
@@ -1561,7 +1550,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     expect(s2.data.settings.focusMinutes).toBe(25);
     e.dispatch({ type: "resetTimer" }, friday(9, 1));
     const s3 = e.dispatch({ type: "toggleTask", id: taskId }, friday(9, 1));
-    expect(s3.data.tasks).toHaveLength(3);
+    expect(s3.data.tasks).toHaveLength(2);
     const s4 = e.snapshot(friday(8, 0) + 86400);
     const next = s4.data.tasks[1]!;
     expect(next.focusMinutes).toBe(40);
@@ -1579,7 +1568,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     d.focusMinutes = 40;
     const s = e.dispatch({ type: "saveTask", task: d }, friday(8, 0));
     const plan = s.data.exportPlan();
-    expect(plan.version).toBe(6);
+    expect(plan.version).toBe(7);
     const imported = engine().dispatch(
       { type: "importPlan", plan: structuredClone(plan) },
       friday(8, 0),
@@ -1662,7 +1651,7 @@ describe("crates/core/src/tests.rs 移植", () => {
       1000,
     );
     const exported = e.snapshot(1000).data.exportPlan();
-    expect(exported.version).toBe(6);
+    expect(exported.version).toBe(7);
     expect(exported.blocks).toHaveLength(1);
     validatePlanFile(exported);
 
@@ -1694,11 +1683,11 @@ describe("crates/core/src/tests.rs 移植", () => {
     expect(retired.some((r) => r.kind === "block" && r.retired)).toBe(true);
   });
 
-  it("every_task_entry_point_requires_a_date_but_not_a_reminder", () => {
+  it("task_entry_points_reject_invalid_dates_and_allow_untimed_tasks", () => {
     const e = engine();
     const at = friday(8, 0);
     const before = e.export(at);
-    for (const date of [null, "", "2026-02-30"] as (string | null)[]) {
+    for (const date of ["", "2026-02-30"] as (string | null)[]) {
       const task = draft();
       task.dueDate = date;
       expect(() => e.dispatch({ type: "saveTask", task }, at)).toThrow();
@@ -1797,17 +1786,12 @@ describe("crates/core/src/tests.rs 移植", () => {
     writeFileSync(path, JSON.stringify(legacy), "utf8");
     const reopened = reopen(path);
     const data = reopened.snapshot(at).data;
-    expect(data.version).toBe(4);
+    expect(data.version).toBe(5);
     expect(data.tasks[0]!.dueDate).toBe("2026-10-09");
     expect(data.tasks[0]!.completed).toBe(true);
-    expect(data.prints).toHaveLength(0);
+    expect(serializeAppData(data)).not.toHaveProperty("prints");
     expect(data.visions[0]!.projectId).toBeNull();
-    const printing = data.templates[0]!.printing;
-    expect(printing.kind).toBe("once");
-    if (printing.kind === "once") {
-      expect(printing.date).toBe(dateAt(now()));
-      expect(printing.time).toBeNull();
-    }
+    expect(serializeAppData(data)).not.toHaveProperty("templates");
     expect(
       data.identities.every(
         (r) => !["goal", "node", "signal"].includes(r.kind),
@@ -1830,7 +1814,7 @@ describe("crates/core/src/tests.rs 移植", () => {
     const plan = examplePlan();
     plan.tasks[0]!.id = taskId;
     expect(() => reopened.dispatch({ type: "importPlan", plan }, at)).toThrow();
-    expect(reopen(path).data.version).toBe(4);
+    expect(reopen(path).data.version).toBe(5);
   });
 
   it("formal_exam_start_rejects_running_or_paused_focus_and_accepts_idle_focus", () => {

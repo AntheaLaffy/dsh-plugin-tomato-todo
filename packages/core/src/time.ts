@@ -74,7 +74,7 @@ export function weekdayMonday(date: CalendarDate): number {
   return day === 0 ? 7 : day;
 }
 
-/** 所在周的周一（对应 templates::week_start）。 */
+/** 所在周的周一。 */
 export function weekStart(date: CalendarDate): CalendarDate {
   return addDays(date, -(weekdayMonday(date) - 1));
 }
@@ -136,7 +136,6 @@ export function hourMinuteOf(at: number): { hour: number; minute: number } {
 
 /**
  * 校验 `HH:MM`：长度 5、第 3 位是 `:`、数字且 小时 ≤ 23、分钟 ≤ 59。
- * 对应 templates::valid_time。
  */
 export function validTime(value: string): boolean {
   return (

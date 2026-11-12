@@ -477,8 +477,6 @@ let sampleState = {
       },
     ],
     blocks: [],
-    templates: [],
-    prints: [{ templateId: "tpl1", date: "2026-11-04" }],
     projects: [
       { id: "p1", name: "数学一", color: "#df7561", appWhitelist: null },
       { id: "p2", name: "英语", color: "#75aabb", appWhitelist: null },
@@ -510,47 +508,6 @@ let sampleState = {
         end: "13:30",
         attention: "light",
         notes: "",
-      },
-    ],
-    templates: [
-      {
-        id: "tpl1",
-        shape: {
-          title: "英语精读 1 篇",
-          notes: "",
-          projectId: "p1",
-          habitId: null,
-          focusMinutes: 25,
-          scrapMinutes: 30,
-          priority: 1,
-          estimate: 1,
-          tags: ["英语"],
-          subtasks: [{ id: "s1", title: "查生词" }],
-        },
-        printing: {
-          kind: "weekly",
-          slots: [{ days: [1, 3, 5], time: "20:00" }],
-        },
-        automatic: false,
-        printAheadDays: 1,
-      },
-      {
-        id: "tpl2",
-        shape: {
-          title: "每日复盘",
-          notes: "",
-          projectId: null,
-          habitId: null,
-          focusMinutes: 15,
-          scrapMinutes: 0,
-          priority: 2,
-          estimate: 1,
-          tags: [],
-          subtasks: [],
-        },
-        printing: { kind: "once", date: null, time: "07:30" },
-        automatic: true,
-        printAheadDays: 0,
       },
     ],
     sessions: [
@@ -933,10 +890,11 @@ for (const pageId of PAGE_IDS) {
     if (marker && !markup.includes(marker))
       failures.push(`页面 ${pageId} 缺少标记「${marker}」（切页可能失效）`);
     if (pageId === "focus" && !process.env.SMOKE_LIVE) {
-      // 今日专注只该列今天计划的任务；逾期任务只能作为底部提示出现。
-      if (!markup.includes("另有 1 件逾期任务"))
-        failures.push("今日专注没有逾期提示");
-      if (markup.includes("已逾期")) failures.push("今日专注混入了逾期任务行");
+      // 报废任务只保留统计，不再出现在今日清单或逾期提示中。
+      if (markup.includes("高数 1-5 极限运算法则"))
+        failures.push("今日专注仍显示报废任务");
+      if (markup.includes("另有 1 件逾期任务"))
+        failures.push("今日专注仍把报废任务算作逾期待办");
       if (!markup.includes("打开任务详情"))
         failures.push("今日专注的教学任务没有工作台入口");
     }
@@ -1337,8 +1295,9 @@ if (!process.env.SMOKE_LIVE) {
     if (!education.includes(label)) failures.push(`教学页缺少操作「${label}」`);
   }
   const allTasks = renderedBy["page:tasks"] || "";
+  if (allTasks.includes("高数 1-5 极限运算法则"))
+    failures.push("全部任务仍显示报废任务");
   const positions = [
-    "高数 1-5 极限运算法则",
     "语法加强 Day05（下）",
     "跨项目明日任务",
     "原项目后日任务",

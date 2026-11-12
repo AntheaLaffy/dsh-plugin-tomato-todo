@@ -1,71 +1,47 @@
-# 学习计划文件 v6
+# 学习计划文件 v7
 
-> 字段形状以 packages/core 的 TypeScript 实现为准：本文件记录字段语义与边界，JSON 字段名 camelCase，形状与校验随核心实现更新。
+计划用于交换安排配置，保留本机执行历史。机器定义见 [plan.schema.json](plan.schema.json)，通用示例见 [plan.example.json](plan.example.json)。当前核心为 `@tomato/core`。
 
-入口：**偏好设置 → 学习计划 → 导入计划 / 导出计划**。UTF-8 JSON，上限 20 MiB。机器定义见 [plan.schema.json](plan.schema.json)，通用示例见 [plan.example.json](plan.example.json)。计划交换安排配置，不交换完成进度、专注历史、计时器或本机设置。
+## 顶层与任务
 
-## 日期与提醒时刻
+顶层为 `{ format: "tomato-todo-plan", version: 7, pomodoroMinutes, projects, tasks, blocks?, habits?, replace? }`。`pomodoroMinutes` 为 1–180；省略的集合为空，`replace` 默认 false。模板、印刷规则及印刷账本已退役，v6 交换计划明确拒绝。
 
-任务实例必须有有效的 `dueDate: "YYYY-MM-DD"`，不能省略、留空或设为 null。模板要么指定具体日期，要么指定每周周期中的星期；印刷时把星期展开成具体日期。提醒时刻是另一个维度：`reminderTime` 和规则中的 `time` 可省略或为 null，有日期不代表必须定时。
+任务必填 `id/title`，可设置 `notes/projectId/habitId/dueDate/reminderTime/focusMinutes/priority/estimate/tags/subtasks/repeat/repeatDays/scrapMinutes/expiryDays/recurring`。子步骤只有 `id/title`，导入新任务时从未完成开始。
 
-v6 已删除目标组、主线节点、配对和信号裁定字段。只接受 v6；旧计划须按本规范转换，或从升级后的应用重新导出。未知字段会被拒绝，不会默默忽略旧规则。完整恢复使用 [备份 v4](BACKUP_FORMAT.md)。
+`dueDate` 是发生日期（`YYYY-MM-DD`），`reminderTime` 是可选的精确提醒时间（`HH:MM`）；精确提醒必须有发生日期。没有发生日期、也没有精确提醒时间时，默认是每日循环任务。不能以空字符串代替省略或 null。
 
-## 顶层与实例
+## 直接循环与完成确认
 
-顶层包含 `format: "tomato-todo-plan"`、`version: 6`、`pomodoroMinutes`（1–180）、`projects`、`tasks`。`blocks`、`templates`、`prints`、`habits` 省略时为空；`replace` 默认 false。
+`repeat` 为 `none/daily/weekdays/weekly`，默认 none。`repeatDays` 仅用于 weekly，取不重复的 1–7（周一至周日）；空列表表示发生日期所在的星期。日期为空时按 daily 处理。
 
-实例字段：`id/title/dueDate` 必填；其余包括 `notes`、`projectId`、`templateId`、`habitId`、`recurring`、`reminderTime`、`focusMinutes`、`scrapMinutes`、`priority`、`estimate`、`tags`、`subtasks`。子步骤只有 `id/title`，导入新实例时从未完成开始。实例不拥有重复规则，`repeat` 只允许省略或 `none`。
+循环规则直接属于任务，无须先建立模板或批量印刷。当前任务不会因为跨日或超过预计时长报废，也不会自动堆积多次未完成项。用户明确确认完成后，保留本次记录、复制任务配置并重置步骤进度与提醒状态，生成未来下一次。下一次从发生日期与完成日期中较晚的一天之后按规则选择，跳过已错过的周期。
 
-- `estimate` 默认 1，范围 1–99；`focusMinutes` 可空，范围 1–180。未指定单次时长时，导入按文件 `pomodoroMinutes` 换算为本机番茄段数并向上取整，超过 99 则整体拒绝。
-- `priority` 为 0–3；`scrapMinutes` 为 0–10080。标签最多 20 个、每个最多 40 字；子步骤最多 200 项。
-- ID 全局唯一，最多 200 个 UTF-8 字节；删除后永久保留，计划不能复用历史 ID。子步骤 ID 是局部编号。
+本机任务的 `nextTaskId` 记录已生成的下一次；撤销再完成、重启或删除下一次都不会重复生成。配置交换不含这个运行字段；已生成后继的任务导出时停止自身继续循环。完成和统计属于每次执行，计时结束不会替用户确认完成。
 
-## 模板、印刷与实例
+## 报废与待补
 
-模板为 `{ id, shape, printing, automatic, printAheadDays }`。`shape` 保存标题、备注、项目/习惯组引用、单次时长、预计番茄数、标签、优先级、重修窗口和子步骤文本，不保存日期、完成或统计。规则有三种：
+- 循环任务无报废期限，无论是否有精确提醒时间。
+- 非循环且没有精确提醒时间：`expiryDays` 默认 0，以发生日为第 0 天；发生日结束后报废。设置 2 表示保留发生日及后续 2 个自然日。范围 0–36500。
+- 非循环定时任务：计划块为全部专注段加段间休息；计划块结束后还能在 `scrapMinutes` 内补做，当天有效，默认 0，边界时刻报废。
+- 已报废的任务从任务清单及其计数中隐藏，历史仍保留用于统计。
+- 有发生日期和精确提醒时间，且超过“提醒时间＋计划块”的未完成、未报废任务进入待补队列。定时循环任务也适用，并可跨日保留。没有精确提醒时间的任务不进入待补队列。
 
-- 单次：`{ kind: "once", date: "2026-10-12", time: null }`。手动模板也必须指定日期，之后可选其他日期复用。
-- 日程：`{ kind: "calendar", slots: [{ time: "09:00", dates: ["2026-10-12", "2026-10-14"] }] }`。每个开始时间对应多个日期；同一开始时间的日期须合并。最多 49 个时段、合计 366 项。
-- 周期：`{ kind: "weekly", slots: [{ time: null, days: [1,3,5] }] }`。1–7 代表周一至周日，每个时段必须选至少一天，最多 49 个时段；同一星期与时刻不能重复。周期内不混用定时与不定时单元。时间全部留空时仍是有效的普通任务周期。
+`recurring` 保留本次任务的重复来源供分类与历史使用；新循环任务为 true。习惯组仍为 `{ id, name }`，关联任务直接保存循环规则。习惯的 slots 可省略或为空，表示无精确提醒的每日循环；指定星期时，time 也可留空。普通任务与教学待办均由用户明确确认完成，不凭空生成专注完成记录。
 
-`automatic` 默认 false；`printAheadDays` 默认 7、范围 0–90。自动印刷在启动/轮询时补齐近期遗漏，不依赖日期首次进入窗口。非重复规则处理截至今天加预印天数的日程；周期规则印完涉及的完整周。0 表示本周或截至今天的非重复安排。程序关闭期间不执行。
+## 项目与固定占用
 
-手动印刷必须指定日期，周期内任意一天代表印出该完整周；跨多周逐周展开。日程表按所选范围印刷，保存时一起印刷则印完整份日程。已过静态时间窗口的定时实例跳过，仍在重修窗口内的实例可印刷。
+项目为 `{ id, name, color, appWhitelist? }`。白名单提供时替代通用清单，省略时保留本机配置；最多 100 项，每项非空、无控制字符、最多 32768 字符。愿景不参与排期。
 
-`prints: [{ templateId, date }]` 是独立防重账本，`date` 必须是具体日期。一天一旦产生实例便记为已印，删除实例或改模板也不会自动补满。同模板同日期不重复印刷。临时任务可印一条或整份非重复日程，不保留模板。
+`blocks` 是课表固定占用：`id/title/days/start/end/attention/notes`，`attention` 为 required 或 light；end 不晚于 start 表示跨午夜。固定占用不锁机、不拥有任务进度。
 
-界面按预计分钟数换算 `estimate`，短任务可自动缩短单次专注；预览包含段间休息。实例冻结 `recurring`，编辑或删除模板不重写其来源分类。完成实例不会生成下一条。
+## 导入、导出与运行时存储
 
-## 普通任务、习惯与项目
+导入先完整校验候选，再原子提交。相同 ID 更新配置，保留 `completed/completedAt/createdAt/nextTaskId`、匹配步骤的完成状态与专注历史；日期与提醒不变时保留送达状态。项目白名单省略时保留。
 
-有提醒时刻且属于习惯组或 `recurring: true` 的实例是习惯，其余是普通任务。习惯漏做计缺勤，不重修；普通定时任务在计划块结束后可在 `scrapMinutes` 内补做，跨午夜作废。没有提醒时刻的任务不会因缺少精确时间作废。
+默认保留未提及实体。`replace: true` 移除未列出的未完成普通任务、习惯组与固定占用，保留已完成任务、教学待办、项目环境、专注历史和永久 ID 历史。应用前自动备份。
 
-计划块为全部专注段加段间短/长休息。重修窗口默认 0，边界时刻即作废。印刷跳过已作废候选，已经生成的任务保留完成和专注历史。
+导出未完成普通任务、习惯组、固定占用和引用项目，不含步骤完成状态或教学历史。runtime 的 `plan.json` 为计划 v7 加运行进度（完成、创建、提醒、`nextTaskId` 与子步骤 done）；`state.json` 保存计时、设置、历史、愿景、身份与教学记录。交换备份为 [v5](BACKUP_FORMAT.md)。本机 v6/v4 数据打开时做一次性转换，保留已印任务与历史，把旧每周模板的后续循环移到对应最后一条未完成任务上；不再预印。
 
-习惯组为 `{ id, name }`；定时周期模板可自动建立习惯组。项目提供独立的学习环境：`{ id, name, color, appWhitelist? }`，`appWhitelist` 提供时替代通用白名单，省略时保留本机配置。最多 100 项，每项非空、无控制字符、最多 32768 字符。愿景不参与计划印刷。
+普通任务通过 `saveTask/toggleTask` 维护，习惯通过 `saveHabit/saveHabitGroup/deleteHabit`，固定占用通过 `saveBlock/deleteBlock`。所有 HTTP、Host 和 MCP 入口共用核心校验与保护规则。
 
-## 课表阻塞时段
-
-`blocks` 是计划之外的每周课程/实验占用，最多 60 项，结构为 `{ id, title, days, start, end, attention, notes }`。星期 1–7 不重复；`start/end` 为本机 `HH:MM`，结束不晚于开始表示跨午夜。`attention` 为 `required`（默认，需专心）或 `light`（可并行写作业）。诊断只对需专心时段里的任务冲突报警。它不带进度、不锁机。
-
-## 修改、删除与合并
-
-导入先完整校验候选，再原子提交。相同 ID 按文件更新配置，保留任务 `completed/completedAt/createdAt`、匹配步骤的完成状态、专注历史；日期与提醒不变时保留提醒送达状态。模板、项目、习惯组和课表时段同 ID 更新；项目白名单省略时保留。
-
-默认不删除文件未提及的实体。`replace: true` 则移除未列出的未完成任务、模板、习惯组和课表时段；已完成任务、专注历史、永久 ID 历史保留，项目作为学习环境也保留。应用前自动备份。自动模板在导出后新生成的任务也会被视为未提及，编辑期间应留意印刷安排。
-
-模板编辑默认影响未来。显式 `syncTemplate` 只更新未完成、未作废实例的形状，保留日期、习惯归属、来源分类和步骤完成状态。删除模板保留实例并清空 `templateId`；删除习惯组停止相关模板并清引用，保留 `recurring` 和历史缺勤。删除项目清任务/模板引用并删除其愿景。
-
-导出包含全部模板、印刷记录、习惯组、未完成实例、课表时段和引用的项目；不导出步骤完成状态。
-
-## 接口
-
-runtime 的 `plan.json` 以本格式为骨架（顶层仍带 `format`/`version`/`pomodoroMinutes`），但作为本机域数据源额外携带运行进度字段（`completed`/`completedAt`/`createdAt`/`reminder*`、子步骤 `done`）；导出交换时由 @tomato/core 剥离进度。`GET /api/export/plan` 返回纯计划 v6，`GET /api/export/backup` 返回完整备份 v4。
-
-预览服务 `GET /api/plan` 导出；`POST /api/action` 接收核心 Action。相关动作包括 `importPlan`、`printInstances`、`saveTemplate`（可带 `printDates`，保存印刷原子执行）、`printTemplate`（`id/dates`）、`syncTemplate`、`deleteTemplate`、`saveHabitGroup`、`saveBlock` 与 `deleteBlock`。桌面 IPC 使用相同模型与校验。
-
-## 与应试教学的边界
-
-本格式只交换普通任务、模板与固定占用；正式学期计划、45分钟课程、作业、考试和批改通过助手的 education 工具维护，随完整备份v4保存。计划导入保留本地教学记录，导入项目的路径信息不能授予本机目录访问权，须在项目页绑定。见 [应试教学](EDUCATION.md)。
-
-课程与作业关联的今日专注待办由教学来源维护：计划导出不包含这些任务，`replace` 不删除它们，也不能通过在计划中填写其ID来改写。改日期或内容请更新对应课程/作业，来源关联和执行进度随完整备份保存。
+正式学期、课程、作业、考试和批改通过 education 工具维护，不放进计划交换文件。完整提交答卷后仍需用户确认任务完成。课程用 `Lesson.resourceIds`、作业与考试用 `Assessment.resourceIds` 指定本次资料；逐题依据用 `Question.sourceIds`。没有指定时界面回退到项目资料，见 [应试教学](EDUCATION.md)。

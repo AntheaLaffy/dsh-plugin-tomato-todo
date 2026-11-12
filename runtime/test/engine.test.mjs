@@ -125,9 +125,9 @@ test("updateTask 白名单：仅允许指定字段，保留完成历史", () => 
 
 test("moveTasks 整批原子：已完成任务使整批拒绝", () => {
   const engine = Engine.open(tmp(), tsAt(TODAY, "10:00"));
-  const a = engine.createTask({ title: "a", dueDate: TODAY });
-  const b = engine.createTask({ title: "b", dueDate: TODAY });
-  engine.completeTask(b.id);
+  const a = engine.createTask({ title: "a", dueDate: TODAY, expiryDays: 30 });
+  const b = engine.createTask({ title: "b", dueDate: TODAY, expiryDays: 30 });
+  engine.completeTask(b.id, tsAt(TODAY, "10:00"));
   assert.throws(
     () => engine.moveTasks([a.id, b.id], "2026-11-08"),
     /已完成任务/,
@@ -249,26 +249,46 @@ test("今日视图：任务排序、逾期列表与课表时段", () => {
   const now = tsAt(TODAY, "10:00");
   const engine = Engine.open(tmp(), now);
   engine.createTask(
-    { title: "早", dueDate: TODAY, reminderTime: "08:00" },
+    { title: "早", dueDate: TODAY, reminderTime: "09:50" },
     now,
   );
   engine.createTask(
     { title: "晚", dueDate: TODAY, reminderTime: "20:00" },
     now,
   );
-  engine.createTask({ title: "逾期", dueDate: "2026-11-05" }, now);
-  engine.dispatch({
-    type: "saveBlock",
-    title: "课",
-    days: [5],
-    start: "08:00",
-    end: "10:00",
-  });
+  engine.createTask({ title: "已报废", dueDate: "2026-11-05" }, now);
+  engine.createTask(
+    {
+      title: "循环待补",
+      dueDate: "2026-11-05",
+      reminderTime: "09:00",
+      repeat: "daily",
+    },
+    now,
+  );
+  engine.dispatch(
+    {
+      type: "saveBlock",
+      title: "课",
+      days: [5],
+      start: "08:00",
+      end: "10:00",
+    },
+    now,
+  );
   const view = engine.today(now);
   assert.equal(view.today, TODAY);
-  assert.equal(view.tasks[0].title, "早");
-  assert.equal(view.tasks[1].title, "晚");
-  assert.equal(view.overdue[0].title, "逾期");
+  assert.deepEqual(
+    view.tasks.map((task) => task.title),
+    ["循环待补", "早", "晚"],
+  );
+  assert.deepEqual(
+    view.overdue.map((task) => task.title),
+    ["循环待补"],
+  );
+  assert.ok(
+    engine.snapshot(now).data.tasks.some((task) => task.title === "已报废"),
+  );
   // 2026-11-06 是周五 → 1=周一…5=周五
   assert.equal(view.blocks.length, 1);
   assert.equal(view.blocks[0].title, "课");
@@ -297,8 +317,8 @@ test("提醒桩：到点标记 reminderFired 并落盘；快照计算 pending/ex
   const pending = snap.data.tasks.find((t) => t.id === future.id);
   assert.equal(pending.reminderPending, false); // 未到点
   const expired = snap.data.tasks.find((t) => t.id === past.id);
-  // 没有提醒时刻的任务不会因缺少精确时间作废（docs/PLAN_FORMAT.md）。
-  assert.equal(expired.reminderExpired, false);
+  // 无精确提醒的非循环任务默认在发生日结束后作废。
+  assert.equal(expired.reminderExpired, true);
   // 到点后 pending 生效
   snap = engine.snapshot(tsAt(TODAY, "11:01"));
   assert.equal(
@@ -331,11 +351,11 @@ test("exportPlan 剥离进度字段；exportToFile 校验文件名并返回哈�
   const now = tsAt(TODAY, "10:00");
   const engine = Engine.open(dir, now);
   const done = engine.createTask({ title: "已完成", dueDate: TODAY }, now);
-  engine.completeTask(done.id);
+  engine.completeTask(done.id, now);
   engine.createTask({ title: "未完成", dueDate: TODAY }, now);
   const plan = engine.exportPlan();
   assert.equal(plan.format, "tomato-todo-plan");
-  assert.equal(plan.version, 6);
+  assert.equal(plan.version, 7);
   assert.equal(plan.tasks.length, 1);
   assert.equal(plan.tasks[0].title, "未完成");
   assert.ok(!("completed" in plan.tasks[0]));
@@ -356,7 +376,7 @@ test("exportPlan 剥离进度字段；exportToFile 校验文件名并返回哈�
     readFileSync(join(dir, "exports", "backup.json"), "utf8"),
   );
   // 完整备份 v4 没有 format 标记；顶层就是 AppData。
-  assert.equal(parsed.version, 4);
+  assert.equal(parsed.version, 5);
   assert.ok(Array.isArray(parsed.tasks) && Array.isArray(parsed.sessions));
 });
 

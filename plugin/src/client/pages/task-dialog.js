@@ -5,8 +5,8 @@
 // TaskDialog，避免三处各写一份表单导致字段漂移。
 //
 // 语义（对齐 @tomato/core 的 saveTask / TaskDraft）：
-// - 新建与编辑走同一 Action，区别只在 id 是否为 null；编辑不会改模板/重复来源。
-// - 计划日期必填（core validateReminderTask 要求）；提醒时刻需要计划日期。
+// - 新建与编辑走同一 Action，区别只在 id 是否为 null；循环规则与本次配置一并保存。
+// - 发生日期可选，不设发生日期默认为每日循环；精确提醒需要发生日期。
 // - 「预计番茄数」是完成度分母：任务行显示 已完成轮次/预计番茄数。
 import { h, useEffect, useRef, useState } from "../runtime.js";
 import { t, registerCopy } from "../shared/copy.js";
@@ -27,18 +27,28 @@ import { tryDispatch } from "../shared/store.js";
 
 registerCopy("task", {
   zh: {
-    newTitle: "直接创建实例",
-    editTitle: "编辑实例",
+    newTitle: "新建任务",
+    editTitle: "编辑任务",
     newSubtitle: "写下想完成的一件事，日期和专注时段可以慢慢补。",
-    editSubtitle:
-      "日期、完成状态和专注记录属于这一次执行；改模板请去模板编辑。",
+    editSubtitle: "修改当前任务和循环规则，完成后按新规则安排下一次。",
     title: "任务名称",
     titlePlaceholder: "想完成什么？",
     project: "所属项目",
     noProject: "不分类",
-    dueDate: "计划日期",
+    dueDate: "计划日期（可选）",
+    dateHint: "日期和提醒都留空时，作为每日循环任务",
+    repeatDays: "每周发生日（留空沿用发生日期的星期）",
+    repeat: "循环",
+    repeatHint: "循环任务不会作废，完成后安排下一次",
+    repeat_none: "不循环",
+    repeat_daily: "每天",
+    repeat_weekdays: "工作日",
+    repeat_weekly: "每周",
     reminder: "提醒时刻",
-    reminderHint: "留空表示只放进当日待办，不单独提醒",
+    reminderHint: "可留空；无精确提醒的任务不进入待补队列",
+    expiry: "报废期限（天）",
+    expiryHint: "非循环且无精确提醒时有效；0 表示发生日结束后报废",
+    expiryInvalid: "报废天数需为 0–36500",
     focusMinutes: "单次专注时长",
     focusMinutesHint: "留空沿用设置里的 {n} 分钟",
     estimate: "预计番茄数",
@@ -56,7 +66,7 @@ registerCopy("task", {
     addSubtask: "添加子任务",
     removeSubtask: "删除子任务",
     titleRequired: "任务名称不能为空",
-    dateRequired: "请选择计划日期",
+    dateRequired: "设置提醒时间时需要计划日期",
     focusInvalid: "单次专注时长需为 1–180 分钟",
     estimateInvalid: "预计番茄数需为 1–99",
     scrapInvalid: "重修窗口需为 0–10080 分钟",
@@ -77,14 +87,27 @@ registerCopy("task", {
     editTitle: "Edit task",
     newSubtitle: "One thing at a time. Dates and focus blocks can come later.",
     editSubtitle:
-      "Date, completion and sessions belong to this instance; edit the template to change the pattern.",
+      "Edit this task and its repeat rule; confirmation schedules the next one.",
     title: "Title",
     titlePlaceholder: "What do you want to finish?",
     project: "Project",
     noProject: "No project",
-    dueDate: "Planned date",
+    dueDate: "Planned date (optional)",
+    dateHint: "No date and no reminder means a daily task",
+    repeatDays: "Weekdays (empty uses the planned weekday)",
+    repeat: "Repeat",
+    repeatHint:
+      "Repeating tasks stay until completed; completion schedules the next one",
+    repeat_none: "Never",
+    repeat_daily: "Daily",
+    repeat_weekdays: "Weekdays",
+    repeat_weekly: "Weekly",
     reminder: "Reminder",
-    reminderHint: "Leave empty to just list it for the day",
+    reminderHint: "Optional; untimed tasks do not enter catch-up",
+    expiry: "Expiry (days)",
+    expiryHint:
+      "For untimed, non-repeating tasks; 0 expires after the planned day",
+    expiryInvalid: "Expiry must be 0–36500 days",
     focusMinutes: "Focus per session",
     focusMinutesHint: "Empty uses the {n} min default",
     estimate: "Pomodoros planned",
@@ -178,14 +201,17 @@ export function blankTaskDraft(
     title: initialTitle ?? "",
     notes: "",
     projectId: initialProjectId ?? "",
-    dueDate: today ?? "",
+    dueDate: "",
     reminderTime: "",
     focusMinutes: "",
     scrapMinutes: "0",
+    expiryDays: "0",
     priority: 0,
     estimate: "1",
     tagsText: "",
     subtasks: [],
+    repeat: "none",
+    repeatDays: [],
   };
 }
 
@@ -193,6 +219,8 @@ export function blankTaskDraft(
 export function taskToDraft(task) {
   return {
     id: task.id,
+    repeat: task.repeat || "none",
+    repeatDays: task.repeatDays || [],
     title: task.title ?? "",
     notes: task.notes ?? "",
     projectId: task.projectId ?? "",
@@ -203,6 +231,7 @@ export function taskToDraft(task) {
         ? ""
         : String(task.focusMinutes),
     scrapMinutes: String(task.scrapMinutes ?? 0),
+    expiryDays: String(task.expiryDays ?? 0),
     priority: Number(task.priority) || 0,
     estimate: String(Math.max(1, Number(task.estimate) || 1)),
     tagsText: Array.isArray(task.tags) ? task.tags.join(", ") : "",
@@ -298,7 +327,7 @@ export function TaskDialog({
       setError(t("task.titleRequired"));
       return;
     }
-    if (!draft.dueDate) {
+    if (!draft.dueDate && draft.reminderTime) {
       setError(t("task.dateRequired"));
       return;
     }
@@ -313,6 +342,11 @@ export function TaskDialog({
         : intOf(draft.focusMinutes, null);
     if (focusMinutes !== null && (focusMinutes < 1 || focusMinutes > 180)) {
       setError(t("task.focusInvalid"));
+      return;
+    }
+    const expiryDays = intOf(draft.expiryDays, 0);
+    if (expiryDays === null || expiryDays < 0 || expiryDays > 36500) {
+      setError(t("task.expiryInvalid"));
       return;
     }
     const scrapMinutes = intOf(draft.scrapMinutes, 0);
@@ -345,6 +379,7 @@ export function TaskDialog({
         reminderTime: draft.reminderTime ? draft.reminderTime : null,
         focusMinutes,
         scrapMinutes,
+        expiryDays,
         priority: Number(draft.priority) || 0,
         estimate,
         tags,
@@ -353,7 +388,9 @@ export function TaskDialog({
           title: String(sub.title ?? "").trim(),
           done: !!sub.done,
         })),
-        repeat: "none",
+        repeat: draft.dueDate ? draft.repeat : "daily",
+        repeatDays:
+          draft.repeat === "weekly" && draft.dueDate ? draft.repeatDays : [],
       },
     });
     setBusy(false);
@@ -450,13 +487,54 @@ export function TaskDialog({
           ),
           h(
             Field,
-            { label: t("task.dueDate") },
+            { label: t("task.dueDate"), hint: t("task.dateHint") },
             h(Input, {
               type: "date",
               value: draft.dueDate,
               onChange: (value) => patch({ dueDate: value }),
             }),
           ),
+          h(
+            Field,
+            { label: t("task.repeat"), hint: t("task.repeatHint") },
+            h(Select, {
+              value: draft.dueDate ? draft.repeat : "daily",
+              width: "100%",
+              options: ["none", "daily", "weekdays", "weekly"].map((value) => ({
+                value,
+                label: t(`task.repeat_${value}`),
+              })),
+              onChange: (value) =>
+                patch({
+                  repeat: value,
+                  repeatDays: value === "weekly" ? draft.repeatDays : [],
+                }),
+              disabled: !draft.dueDate,
+            }),
+          ),
+          draft.dueDate && draft.repeat === "weekly"
+            ? h(
+                Field,
+                { label: t("task.repeatDays") },
+                h(
+                  "div",
+                  { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+                  [1, 2, 3, 4, 5, 6, 7].map((day) =>
+                    h(Check, {
+                      key: day,
+                      label: t("common.weekFull")[day - 1],
+                      checked: draft.repeatDays.includes(day),
+                      onChange: () =>
+                        patch({
+                          repeatDays: draft.repeatDays.includes(day)
+                            ? draft.repeatDays.filter((d) => d !== day)
+                            : [...draft.repeatDays, day].sort((a, b) => a - b),
+                        }),
+                    }),
+                  ),
+                ),
+              )
+            : null,
           h(
             Field,
             { label: t("task.reminder"), hint: t("task.reminderHint") },
@@ -498,15 +576,28 @@ export function TaskDialog({
               width: "100%",
             }),
           ),
-          h(
-            Field,
-            { label: t("task.scrap"), hint: t("task.scrapHint") },
-            h(Input, {
-              type: "number",
-              value: draft.scrapMinutes,
-              onChange: (value) => patch({ scrapMinutes: value }),
-            }),
-          ),
+          draft.dueDate && draft.repeat === "none" && !draft.reminderTime
+            ? h(
+                Field,
+                { label: t("task.expiry"), hint: t("task.expiryHint") },
+                h(Input, {
+                  type: "number",
+                  value: draft.expiryDays,
+                  onChange: (value) => patch({ expiryDays: value }),
+                }),
+              )
+            : null,
+          draft.dueDate && draft.repeat === "none" && draft.reminderTime
+            ? h(
+                Field,
+                { label: t("task.scrap"), hint: t("task.scrapHint") },
+                h(Input, {
+                  type: "number",
+                  value: draft.scrapMinutes,
+                  onChange: (value) => patch({ scrapMinutes: value }),
+                }),
+              )
+            : null,
           h(
             Field,
             { label: t("task.tags") },

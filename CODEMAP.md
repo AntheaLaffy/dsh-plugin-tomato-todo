@@ -21,7 +21,7 @@ generated_at: 2026-11-07
 
 | 任务 | Domain | Target | Also Check |
 | --- | --- | --- | --- |
-| 任务/习惯/模板/阻塞时段/锁机/统计的领域逻辑 | 业务核心 | packages/core/src/ 对应模块（engine.ts 为引擎入口） | docs/HANDBOOK/ 对应章、docs/PLAN_FORMAT.md、packages/core/test/ |
+| 任务/习惯/循环/阻塞时段/锁机/统计的领域逻辑 | 业务核心 | packages/core/src/ 对应模块（engine.ts 为引擎入口） | docs/HANDBOOK/ 对应章、docs/PLAN_FORMAT.md、packages/core/test/ |
 | 番茄计时、提醒调度、数据落盘 | runtime | runtime/src/engine.ts | runtime/test/engine.test.mjs、API.md |
 | HTTP API 与 MCP 入口 | runtime | runtime/src/server.mjs、project-library.mjs（项目资料目录授权）、mcp.mjs、mcp-stdio.mjs；局部地图 runtime/CODEMAP.md | API.md、docs/MCP.md、runtime/test/、runtime/test/library.test.mjs、runtime/test/connection.test.mjs |
 | guard 客户端与 --guard-status | runtime | runtime/src/guard-client.ts | API.md guard 命令协议、runtime/test/ |

@@ -226,7 +226,7 @@ export function diagnose(
     ) {
       continue;
     }
-    const key = t.habitId ?? t.templateId ?? t.id;
+    const key = t.habitId ?? t.id;
     const entry = habits.get(key) ?? { scheduled: 0, missed: 0, ids: [] };
     entry.scheduled += 1;
     if (!t.completed && t.reminderExpired) {

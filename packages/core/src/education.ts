@@ -652,6 +652,7 @@ export function parseAssessment(raw: unknown): Assessment {
       "endsAt",
       "instructions",
       "reviewEvidence",
+      "resourceIds",
       "questions",
       "publishedAt",
       "printedAt",
@@ -697,6 +698,13 @@ export function parseAssessment(raw: unknown): Assessment {
     endsAt: requiredField(raw, "endsAt", "试题", asInt),
     instructions: requiredField(raw, "instructions", "试题", asStr),
     reviewEvidence: requiredField(raw, "reviewEvidence", "试题", asStr),
+    resourceIds: field(
+      raw,
+      "resourceIds",
+      "试题",
+      (v) => asArray(v, "resourceIds").map((x) => asStr(x, "资料 ID")),
+      [],
+    ),
     questions: requiredField(raw, "questions", "试题", (v) =>
       asArray(v, "questions").map(parseQuestion),
     ),
@@ -741,6 +749,7 @@ export function serializeAssessment(a: Assessment): Record<string, unknown> {
     endsAt: a.endsAt,
     instructions: a.instructions,
     reviewEvidence: a.reviewEvidence,
+    resourceIds: [...a.resourceIds],
     questions: a.questions.map(serializeQuestion),
     publishedAt: a.publishedAt,
     printedAt: a.printedAt,
@@ -1202,6 +1211,7 @@ export class Education implements EducationData {
       add(l.resourceIds, `课程：${l.title}`);
     }
     for (const a of this.assessments) {
+      add(a.resourceIds, `试卷：${a.title}`);
       for (const q of a.questions) {
         add(q.sourceIds, `${a.title} / ${q.id}`);
       }
@@ -1949,6 +1959,12 @@ export function validateEducation(data: AppData): void {
         "考试与课程或其他考试冲突",
       );
     }
+    ensure(
+      a.resourceIds.length <= 500 &&
+        new Set(a.resourceIds).size === a.resourceIds.length &&
+        a.resourceIds.every((id) => resource(id, a.projectId) !== undefined),
+      "试卷资料必须引用本项目已登记的资源且不重复",
+    );
     uniqueEducationIds(a.questions.map((q) => q.id));
     for (const q of a.questions) {
       ensure(
@@ -2169,6 +2185,7 @@ export function validateEducationTransition(
 function cloneAssessment(a: Assessment): Assessment {
   return {
     ...a,
+    resourceIds: [...a.resourceIds],
     questions: a.questions.map((q) => ({
       ...q,
       topics: [...q.topics],
@@ -2255,8 +2272,8 @@ export function parseEducation(raw: unknown): Education {
           kind: oneOf(
             requiredField(x, "kind", "教学待办关联", (k) => k),
             "教学待办 kind",
-            ["lesson", "homework"],
-          ) as "lesson" | "homework",
+            ["lesson", "homework", "exam"],
+          ) as "lesson" | "homework" | "exam",
         };
       }),
     [],

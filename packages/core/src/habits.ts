@@ -1,4 +1,4 @@
-//! 习惯组：只带管辖；形状与印刷规则由 templates 管理。
+//! 习惯组：只带管辖；循环规则保存在关联任务上。
 //! 对应 crates/core/src/habits.rs。
 
 import { AppError, ensure } from "./errors";

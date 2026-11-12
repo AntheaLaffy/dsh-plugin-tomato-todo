@@ -60,6 +60,8 @@ function makeBackup(dataDir, at) {
     tags: [],
     subtasks: [],
     repeat: "none",
+    repeatDays: [],
+    expiryDays: 30,
   });
   engine.dispatch(
     { type: "saveTask", task: draft("旧任务", localDate(at)) },
@@ -110,6 +112,8 @@ function makePlan(dataDir, at, { projectId, keptId }) {
         tags: ["迁移"],
         subtasks: [],
         repeat: "none",
+        repeatDays: [],
+        expiryDays: 30,
         // 旧导出多写的运行字段必须被忽略（不能造成未知字段失败）。
         reminderFired: true,
       },
@@ -130,6 +134,8 @@ function makePlan(dataDir, at, { projectId, keptId }) {
         tags: [],
         subtasks: [],
         repeat: "none",
+        repeatDays: [],
+        expiryDays: 30,
       },
     ],
     blocks: [

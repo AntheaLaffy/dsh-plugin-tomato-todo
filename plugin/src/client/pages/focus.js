@@ -125,11 +125,13 @@ registerCopy("focus", {
       "待补是给「还想做」留的位置，不是欠债清单：补不补由你决定，没做也不算失败。",
     catchUpWhenHeading: "什么时候进入",
     catchUpWhenText:
-      "计划块结束了但还没做完时，普通组若仍在「重修窗口」内，就会进入待补队列，重新出现在今日专注里。",
-    catchUpHabitHeading: "习惯漏做记缺勤",
-    catchUpHabitText: "习惯过期后直接从今日待办移出并计一次缺勤。",
+      "设置了发生日期与精确提醒时间的任务，超过预计总时长后，未完成且未报废就进入待补队列；无精确提醒的任务不进入。",
+    catchUpHabitHeading: "循环任务持续保留",
+    catchUpHabitText:
+      "循环任务没有报废期限；有精确提醒时可以进入待补，完成后才安排下一次。",
     catchUpExpireHeading: "超过窗口就报废",
-    catchUpExpireText: "超过重修窗口，实例作废、不再提醒。跨日不补。",
+    catchUpExpireText:
+      "非循环定时任务超过重修窗口后报废；无精确提醒的非循环任务按报废天数处理，默认发生日结束后报废。",
     emptyActiveTitle: "今天没有待办任务",
     emptyActiveHint: "写下想做的事，把第一步留给现在。",
     emptyDoneTitle: "还没有完成的任务",
@@ -228,13 +230,13 @@ registerCopy("focus", {
       "Catch-up is room for “still want to”, not a debt list: you decide whether to make it up, and skipping it isn't failure.",
     catchUpWhenHeading: "When tasks land here",
     catchUpWhenText:
-      "If a plan block ends and the task is unfinished but still inside its repair window, it moves into the catch-up queue and shows up here again.",
-    catchUpHabitHeading: "Missed habits count as absences",
+      "Dated tasks with an exact reminder enter catch-up after their planned block ends if unfinished and still valid. Untimed tasks never enter catch-up.",
+    catchUpHabitHeading: "Repeating tasks stay available",
     catchUpHabitText:
-      "Once a habit expires it leaves today's list and records an absence.",
+      "Repeating tasks never expire. Timed ones can enter catch-up; completion schedules the next one.",
     catchUpExpireHeading: "Past the window, it's void",
     catchUpExpireText:
-      "Beyond the repair window the instance is voided and stops reminding. It never carries to another day.",
+      "Timed one-off tasks expire after their repair window. Untimed one-offs expire after their planned day plus the configured expiry days (default 0).",
     emptyActiveTitle: "No tasks for today",
     emptyActiveHint: "Write down one thing and keep the first step for now.",
     emptyDoneTitle: "Nothing finished yet",
@@ -1262,9 +1264,11 @@ function TodayCard({
   actions,
   onCatchUpHelp,
 }) {
-  // 今日专注只呈现「今天计划」的任务；逾期任务在全部任务里单独处理。
+  // 未完成且仍有效的任务持续可见，超过定时计划块的任务单列待补。
   const pending = todayTasks(data, today);
-  const overdue = overdueTasks(data, today);
+  const overdue = overdueTasks(data, today).filter(
+    (task) => !pending.some((item) => item.id === task.id),
+  );
   const catchUps = catchUpTasks(data, today);
   const catchIds = new Set(catchUps.map((task) => task.id));
   const timed = pending.filter(

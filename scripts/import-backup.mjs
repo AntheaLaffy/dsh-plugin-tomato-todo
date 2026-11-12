@@ -87,7 +87,6 @@ function readJson(file) {
 const PLAN_TASK_KEYS = [
   "id",
   "title",
-  "templateId",
   "habitId",
   "recurring",
   "scrapMinutes",
@@ -101,6 +100,8 @@ const PLAN_TASK_KEYS = [
   "tags",
   "subtasks",
   "repeat",
+  "repeatDays",
+  "expiryDays",
 ];
 
 /**
@@ -108,80 +109,33 @@ const PLAN_TASK_KEYS = [
  * plan.json 可能是旧应用导出的纯计划，也可能是 runtime 写的超集。
  */
 function planFileOf(raw, current, base) {
-  const tasks = Array.isArray(raw.tasks)
-    ? raw.tasks
-        // 教学待办随课程/作业维护，计划文件不能改写（core mergePlan 会拒绝）。
-        .filter((task) => current.teachingTask(task.id) === undefined)
-        .map((task) => {
-          const out = {};
-          for (const key of PLAN_TASK_KEYS) {
-            if (task[key] !== undefined) out[key] = task[key];
-          }
-          // 实例不拥有重复规则；旧文件里 repeat 可能是省略/`none`。
-          out.repeat = "none";
-          if (!Array.isArray(out.tags)) out.tags = [];
-          if (!Array.isArray(out.subtasks)) {
-            out.subtasks = [];
-          } else {
-            out.subtasks = out.subtasks.map((s) => ({
-              id: s.id,
-              title: s.title,
-            }));
-          }
-          return out;
-        })
-    : [];
-  const projects = Array.isArray(raw.projects) ? raw.projects : [];
-  const habits = Array.isArray(raw.habits) ? raw.habits : [];
-  const templates = Array.isArray(raw.templates) ? raw.templates : [];
-  // 计划文件必须自洽（validatePlanFile 会拒绝指向不存在项目的任务）：runtime
-  // 写入的 plan.json 通常已含全部引用实体，缺失时从当前数据补齐，避免手工
-  // 编辑过的文件整份失败。
-  const projectIds = new Set(projects.map((p) => p.id));
-  const habitIds = new Set(habits.map((h) => h.id));
-  const templateIds = new Set(templates.map((t) => t.id));
-  for (const task of tasks) {
-    if (task.projectId && !projectIds.has(task.projectId)) {
-      const project =
-        current.projects.find((p) => p.id === task.projectId) ??
-        base.projects.find((p) => p.id === task.projectId);
-      if (project === undefined) continue;
-      projects.push(core.serializeProject(project));
-      projectIds.add(project.id);
-    }
-    if (task.habitId && !habitIds.has(task.habitId)) {
-      const habit =
-        current.habits.find((h) => h.id === task.habitId) ??
-        base.habits.find((h) => h.id === task.habitId);
-      if (habit === undefined) continue;
-      habits.push(core.serializeHabit(habit));
-      habitIds.add(habit.id);
-    }
-    if (task.templateId && !templateIds.has(task.templateId)) {
-      const template =
-        current.templates.find((t) => t.id === task.templateId) ??
-        base.templates.find((t) => t.id === task.templateId);
-      if (template === undefined) continue;
-      templates.push(core.serializeTemplate(template));
-      templateIds.add(template.id);
-    }
-  }
-  return {
-    format: "tomato-todo-plan",
-    version: 6,
-    pomodoroMinutes: raw.pomodoroMinutes ?? 25,
-    projects,
-    tasks,
-    blocks: Array.isArray(raw.blocks) ? raw.blocks : [],
-    templates,
-    prints: Array.isArray(raw.prints) ? raw.prints : [],
-    habits,
-  };
+  const portable = core.serializePlanFile(core.exportPlan(current));
+  // 当前本机数据已完成旧格式转换。保留所有任务配置，进度仍由 mergePlan 留在本机。
+  portable.tasks = current.tasks
+    .filter((task) => current.teachingTask(task.id) === undefined)
+    .map((task) => {
+      const out = {};
+      const value = core.serializeTask(task);
+      for (const key of PLAN_TASK_KEYS)
+        if (value[key] !== undefined) out[key] = value[key];
+      out.subtasks = task.subtasks.map(({ id, title }) => ({ id, title }));
+      return out;
+    });
+  const projects = new Map(
+    [...base.projects, ...current.projects].map((p) => [p.id, p]),
+  );
+  portable.projects = [...projects.values()].map(core.serializeProject);
+  portable.habits = [
+    ...new Map(
+      [...base.habits, ...current.habits].map((h) => [h.id, h]),
+    ).values(),
+  ].map(core.serializeHabit);
+  return portable;
 }
 
 /** 导入即恢复备份：安全规则与 docs/BACKUP_FORMAT.md「导入后」一致。 */
 function settleForImport(data, at) {
-  data.version = 4;
+  data.version = 5;
   const timer = data.timer;
   timer.remainingSecs = Math.max(1, core.timerRemaining(timer, at));
   timer.running = false;
@@ -205,8 +159,6 @@ function counts(data) {
     habits: data.habits.length,
     visions: data.visions.length,
     blocks: data.blocks.length,
-    templates: data.templates.length,
-    prints: data.prints.length,
     lockSchedules: data.lock.schedules.length,
     education: {
       projects: education.projects.length,
@@ -240,7 +192,7 @@ export function mergeImport({ backupFile, dataDir, at }) {
 
   // 1) 备份是完整历史（docs/BACKUP_FORMAT.md：顶层就是 AppData，无 format 标记）。
   const rawBackup = readJson(backupFile);
-  const base = core.parseAppData(rawBackup);
+  const base = core.readLocalData(JSON.stringify(rawBackup));
   base.validate();
   const backupTaskIds = new Set(base.tasks.map((t) => t.id));
   const backupSessionIds = new Set(base.sessions.map((s) => s.id));

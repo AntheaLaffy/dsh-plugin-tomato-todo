@@ -43,7 +43,7 @@ git worktree add ../tomato-ts-<workflow> -b tomato-ts-<workflow>
 
 ## 架构
 
-- **`packages/core/`**：TypeScript 领域核心——状态机、任务规则、模板印刷、诊断、统计、数据校验。零依赖、vitest 全覆盖；对外 JSON 形状 camelCase，是唯一权威实现。
+- **`packages/core/`**：TypeScript 领域核心——状态机、任务规则、直接循环、诊断、统计、数据校验。零依赖、vitest 全覆盖；对外 JSON 形状 camelCase，是唯一权威实现。
 - **`runtime/`**：Node runtime（`tomato-runtime`），随插件分发。用 @tomato/core 持域与数据（`plan.json` 原子写）、番茄计时与提醒调度、项目资料库授权、127.0.0.1 HTTP API（面板数据面 + `/mcp` streamable HTTP）与 `--mcp` stdio 入口。
 - **`crates/guard/`**：Rust 原生守卫（`tomato-guard`）。专注保护（X11/Wayland/Windows 白名单与锁屏；niri 直接全屏 DSH）、窗口激活、通知、自启。无域无状态，由 runtime 经 HTTP 指挥。
 - **`plugin/`**：DSH 插件包 `dsh-plugin-tomato-todo` 源码。host 半：15 个 `tomato_*` Host 工具（每次一次性 `tomato-runtime --mcp`，经连接文件转发到运行中实例）、随包技能提供者与跨 agent 软链；client 半：九页主视图、composer.dock 入口卡、常驻 HUD/沉浸层，数据直连 runtime。DSH 插件配置不再注册 `tomato-mcp` 客户端。

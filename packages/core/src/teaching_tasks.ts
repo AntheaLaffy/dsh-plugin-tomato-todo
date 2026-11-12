@@ -47,13 +47,13 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
     }
   }
   for (const paper of data.education.assessments) {
-    if (paper.kind === "homework" && enabled.has(paper.projectId)) {
+    if (enabled.has(paper.projectId)) {
       let minutes = 0;
       for (const q of paper.questions) {
         minutes = Math.min(4294967295, minutes + q.estimatedMinutes);
       }
       sources.push({
-        kind: "homework",
+        kind: paper.kind === "homework" ? "homework" : "exam",
         sourceId: paper.id,
         projectId: paper.projectId,
         title: paper.title,
@@ -69,19 +69,6 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
   }
   const positions = new Map<string, number>();
   data.tasks.forEach((task, i) => positions.set(task.id, i));
-  const submissions = new Map<
-    string,
-    { submittedAt: number; unfinished: boolean }
-  >();
-  for (const submission of data.education.submissions) {
-    const last = submissions.get(submission.assessmentId);
-    if (last === undefined || submission.submittedAt >= last.submittedAt) {
-      submissions.set(submission.assessmentId, {
-        submittedAt: submission.submittedAt,
-        unfinished: submission.unfinished,
-      });
-    }
-  }
   let changed = false;
   for (const {
     kind,
@@ -101,15 +88,16 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
     }
     const dueDate = dateAt(startsAt);
     const isLesson = kind === "lesson";
-    const reminder = isLesson ? hourMinuteString(startsAt) : null;
+    const reminder = kind !== "homework" ? hourMinuteString(startsAt) : null;
     const focus = isLesson ? 45 : Math.min(minutes, data.settings.focusMinutes);
     const estimate = Math.max(1, Math.ceil(minutes / focus));
-    const scrap = isLesson
-      ? (() => {
-          const d = new Date(startsAt * 1000);
-          return Math.max(0, 1440 - d.getHours() * 60 - d.getMinutes() - 45);
-        })()
-      : 0;
+    const scrap =
+      kind !== "homework"
+        ? (() => {
+            const d = new Date(startsAt * 1000);
+            return Math.max(0, 1440 - d.getHours() * 60 - d.getMinutes() - 45);
+          })()
+        : 0;
     let index: number;
     if (position !== undefined) {
       index = position;
@@ -118,7 +106,9 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
       data.education.focusTasks.push({ taskId: taskIdNew, sourceId, kind });
       data.tasks.push({
         id: taskIdNew,
-        templateId: null,
+        repeat: "none",
+        repeatDays: [],
+        nextTaskId: null,
         recurring: false,
         title,
         notes,
@@ -128,6 +118,7 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
         reminderTime: reminder,
         focusMinutes: focus,
         scrapMinutes: scrap,
+        expiryDays: 0,
         priority: 1,
         estimate,
         reminderFired: false,
@@ -169,31 +160,11 @@ export function materializeTeachingTasks(data: AppData, at: number): boolean {
       task.scrapMinutes = scrap;
       changed = true;
     }
-    if (kind === "homework") {
-      const submitted = (() => {
-        const last = submissions.get(sourceId);
-        if (last === undefined || last.unfinished) return null;
-        return last.submittedAt;
-      })();
-      if (
-        task.completed !== (submitted !== null) ||
-        task.completedAt !== submitted
-      ) {
-        if (submitted !== null && data.timer.taskId === task.id) {
-          recordSession(data, at, false);
-          data.timer.taskId = null;
-          resetTo(data, "focus");
-        }
-        task.completed = submitted !== null;
-        task.completedAt = submitted;
-        changed = true;
-      }
-    }
   }
   return changed;
 }
 
-/** 明确完成课程待办 = 参与课程；作业只能从作业入口提交。 */
+/** 提交答卷与完成任务分开：完整提交后仍需用户明确确认完成。 */
 export function completeTeachingTask(
   data: AppData,
   taskId: string,
@@ -201,8 +172,15 @@ export function completeTeachingTask(
 ): void {
   const link = teachingTask(data, taskId);
   if (link === undefined) return;
-  if (link.kind === "homework") {
-    throw new AppError("请从作业入口提交答卷，提交完成后会自动完成待办");
+  if (link.kind !== "lesson") {
+    const last = data.education.submissions
+      .filter((s) => s.assessmentId === link.sourceId)
+      .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+    ensure(
+      last !== undefined && !last.unfinished,
+      "请先提交完整答卷，再确认任务完成",
+    );
+    return;
   }
   const lesson = data.education.lessons.find((l) => l.id === link.sourceId);
   ensure(lesson !== undefined, "课程不存在");
@@ -251,7 +229,11 @@ export function validateTeachingTasks(data: AppData): void {
       }
       return (
         data.education.assessments.find(
-          (a) => a.id === link.sourceId && a.kind === "homework",
+          (a) =>
+            a.id === link.sourceId &&
+            (link.kind === "homework"
+              ? a.kind === "homework"
+              : a.kind !== "homework"),
         )?.projectId ?? null
       );
     })();
@@ -260,7 +242,7 @@ export function validateTeachingTasks(data: AppData): void {
       task.projectId !== project ||
       tasks.has(link.taskId) ||
       sources.has(link.sourceId) ||
-      task.templateId !== null ||
+      task.repeat !== "none" ||
       task.habitId !== null ||
       task.recurring
     ) {

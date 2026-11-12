@@ -463,9 +463,9 @@ test("course_resources_can_be_assigned_only_before_class_from_same_project", () 
 });
 
 // ---------------------------------------------------------------------------
-// 5. homework_focus_tasks_complete_only_with_a_finished_submission
+// 5. homework_requires_finished_submission_and_explicit_completion
 // ---------------------------------------------------------------------------
-test("homework_focus_tasks_complete_only_with_a_finished_submission", () => {
+test("homework_requires_finished_submission_and_explicit_completion", () => {
   const data = fixture();
   finishLesson(data);
   command(data, assessment(data, "homework"), at(7, 18, 0));
@@ -495,11 +495,15 @@ test("homework_focus_tasks_complete_only_with_a_finished_submission", () => {
       },
       at(7, 19, unfinished ? 10 : 20),
     );
-    expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(
-      !unfinished,
-    );
+    expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(false);
   }
-  expect(data.sessions.some((s) => s.taskId === link.taskId)).toBe(false);
+  data.apply({ type: "toggleTask", id: link.taskId }, at(7, 19, 30));
+  expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(true);
+  data.tick(at(7, 19, 31));
+  expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(true);
+  expect(
+    data.sessions.some((s) => s.taskId === link.taskId && s.source === "timer"),
+  ).toBe(false);
   expect(data.education.events.some((e) => e.kind === "taskHomework")).toBe(
     false,
   );
@@ -1252,4 +1256,56 @@ test("saveResources：任何一条不合法时整批拒绝，不落半批", () =
     }),
   ).toThrow(/资源 kind/);
   expect(data.education.resources.length).toBe(before);
+});
+
+test("assessment_materials_are_scoped_to_the_task_and_preserved_in_backup", () => {
+  const data = fixture();
+  finishLesson(data);
+  const packet = assessment(data, "homework");
+  (packet["assessment"] as Json)["resourceIds"] = ["mock"];
+  command(data, packet, at(7, 18, 0));
+  expect(data.education.assessments[0]!.resourceIds).toEqual(["mock"]);
+  expect(data.education.resourceReferenceIndex().get("mock")).toContain(
+    "试卷：极限练习",
+  );
+  expect(roundTrip(data).education.assessments[0]!.resourceIds).toEqual([
+    "mock",
+  ]);
+  const invalid = clone(data);
+  invalid.education.assessments[0]!.resourceIds = ["missing"];
+  expect(() => invalid.validate()).toThrow(/本项目/);
+});
+
+test("exam_submission_and_stop_do_not_complete_the_task_without_user_confirmation", () => {
+  const data = fixture();
+  finishLesson(data);
+  command(data, assessment(data, "weeklyExam"), at(6, 10, 0));
+  const link = data.education.focusTasks.find((l) => l.kind === "exam")!;
+  expect(link).toBeDefined();
+  command(data, { op: "confirmPrinted", id: "assessment" }, at(7, 18, 0));
+  command(data, { op: "startExam", id: "assessment" }, at(7, 19, 0));
+  data.tick(at(7, 22, 0));
+  expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(false);
+  expect(() =>
+    data.apply({ type: "toggleTask", id: link.taskId }, at(7, 22, 1)),
+  ).toThrow(/完整答卷/);
+  command(
+    data,
+    {
+      op: "submit",
+      submission: {
+        id: "exam-answer",
+        assessmentId: "assessment",
+        submittedAt: 0,
+        resourceIds: ["mock"],
+        answers: "纸质答卷",
+        unfinished: false,
+        questionTimes: [],
+      },
+    },
+    at(7, 22, 2),
+  );
+  expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(false);
+  data.apply({ type: "toggleTask", id: link.taskId }, at(7, 22, 3));
+  expect(data.tasks.find((t) => t.id === link.taskId)!.completed).toBe(true);
 });

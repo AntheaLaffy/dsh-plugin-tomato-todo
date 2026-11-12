@@ -66,10 +66,16 @@
 
 ## 持久化与执行
 
-备份v4新增可选 `education` 对象（旧备份缺省为空）：projects/resources/semesters/semesterHistory/lessons/assessments/submissions/grades/reviews/events/completedTasks/progress/corrections。计划v6继续只交换普通计划，不承载教学历史，不移除本地教学记录。目录资源与本机授权不打包进JSON备份，需单独备份外部目录；换机恢复后重新选择目录授权。
+备份v5新增可选 `education` 对象（旧备份缺省为空）：projects/resources/semesters/semesterHistory/lessons/assessments/submissions/grades/reviews/events/completedTasks/progress/corrections。计划v7继续只交换普通计划，不承载教学历史，不移除本地教学记录。目录资源与本机授权不打包进JSON备份，需单独备份外部目录；换机恢复后重新选择目录授权。
 
 核心tick负责到点状态和homework/grade/review/weeklyExam事件。事件以固定来源ID去重，状态pending/running/done，和普通数据一起原子持久化；每日复盘等错过的状态在重新运行后补齐。已连接且空闲时，宿主领取待处理事件，沿用现有 scheduled 会话语义（现由 DSH 对话中的助手执行），执行时可使用正式教学工具，不另加模型调度层、时限或循环重试。助手保存实际产物后finishEvent；用户停止、供应商错误或关机留下未完成事件，由助手在用户要求继续时调用retryEvent恢复处理。停用应试模式不再领取该项目事件，已开始请求需用户主动停止。
 
 应用关闭时不运行模型，模型不可用时等待；已开考的考试在下次 tick 按实际开考时间和固定时长恢复停笔状态，关机期间不会延长考试。当前无离线OCR引擎，PDF/照片的识别取决于沙箱工具和所连接模型的视觉能力。
 
 验证：`pnpm core:test`（含 `education.test.ts`）、`pnpm runtime:test`、`pnpm test:tools` 与 `pnpm check:client`；测试只用临时目录与假 DOM，不动真实学习资料、不花模型额度、不启用当前桌面保护。
+
+## 本次任务资料与完成确认
+
+AI 布置课程时应填写 `Lesson.resourceIds`，布置作业或考试时应填写 `Assessment.resourceIds`（本场试卷、空白答题卡和本次参考资料）。引用必须是本项目已登记的资源，不重复；逐题命题依据继续写 `Question.sourceIds`。编辑栏优先展示本次明确引用的资料；没有指定本次 resourceIds 时回退到项目资料。答案评分独立保存，不作为学生参考资料附上。
+
+课程、作业和各类考试均生成关联待办，任务需要用户明确确认完成。参与课程、番茄结束、考试停笔、答卷提交、批改与完成任务各自记录，互不替代；作业和考试只有完整提交后才允许确认完成，提交不会自动勾选。编辑栏提供确认任务完成按钮。

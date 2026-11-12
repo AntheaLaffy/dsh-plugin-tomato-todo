@@ -36,10 +36,12 @@ description: 在 DSH 对话中通过番茄插件自带工具使用任务、课�
 
 单项使用 `tomato_create_task` / `tomato_update_task` / `tomato_move_tasks` / `tomato_complete_task` 或 `tomato_dispatch`；正式教学使用 `tomato_education`，不能用普通 Action 或备份补丁伪造已发布题目与成绩。
 
-批量调整：`tomato_export_plan` / `tomato_export_backup` 导出 → 用 DSH 自带 `read`/`edit` 编辑导出的 JSON → `tomato_apply_file(name, fileHash)` 应用（带哈希校验与导入校验）。只改普通安排优先计划 v6；它不承载正式学期、课程、作业或批改。完整备份含历史与状态，不能用它做普通排期来回覆盖。
+批量调整：`tomato_export_plan` / `tomato_export_backup` 导出 → 用 DSH 自带 `read`/`edit` 编辑导出的 JSON → `tomato_apply_file(name, fileHash)` 应用（带哈希校验与导入校验）。只改普通安排优先计划 v7；它不承载正式学期、课程、作业或批改。完整备份含历史与状态，不能用它做普通排期来回覆盖。
 
 每批改动保留稳定 ID、完成记录、实际用时和原有引用；不重复安排已完成或作废实例，不把漏做自动变成次日欠账。来源或哈希冲突时重新导出并重放变更意图，不覆盖新进度，不伪造 `.origin`。保护中被拒绝时遵守软件约束，不解除保护或修改保护配置来应用学习计划。
 
 ## 报告结果
 
 分别说明实际文件位置、成功写入的记录及未完成部分。只在工具返回成功后说已发布、已保存或已应用；重试前查已有 ID 与状态，避免重复发布。对话不接管应用的自动教学事件，不承诺关闭软件后执行或到点自动回复。
+
+任务直接设置循环规则，完成后生成下一次；无发生日期默认为每日循环。精确提醒可选，无精确提醒不进入待补。非循环且无精确提醒的任务默认发生日结束后报废，可设 `expiryDays`；循环任务无报废期限。所有任务（含教学待办）由用户明确确认完成，提交答卷不自动勾选。教学资料应按本次任务指定 `Lesson.resourceIds` / `Assessment.resourceIds`，未指定才回退项目资料。

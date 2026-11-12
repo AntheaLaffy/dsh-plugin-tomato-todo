@@ -1,10 +1,9 @@
 // 习惯愿景：习惯卡（7 日点阵 + 连续/缺勤）与愿景卡（纯方向标记）。
 //
 // 数据形状反直觉的地方：core 的 Habit 只有 id+name，分组、专注时长与每周时段
-// 都存在对应模板里（id `habit:<habitId>`，shape.habitId=habitId，
-// printing.kind="weekly"）。所以习惯卡必须把 habits 与 templates 拼起来看；
+// 直接存在关联循环任务上，界面从当前未完成任务派生安排。
 // 旧快照里 habits 可能自带 slots/group/missedDates，这里一律不读，避免两套
-// 语义混在一起。缺勤计数只看实例（reminderExpired 或已过期的未完成实例）。
+// 语义混在一起。缺勤只读取历史明确过期的非循环记录，循环任务跨日仍为待完成。
 import { h, useState } from "../runtime.js";
 import { t, registerCopy } from "../shared/copy.js";
 import {
@@ -69,7 +68,8 @@ registerCopy("habits", {
     dotTitle: "{date} · {status}",
     newHabitTitle: "新建习惯",
     editHabitTitle: "编辑习惯",
-    habitDialogSubtitle: "时段决定它多久出现一次；专注时长留空就用默认值。",
+    habitDialogSubtitle:
+      "时段可不填，默认每日循环；需要时再添加星期和精确提醒。",
     habitName: "习惯名称",
     habitNamePlaceholder: "例如：晨读 20 分钟",
     habitProject: "分组",
@@ -114,7 +114,7 @@ registerCopy("habits", {
     tabHabits: "Habits",
     tabVisions: "Visions",
     habitsHint:
-      "Dots cover the last 7 days: filled done, outlined missed, grey nothing scheduled.",
+      "Dots cover the last 7 days: filled done, outlined pending, grey nothing scheduled.",
     visionsHint: "Pure direction markers: no completion state, no pressure.",
     newHabit: "New habit",
     newVision: "New vision",
@@ -141,7 +141,7 @@ registerCopy("habits", {
     newHabitTitle: "New habit",
     editHabitTitle: "Edit habit",
     habitDialogSubtitle:
-      "The schedule decides how often it appears; leave focus length empty for the default.",
+      "Slots are optional; without a slot this repeats daily. Add weekdays and an exact reminder when needed.",
     habitName: "Habit name",
     habitNamePlaceholder: "e.g. Morning reading, 20 minutes",
     habitProject: "Group",
@@ -223,41 +223,43 @@ const BADGE_STYLE = {
 
 // ---------------------------------------------------------------- 派生
 
-/** 习惯的调度模板：core 用 shape.habitId 关联，不依赖 id 前缀。 */
-function habitTemplate(templates, habitId) {
+/** 习惯页直接读取仍在循环的任务，不另存一份调度规则。 */
+export function habitSchedule(tasks, habitId) {
   if (!habitId) return null;
-  return (
-    templates.find(
-      (item) => item && item.shape && item.shape.habitId === habitId,
-    ) || null
-  );
-}
-
-/** 模板里的每周时段；非 weekly 或字段缺失时返回空数组。 */
-function slotsOfTemplate(template) {
-  if (!template || !template.printing || template.printing.kind !== "weekly")
-    return [];
-  const slots = Array.isArray(template.printing.slots)
-    ? template.printing.slots
-    : [];
-  return slots.filter(
-    (slot) =>
-      slot &&
-      Array.isArray(slot.days) &&
-      slot.days.some((day) => day >= 1 && day <= 7) &&
-      typeof slot.time === "string" &&
-      slot.time.length > 0,
-  );
-}
-
-function instancesOf(tasks, habitId) {
-  return tasks.filter(
+  const active = tasks.filter(
     (task) =>
       task &&
       task.habitId === habitId &&
-      typeof task.dueDate === "string" &&
-      task.dueDate.length > 0,
+      !task.completed &&
+      !task.nextTaskId &&
+      ["daily", "weekdays", "weekly"].includes(task.repeat),
   );
+  if (active.length === 0) return null;
+  if (
+    active.length === 1 &&
+    active[0].repeat === "daily" &&
+    !active[0].reminderTime
+  )
+    return { task: active[0], slots: [] };
+  return {
+    task: active[0],
+    slots: active.map((task) => ({
+      days: task.repeatDays?.length ? task.repeatDays : ALL_DAYS,
+      time: task.reminderTime,
+    })),
+  };
+}
+function slotsOfSchedule(schedule) {
+  return schedule?.slots || [];
+}
+
+function instancesOf(tasks, habitId) {
+  return tasks
+    .filter((task) => task && task.habitId === habitId)
+    .map((task) => ({
+      ...task,
+      dueDate: task.dueDate || todayKey(task.completedAt ?? task.createdAt),
+    }));
 }
 
 function groupByDate(instances) {
@@ -270,29 +272,14 @@ function groupByDate(instances) {
   return map;
 }
 
-function isPlanned(date, slots, hasTemplate) {
-  if (!hasTemplate) return false;
-  const weekday = weekdayIndex(date) + 1;
-  return slots.some((slot) => slot.days.includes(weekday));
-}
-
 /**
  * 某天状态：done | missed | pending | idle。
- * 有实例或模板排到这天即算「已安排」；完成看当天实例，缺勤只看过去。
+ * 只展示实际存在的任务；循环未完成继续保留，不按日历凭空记缺勤。
  */
-function statusOfDay(date, grouped, slots, hasTemplate, today, firstDate) {
+function statusOfDay(date, grouped, slots, hasSchedule, today, firstDate) {
   const entries = grouped.get(date) || [];
-  // 模板只描述「以后会怎么排」：在第一条实例出现之前的日子不算缺勤，
-  // 否则刚建好的习惯会在点阵里凭空多出几天缺勤。
-  const planned =
-    hasTemplate &&
-    (firstDate === null ? date === today : date >= firstDate) &&
-    isPlanned(date, slots, hasTemplate);
-  const scheduled = entries.length > 0 || planned;
-  if (!scheduled) return "idle";
   if (entries.some((task) => task.completed)) return "done";
-  if (date < today) return "missed";
-  if (date === today) return "pending";
+  if (entries.some((task) => !task.completed)) return "pending";
   return "idle";
 }
 
@@ -306,7 +293,7 @@ function firstInstanceDate(instances) {
 }
 
 /** 连续天数：从今天往前，跳过未安排日；今天未完成不打断，过去缺勤即停止。 */
-function streakOf(grouped, slots, hasTemplate, today, firstDate) {
+function streakOf(grouped, slots, hasSchedule, today, firstDate) {
   let streak = 0;
   let cursor = today;
   for (let i = 0; i < STREAK_LOOKBACK; i += 1) {
@@ -314,7 +301,7 @@ function streakOf(grouped, slots, hasTemplate, today, firstDate) {
       cursor,
       grouped,
       slots,
-      hasTemplate,
+      hasSchedule,
       today,
       firstDate,
     );
@@ -325,12 +312,13 @@ function streakOf(grouped, slots, hasTemplate, today, firstDate) {
   return streak;
 }
 
-/** 缺勤次数：core 语义（reminderExpired）与「过期未完成」取并集，按实例去重。 */
+/** 只显示历史已明确记录的缺勤，循环待办不因跨日增加缺勤。 */
 function missedOf(instances, today) {
   let missed = 0;
   for (const task of instances) {
     if (task.completed) continue;
-    if (task.reminderExpired || task.dueDate < today) missed += 1;
+    if (task.reminderExpired && !task.recurring && task.repeat === "none")
+      missed += 1;
   }
   return missed;
 }
@@ -371,12 +359,7 @@ function slotText(slot) {
     : days
         .map((day) => labels[day - 1] || String(day))
         .join(t("habits.daySeparator"));
-  return t("habits.slotText", { days: dayText, time: slot.time });
-}
-
-function normalizeTime(value) {
-  const seconds = parseHHMM(value);
-  return seconds === null ? DEFAULT_TIME : fmtHHMM(seconds);
+  return t("habits.slotText", { days: dayText, time: slot.time || "" });
 }
 
 function dotStyle(status) {
@@ -415,10 +398,10 @@ function dotStyle(status) {
 
 // ---------------------------------------------------------------- 卡片
 
-function HabitCard({ habit, data, templates, tasks, today, onEdit, onDelete }) {
-  const template = habitTemplate(templates, habit.id);
-  const slots = slotsOfTemplate(template);
-  const shape = (template && template.shape) || {};
+function HabitCard({ habit, data, tasks, today, onEdit, onDelete }) {
+  const schedule = habitSchedule(tasks, habit.id);
+  const slots = slotsOfSchedule(schedule);
+  const shape = (schedule && schedule.task) || {};
   const instanceList = instancesOf(tasks, habit.id);
   const grouped = groupByDate(instanceList);
   const firstDate = firstInstanceDate(instanceList);
@@ -427,7 +410,7 @@ function HabitCard({ habit, data, templates, tasks, today, onEdit, onDelete }) {
   const focus =
     Number(shape.focusMinutes) > 0 ? Number(shape.focusMinutes) : settingsFocus;
   const dates = recentDates(today, 7);
-  const streak = streakOf(grouped, slots, template !== null, today, firstDate);
+  const streak = streakOf(grouped, slots, schedule !== null, today, firstDate);
   const missed = missedOf(instanceList, today);
   const shortWeek = weekShortLabels();
 
@@ -533,7 +516,7 @@ function HabitCard({ habit, data, templates, tasks, today, onEdit, onDelete }) {
           date,
           grouped,
           slots,
-          template !== null,
+          schedule !== null,
           today,
           firstDate,
         );
@@ -733,17 +716,17 @@ function InlineError({ text }) {
 function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
   const editing = mode === "edit";
   const habits = Array.isArray(data.habits) ? data.habits : [];
-  const templates = Array.isArray(data.templates) ? data.templates : [];
+  const tasks = Array.isArray(data.tasks) ? data.tasks : [];
   const projects = Array.isArray(data.projects) ? data.projects : [];
   const habit = editing
     ? habits.find((item) => item && item.id === habitId) || null
     : null;
-  const template = habitTemplate(templates, habitId);
-  const shape = (template && template.shape) || {};
+  const schedule = habitSchedule(tasks, habitId);
+  const shape = (schedule && schedule.task) || {};
   // 时段是「一天出现几次」的唯一描述：同一个习惯可以「周三 08:00」加「周日 20:00」，
   // core 的每周循环校验按 (day|time) 去重，所以每个时段各自带星期与时间。
-  const initialSlots = slotsOfTemplate(template);
-  const slotsFromTemplate =
+  const initialSlots = slotsOfSchedule(schedule);
+  const slotsFromTasks =
     initialSlots.length > 0
       ? initialSlots.map((slot) => ({
           days:
@@ -752,16 +735,16 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
                   new Set(slot.days.filter((day) => day >= 1 && day <= 7)),
                 ).sort((a, b) => a - b)
               : [...ALL_DAYS],
-          time: normalizeTime(slot.time),
+          time: slot.time || "",
         }))
-      : [{ days: [...ALL_DAYS], time: normalizeTime(null) }];
+      : [];
   const defaultFocus = Number((data.settings || {}).focusMinutes) || 45;
 
   const [name, setName] = useState(
     habit && typeof habit.name === "string" ? habit.name : "",
   );
   const [projectId, setProjectId] = useState(shape.projectId || "");
-  const [slots, setSlots] = useState(slotsFromTemplate);
+  const [slots, setSlots] = useState(slotsFromTasks);
   const [focus, setFocus] = useState(
     Number(shape.focusMinutes) >= 1 ? String(shape.focusMinutes) : "",
   );
@@ -789,7 +772,7 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
   const addSlot = () => {
     setSlots((previous) => {
       const last = previous[previous.length - 1];
-      const next = { days: [...(last ? last.days : ALL_DAYS)], time: "20:00" };
+      const next = { days: [...(last ? last.days : ALL_DAYS)], time: "" };
       return [...previous, next];
     });
   };
@@ -805,10 +788,6 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
       setError(t("habits.nameError"));
       return;
     }
-    if (slots.length === 0) {
-      setError(t("habits.daysError"));
-      return;
-    }
     if (slots.length > 49) {
       setError(t("habits.slotsLimit"));
       return;
@@ -819,12 +798,12 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
         setError(t("habits.daysError"));
         return;
       }
-      if (parseHHMM(slot.time) === null) {
+      if (slot.time && parseHHMM(slot.time) === null) {
         setError(t("habits.timeError"));
         return;
       }
       for (const day of slot.days) {
-        const key = `${day}|${fmtHHMM(parseHHMM(slot.time))}`;
+        const key = `${day}|${slot.time || ""}`;
         if (seen.has(key)) {
           setError(t("habits.slotDuplicate"));
           return;
@@ -853,7 +832,7 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
       focusMinutes,
       slots: slots.map((slot) => ({
         days: slot.days,
-        time: fmtHHMM(parseHHMM(slot.time)),
+        time: slot.time ? fmtHHMM(parseHHMM(slot.time)) : null,
       })),
     });
     setBusy(false);
@@ -960,18 +939,16 @@ function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
               t("habits.slotTitle", { n: index + 1 }),
             ),
             h("div", { style: { flex: 1 } }),
-            slots.length > 1
-              ? h(
-                  Btn,
-                  {
-                    variant: "plain",
-                    size: "sm",
-                    icon: "trash",
-                    onClick: () => removeSlot(index),
-                  },
-                  t("habits.removeSlot"),
-                )
-              : null,
+            h(
+              Btn,
+              {
+                variant: "plain",
+                size: "sm",
+                icon: "trash",
+                onClick: () => removeSlot(index),
+              },
+              t("habits.removeSlot"),
+            ),
           ),
           h(
             "div",
@@ -1246,10 +1223,9 @@ function HabitsPage({ state }) {
   const rawData = (state && state.data) || {};
   const habits = objectList(rawData.habits);
   const visions = objectList(rawData.visions);
-  const templates = objectList(rawData.templates);
   const tasks = objectList(rawData.tasks);
   const projects = objectList(rawData.projects);
-  const data = { ...rawData, habits, visions, templates, tasks, projects };
+  const data = { ...rawData, habits, visions, tasks, projects };
   const today = (state && state.today) || todayKey(state && state.serverTime);
 
   const header = h(PageHeader, {
@@ -1387,7 +1363,6 @@ function HabitsPage({ state }) {
               key: habit.id || `habit-${index}`,
               habit,
               data,
-              templates,
               tasks,
               today,
               onEdit: (id) => openHabit({ mode: "edit", habitId: id }),

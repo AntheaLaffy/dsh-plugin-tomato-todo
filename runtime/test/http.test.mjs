@@ -4,12 +4,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Engine } from "../src/engine.ts";
+import { Engine, localDate } from "../src/engine.ts";
 import { startServer, UI_ORIGIN } from "../src/server.mjs";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "tomato-http-"));
 const TOKEN = "test-token-123";
-const TODAY = "2026-11-06";
+const TODAY = localDate(Math.floor(Date.now() / 1000));
+const MOVE_DATE = localDate(Math.floor(Date.now() / 1000) + 3 * 86400);
 
 let server;
 let base;
@@ -137,10 +138,10 @@ test("任务写链路：PATCH / move / complete", async () => {
   const moved = await json("/api/tasks/move", {
     method: "POST",
     headers,
-    body: JSON.stringify({ ids: [id], dueDate: "2026-11-09" }),
+    body: JSON.stringify({ ids: [id], dueDate: MOVE_DATE }),
   });
   assert.equal(moved.status, 200);
-  assert.equal(moved.body.tasks[0].dueDate, "2026-11-09");
+  assert.equal(moved.body.tasks[0].dueDate, MOVE_DATE);
 
   const done = await json(`/api/tasks/${id}/complete`, {
     method: "POST",
@@ -254,7 +255,7 @@ test("/mcp initialize / tools/list：serverInfo 与中文 instructions", async (
     ].sort(),
   );
   const create = list.body.result.tools.find((t) => t.name === "create_task");
-  assert.deepEqual(create.inputSchema.required, ["title", "dueDate"]);
+  assert.deepEqual(create.inputSchema.required, ["title"]);
 });
 
 test("/mcp tools/call 落到引擎：create_task 与 structuredContent", async () => {

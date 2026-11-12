@@ -24,7 +24,7 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
       saved.push(next);
     });
     expect(saved.length).toBe(1); // 建引擎时先落一次
-    expect(saved.at(0)?.version).toBe(4);
+    expect(saved.at(0)?.version).toBe(5);
 
     engine.dispatch({ type: "startTimer", minutes: 1 }, at);
     expect(saved).toHaveLength(2);
@@ -39,7 +39,9 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
     const data = new AppData();
     data.tasks.push({
       id: "broken",
-      templateId: null,
+      repeat: "none",
+      repeatDays: [],
+      nextTaskId: null,
       recurring: false,
       title: "x",
       notes: "",
@@ -52,6 +54,7 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
       reminderPending: false,
       reminderExpired: false,
       scrapMinutes: 0,
+      expiryDays: 0,
       priority: 0,
       estimate: 1,
       completed: false,
@@ -86,11 +89,13 @@ describe("Engine.fromData 与 runtime 存储策略", () => {
           reminderTime: null,
           focusMinutes: null,
           scrapMinutes: 0,
+          expiryDays: 0,
           priority: 0,
           estimate: 1,
           tags: [],
           subtasks: [],
           repeat: "none",
+          repeatDays: [],
         },
       },
       at,

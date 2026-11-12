@@ -10,7 +10,7 @@
 
 | 文档 | 回答什么 | 不该在这里找什么 |
 | --- | --- | --- |
-| [../DESIGN.md](../DESIGN.md) | **为什么这样设计**：任务/习惯/项目/愿景的划分、模板印刷的取舍 | 具体函数、阈值、字段上限 |
+| [../DESIGN.md](../DESIGN.md) | **为什么这样设计**：任务/习惯/项目/愿景的划分、任务直接循环的取舍 | 具体函数、阈值、字段上限 |
 | [../PLAN_FORMAT.md](../PLAN_FORMAT.md) / [../BACKUP_FORMAT.md](../BACKUP_FORMAT.md) | **文件契约**：字段、范围、导入导出语义 | 为什么这么定 |
 | **本手册** | **实现事实与边界**：按域列出「它做什么、怎么做的、做不到什么」 | 面向用户的上手说明（看 [README](../../README.md)） |
 
@@ -48,7 +48,7 @@
 | [11-定时锁机](11-定时锁机.md) | 每周重复/跨午夜的休息时段，到时全屏，睡眠不计入学习 | `packages/core/src/lock.ts` |
 | [12-课表与提醒](12-课表与提醒.md) | 上课时间先占掉，提醒按「专注 + 休息」的窗口算 | `packages/core/src/blocks.ts`、`reminders.ts` |
 | [13-任务与列表](13-任务与列表.md) | 任务只有一种，类别由字段推导；删除可恢复 | `packages/core/src/model.ts`、`plan.ts` |
-| [14-模板与印刷](14-模板与印刷.md) | 形状印时复制，账本独立于实例，删了不会重现 | `packages/core/src/templates.ts` |
+| [14-循环任务](14-循环任务.md) | 任务直接循环，确认完成后安排下一次，后继标记防重 | `packages/core/src/recurrence.ts` |
 | [15-任务身份](15-任务身份.md) | 永久 ID 防止复用，旧本地数据只转换一次 | `packages/core/src/identities.ts`、`migration.ts` |
 | [16-习惯与愿景](16-习惯与愿景.md) | 重复才有缺勤；愿景是标记，不参与执行 | `packages/core/src/habits.ts`、`templates.ts` |
 | [17-诊断与统计](17-诊断与统计.md) | 本地规则算证据 + 反问句，不调模型也不下结论 | `packages/core/src/diagnostics.ts` |

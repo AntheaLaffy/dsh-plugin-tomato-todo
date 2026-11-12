@@ -10,7 +10,7 @@ import { t, registerCopy } from "../shared/copy.js";
 import { Icon } from "../shared/icons.js";
 import { IconBtn, Input, Kbd, Modal } from "../shared/ui.js";
 import { useSnapshot } from "../shared/store.js";
-import { isOverdue, projectById } from "../shared/derive.js";
+import { isOverdue, projectById, listedTasks } from "../shared/derive.js";
 
 registerCopy("search", {
   zh: {
@@ -243,7 +243,7 @@ export function SearchDialog({ open, onClose, onOpenTask, onCreate }) {
 
   const data = (state && state.data) || {};
   const todayKey = (state && state.today) || "";
-  const allTasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const allTasks = listedTasks(data);
   const normalized = query.trim().toLowerCase();
   const results = allTasks
     .filter((task) => matches(task, normalized))

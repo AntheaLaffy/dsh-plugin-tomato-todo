@@ -29,8 +29,28 @@ export const HOST_TOOL_SPECS = [
           ]
         },
         "dueDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "计划日期 YYYY-MM-DD；省略日期和提醒时间即为每日循环待办"
+        },
+        "repeat": {
           "type": "string",
-          "description": "必填的计划日期，YYYY-MM-DD；提醒时刻另填"
+          "enum": [
+            "none",
+            "daily",
+            "weekdays",
+            "weekly"
+          ]
+        },
+        "repeatDays": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
+          }
         },
         "reminderTime": {
           "type": [
@@ -48,6 +68,11 @@ export const HOST_TOOL_SPECS = [
           "type": "integer",
           "minimum": 1
         },
+        "expiryDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 36500
+        },
         "priority": {
           "type": "integer",
           "minimum": 0,
@@ -61,8 +86,7 @@ export const HOST_TOOL_SPECS = [
         }
       },
       "required": [
-        "title",
-        "dueDate"
+        "title"
       ],
       "additionalProperties": false
     }
@@ -92,8 +116,11 @@ export const HOST_TOOL_SPECS = [
               ]
             },
             "dueDate": {
-              "type": "string",
-              "description": "必填的计划日期，YYYY-MM-DD；提醒时刻另填"
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "计划日期 YYYY-MM-DD；null 表示每日循环待办"
             },
             "reminderTime": {
               "type": [
@@ -121,6 +148,28 @@ export const HOST_TOOL_SPECS = [
             },
             "scrapMinutes": {
               "type": "integer"
+            },
+            "expiryDays": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 36500
+            },
+            "repeat": {
+              "type": "string",
+              "enum": [
+                "none",
+                "daily",
+                "weekdays",
+                "weekly"
+              ]
+            },
+            "repeatDays": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7
+              }
             }
           },
           "additionalProperties": false

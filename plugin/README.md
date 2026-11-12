@@ -61,6 +61,8 @@
 
 ## 运行时要求
 
+- **0.15.0 插件需要 tomato-runtime 0.15.0 或更新版本**。本 npm 包不包含 runtime 或 guard；请同时更新本机 runtime 并重启服务。新模型使用计划 v7、备份 v5，本机旧数据首次打开时一次性转换，旧交换文件不能直接导入。
+
 - **`tomato-runtime --serve` 必须在运行**（监听 127.0.0.1:43987），否则入口卡
   显示离线、面板只显示连接错误。启动方式：`tomato-runtime --serve`
   （systemd user service / autostart 由 packaging 阶段安装）。

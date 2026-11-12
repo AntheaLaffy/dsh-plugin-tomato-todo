@@ -1,4 +1,4 @@
-// runtime 的磁盘布局：plan.json（计划 v6 + 运行进度）+ state.json（计时/设置/
+// runtime 的磁盘布局：plan.json（计划 v7 + 运行进度）+ state.json（计时/设置/
 // 会话/身份/愿景/锁机/教学）。
 //
 // 为什么拆两个文件：API.md 与 MIGRATION.md 沿用旧版约定——plan.json 是域数据
@@ -69,26 +69,30 @@ function localDateToTs(date) {
 }
 
 /**
- * plan.json 里的 task 是「计划 v6 实例 + 运行进度」的超集：
- * - 旧导出文件带 `repeat`（计划字段，实例不拥有重复规则）；
+ * plan.json 里的 task 是「计划 v7 实例 + 运行进度」的超集：
+ * - 循环规则与后继标记直接属于任务；
  * - 缺少 completed/completedAt/createdAt/reminder* 时补默认值。
  */
 export function normalizePlanTask(raw, now) {
   if (!isObject(raw)) throw new core.AppError("计划任务必须是对象");
   const task = { ...raw };
-  delete task.repeat;
+  task.repeat = task.repeat ?? "none";
+  task.repeatDays = task.repeatDays ?? [];
+  task.nextTaskId = task.nextTaskId ?? null;
+  task.dueDate = task.dueDate ?? null;
   task.notes = typeof task.notes === "string" ? task.notes : "";
   task.scrapMinutes = Number.isInteger(task.scrapMinutes)
     ? task.scrapMinutes
     : 0;
+  task.expiryDays = task.expiryDays ?? 0;
   task.priority = Number.isInteger(task.priority) ? task.priority : 0;
   task.estimate = Number.isInteger(task.estimate) ? task.estimate : 1;
   task.reminderTime = task.reminderTime ?? null;
   task.focusMinutes = task.focusMinutes ?? null;
   task.habitId = task.habitId ?? null;
   task.projectId = task.projectId ?? null;
-  task.templateId = task.templateId ?? null;
-  task.recurring = task.recurring === true;
+  if (task.dueDate === null && task.repeat === "none") task.repeat = "daily";
+  task.recurring = task.recurring === true || task.repeat !== "none";
   task.tags = Array.isArray(task.tags) ? task.tags : [];
   task.subtasks = Array.isArray(task.subtasks)
     ? task.subtasks.map((s) => {
@@ -141,9 +145,13 @@ export function readDataFiles(dataDir, now = Math.floor(Date.now() / 1000)) {
     }
   }
   // 兼容「state.json 存整份 AppData」的旧/实验形态。
-  if (isObject(state) && state.version === 4 && Array.isArray(state.tasks)) {
+  if (
+    isObject(state) &&
+    [4, 5].includes(state.version) &&
+    Array.isArray(state.tasks)
+  ) {
     return {
-      data: core.parseAppData(state),
+      data: core.readLocalData(JSON.stringify(state)),
       sources: { plan: hasPlan, state: true },
     };
   }
@@ -165,12 +173,36 @@ export function readDataFiles(dataDir, now = Math.floor(Date.now() / 1000)) {
     }
   }
 
+  const legacy = plan.version === 6 || Array.isArray(plan.templates);
+  if (legacy) {
+    const combined = {
+      ...state,
+      version: 4,
+      tasks: (plan.tasks ?? []).map((t) => normalizePlanTask(t, now)),
+      projects: plan.projects ?? [],
+      habits: plan.habits ?? [],
+      blocks: plan.blocks ?? [],
+      templates: plan.templates ?? [],
+      prints: plan.prints ?? [],
+      settings: core.serializeSettings(settings),
+      timer: state.timer ?? core.serializeTimer(core.defaultTimer()),
+      sessions: state.sessions ?? [],
+    };
+    return {
+      data: core.readLocalData(JSON.stringify(combined)),
+      sources: { plan: hasPlan, state: hasState },
+    };
+  }
+  if (plan.version !== undefined && plan.version !== 7)
+    throw new core.AppError(
+      "仅支持本机计划 v7（旧 v6 可自动转换），原文件已保留",
+    );
   return {
     data: new core.AppData({
       education: isObject(state.education)
         ? core.parseEducation(state.education)
         : new core.Education(),
-      version: 4,
+      version: 5,
       identities: Array.isArray(state.identities)
         ? state.identities.map(core.parseIdentity)
         : [],
@@ -179,12 +211,6 @@ export function readDataFiles(dataDir, now = Math.floor(Date.now() / 1000)) {
         : [],
       blocks: Array.isArray(plan.blocks)
         ? plan.blocks.map(core.parseBlock)
-        : [],
-      templates: Array.isArray(plan.templates)
-        ? plan.templates.map(core.parseTemplate)
-        : [],
-      prints: Array.isArray(plan.prints)
-        ? plan.prints.map(core.parsePrintRecord)
         : [],
       projects: Array.isArray(plan.projects)
         ? plan.projects.map(core.parseProject)
@@ -210,17 +236,15 @@ export function readDataFiles(dataDir, now = Math.floor(Date.now() / 1000)) {
   };
 }
 
-/** plan.json 内容：计划 v6，tasks 额外携带运行进度字段。 */
+/** plan.json 内容：计划 v7，tasks 额外携带运行进度字段。 */
 export function splitPlan(data) {
   return {
     format: "tomato-todo-plan",
-    version: 6,
+    version: 7,
     pomodoroMinutes: data.settings.focusMinutes,
     projects: data.projects.map(core.serializeProject),
     tasks: data.tasks.map(core.serializeTask),
     blocks: data.blocks.map(core.serializeBlock),
-    templates: data.templates.map(core.serializeTemplate),
-    prints: data.prints.map(core.serializePrintRecord),
     habits: data.habits.map(core.serializeHabit),
   };
 }

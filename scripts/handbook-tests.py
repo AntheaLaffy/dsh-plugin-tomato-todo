@@ -41,7 +41,7 @@ PLATFORM_OF = {
 DOMAINS = [
     ("核心模型、锁与提醒", ["packages/core/test/core.test.ts"], "`pnpm core:test`"),
     ("教育/教学", ["packages/core/test/education.test.ts"], "`pnpm core:test`"),
-    ("模板与印刷", ["packages/core/test/templates.test.ts"], "`pnpm core:test`"),
+    ("任务循环", ["packages/core/test/recurrence.test.ts"], "`pnpm core:test`"),
     ("引擎与存储", ["packages/core/test/engine-store.test.ts"], "`pnpm core:test`"),
     (
         "运行时 API/MCP",
@@ -116,10 +116,10 @@ CHAPTER_TESTS = {
         "packages/core/test/core.test.ts",
         "runtime/test/engine.test.mjs",
     ],
-    "14-模板与印刷": ["packages/core/test/templates.test.ts"],
+    "14-循环任务": ["packages/core/test/recurrence.test.ts"],
     "15-任务身份": ["packages/core/test/core.test.ts"],
     "16-习惯与愿景": [
-        "packages/core/test/templates.test.ts",
+        "packages/core/test/recurrence.test.ts",
         "packages/core/test/core.test.ts",
     ],
     "17-诊断与统计": [

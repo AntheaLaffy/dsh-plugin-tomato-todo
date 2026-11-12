@@ -36,6 +36,7 @@ import {
   taskById,
   projectById,
   projectColor,
+  listedTasks,
 } from "../shared/derive.js";
 import { registerPage } from "../app/registry.js";
 import { getStateWithResources } from "../shared/api.js";
@@ -1162,7 +1163,7 @@ export function ProjectDetail({
   const attendedLessons = lessons.filter(
     (item) => item.attended === true || item.state === "ended",
   ).length;
-  const projectTasks = asArray(data.tasks).filter(
+  const projectTasks = listedTasks(data).filter(
     (task) => task.projectId === projectId,
   );
   const openTasks = projectTasks

@@ -143,8 +143,6 @@ test("GET /api/state：全量快照 + 学情摘要 + guard 摘要（不可达给
     "projects",
     "habits",
     "blocks",
-    "templates",
-    "prints",
     "visions",
     "settings",
     "timer",
@@ -462,7 +460,7 @@ test("POST /api/dispatch：importPlan 与 import（备份恢复）", async () =>
   const today = (await json("/api/state")).body.today;
   const plan = {
     format: "tomato-todo-plan",
-    version: 6,
+    version: 7,
     pomodoroMinutes: 25,
     projects: [],
     tasks: [
@@ -483,8 +481,6 @@ test("POST /api/dispatch：importPlan 与 import（备份恢复）", async () =>
       },
     ],
     blocks: [],
-    templates: [],
-    prints: [],
     habits: [],
   };
   const imported = await dispatch({ type: "importPlan", plan });
@@ -548,7 +544,7 @@ test("GET /api/export/plan 与 /api/export/backup：Content-Disposition 与数�
     /^attachment; filename="tomato-plan-\d{4}-\d{2}-\d{2}\.json"$/,
   );
   assert.equal(plan.body.format, "tomato-todo-plan");
-  assert.equal(plan.body.version, 6);
+  assert.equal(plan.body.version, 7);
   assert.ok(Array.isArray(plan.body.tasks));
 
   const backup = await json("/api/export/backup");
@@ -557,7 +553,7 @@ test("GET /api/export/plan 与 /api/export/backup：Content-Disposition 与数�
     backup.headers.get("content-disposition"),
     /^attachment; filename="tomato-backup-\d{4}-\d{2}-\d{2}\.json"$/,
   );
-  assert.equal(backup.body.version, 4);
+  assert.equal(backup.body.version, 5);
   assert.ok(Array.isArray(backup.body.tasks));
   assert.ok(Array.isArray(backup.body.sessions));
 });
@@ -701,11 +697,18 @@ test("POST /api/dispatch：习惯可带多个时段，撞在同一 (day|time) �
   const data = saved.body.snapshot.data;
   const habit = data.habits.find((item) => item.name === "早晚各读一次");
   assert.ok(habit);
-  const template = data.templates.find((tpl) => tpl.shape.habitId === habit.id);
-  assert.equal(template.printing.slots.length, 2);
+  const scheduled = data.tasks.filter((task) => task.habitId === habit.id);
+  assert.equal(scheduled.length, 2);
   assert.deepEqual(
-    template.printing.slots.map((s) => s.time),
+    scheduled.map((task) => task.reminderTime),
     ["08:00", "20:30"],
+  );
+  assert.deepEqual(
+    scheduled.map((task) => task.repeatDays),
+    [
+      [1, 3, 5],
+      [2, 4],
+    ],
   );
 
   const clash = await post({

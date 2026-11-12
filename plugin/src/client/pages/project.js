@@ -33,6 +33,7 @@ import {
   taskRounds,
   timerView,
   todayKey,
+  listedTasks,
 } from "../shared/derive.js";
 import { tryDispatch } from "../shared/store.js";
 import { registerPage } from "../app/registry.js";
@@ -484,7 +485,7 @@ export function ProjectPage({ state, projectId, onAssistant }) {
   const data = (state && state.data) || {};
   const projects = Array.isArray(data.projects) ? data.projects : [];
   const project = projects.find((item) => item.id === currentId) || null;
-  const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const tasks = listedTasks(data);
   const settings = data.settings || {};
   const today = (state && state.today) || todayKey(state && state.serverTime);
   const viewData = { ...data, taskKinds: (state && state.taskKinds) || {} };

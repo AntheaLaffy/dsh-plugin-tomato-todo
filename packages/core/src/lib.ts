@@ -29,19 +29,16 @@ import type {
   LockState,
   Mode,
   PlanFile,
-  Printing,
   Project,
   Repeat,
   Session,
   SessionSource,
   Settings,
-  Shape,
   Stats,
   Subtask,
   Task,
   TaskDraft,
   TaskKind,
-  Template,
   Timer,
   Vision,
 } from "./model";
@@ -49,7 +46,13 @@ import { isHabit, kindOf } from "./model";
 import { validateLock, releaseLock, scheduledAt } from "./lock";
 import { validateBlocks } from "./blocks";
 import { validateHabit } from "./habits";
-import { validateTemplates, taskIsVoid } from "./templates";
+import {
+  taskIsVoid,
+  createNextTask,
+  validateRepeat,
+  saveHabitTasks,
+  replaceAppData,
+} from "./recurrence";
 import {
   durationOf,
   dueAutoTask,
@@ -78,16 +81,6 @@ import {
   serializeIdentity,
 } from "./identities";
 import { exportPlan, mergePlan } from "./plan";
-import {
-  deleteTemplate,
-  fromTask,
-  materializeTemplates,
-  printInstances,
-  printTemplate,
-  replaceAppData,
-  saveTemplate,
-  syncTemplate,
-} from "./templates";
 import { parseLockState, serializeLockState } from "./lock";
 import { parseBlock, serializeBlock } from "./blocks";
 import { parseHabit, serializeHabit } from "./habits";
@@ -166,8 +159,10 @@ export function serializeSubtask(s: Subtask): Record<string, unknown> {
 
 const TASK_KEYS = [
   "id",
-  "templateId",
   "recurring",
+  "repeat",
+  "repeatDays",
+  "nextTaskId",
   "title",
   "notes",
   "projectId",
@@ -176,6 +171,7 @@ const TASK_KEYS = [
   "reminderTime",
   "focusMinutes",
   "scrapMinutes",
+  "expiryDays",
   "priority",
   "estimate",
   "reminderFired",
@@ -193,14 +189,35 @@ export function parseTask(raw: unknown): Task {
   rejectUnknown(raw, [...TASK_KEYS], "任务");
   return {
     id: requiredField(raw, "id", "任务", asStr),
-    templateId: field(
+    recurring: field(
       raw,
-      "templateId",
+      "recurring",
       "任务",
-      (v) => asOpt(v, "templateId", asStr),
+      asBool,
+      (raw["repeat"] !== undefined && raw["repeat"] !== "none") ||
+        raw["dueDate"] == null,
+    ),
+    repeat: field(
+      raw,
+      "repeat",
+      "任务",
+      (v) => oneOf(v, "repeat", ["none", "daily", "weekdays", "weekly"]),
+      raw["dueDate"] == null ? "daily" : "none",
+    ) as Repeat,
+    repeatDays: field(
+      raw,
+      "repeatDays",
+      "任务",
+      (v) => asArray(v, "repeatDays").map((d) => asInt(d, "重复星期")),
+      [],
+    ),
+    nextTaskId: field(
+      raw,
+      "nextTaskId",
+      "任务",
+      (v) => asOpt(v, "nextTaskId", asStr),
       null,
     ) as string | null,
-    recurring: field(raw, "recurring", "任务", asBool, false),
     title: requiredField(raw, "title", "任务", asStr),
     notes: requiredField(raw, "notes", "任务", asStr),
     projectId: field(
@@ -239,6 +256,7 @@ export function parseTask(raw: unknown): Task {
       null,
     ) as number | null,
     scrapMinutes: field(raw, "scrapMinutes", "任务", asInt, 0),
+    expiryDays: field(raw, "expiryDays", "任务", asInt, 0),
     priority: requiredField(raw, "priority", "任务", asInt),
     estimate: requiredField(raw, "estimate", "任务", asInt),
     reminderFired: field(raw, "reminderFired", "任务", asBool, false),
@@ -277,8 +295,10 @@ export function parseTask(raw: unknown): Task {
 export function serializeTask(t: Task): Record<string, unknown> {
   return {
     id: t.id,
-    templateId: t.templateId,
     recurring: t.recurring,
+    repeat: t.repeat,
+    repeatDays: t.repeatDays,
+    nextTaskId: t.nextTaskId,
     title: t.title,
     notes: t.notes,
     projectId: t.projectId,
@@ -287,6 +307,7 @@ export function serializeTask(t: Task): Record<string, unknown> {
     reminderTime: t.reminderTime,
     focusMinutes: t.focusMinutes,
     scrapMinutes: t.scrapMinutes,
+    expiryDays: t.expiryDays,
     priority: t.priority,
     estimate: t.estimate,
     reminderFired: t.reminderFired,
@@ -309,11 +330,13 @@ const TASK_DRAFT_KEYS = [
   "reminderTime",
   "focusMinutes",
   "scrapMinutes",
+  "expiryDays",
   "priority",
   "estimate",
   "tags",
   "subtasks",
   "repeat",
+  "repeatDays",
 ] as const;
 
 export function parseTaskDraft(raw: unknown): TaskDraft {
@@ -353,6 +376,7 @@ export function parseTaskDraft(raw: unknown): TaskDraft {
       null,
     ) as number | null,
     scrapMinutes: field(raw, "scrapMinutes", "任务草稿", asInt, 0),
+    expiryDays: field(raw, "expiryDays", "任务草稿", asInt, 0),
     priority: field(raw, "priority", "任务草稿", asInt, 0),
     estimate: field(raw, "estimate", "任务草稿", asInt, 1),
     tags: field(
@@ -376,6 +400,13 @@ export function parseTaskDraft(raw: unknown): TaskDraft {
       (v) => oneOf(v, "repeat", ["none", "daily", "weekdays", "weekly"]),
       "none",
     ) as Repeat,
+    repeatDays: field(
+      raw,
+      "repeatDays",
+      "任务草稿",
+      (v) => asArray(v, "repeatDays").map((d) => asInt(d, "重复星期")),
+      [],
+    ),
   };
 }
 
@@ -386,7 +417,13 @@ export function parseHabitSlot(raw: unknown): HabitSlot {
       requiredField(raw, "days", "习惯时段", (v) => v),
       "days",
     ).map((d) => asInt(d, "习惯星期")),
-    time: requiredField(raw, "time", "习惯时段", asStr),
+    time: field(
+      raw,
+      "time",
+      "习惯时段",
+      (v) => asOpt(v, "time", asStr),
+      null,
+    ) as string | null,
   };
 }
 
@@ -644,8 +681,6 @@ export class AppData {
   identities: Identity[];
   tasks: Task[];
   blocks: Block[];
-  templates: Template[];
-  prints: { templateId: string; date: string | null }[];
   projects: Project[];
   habits: Habit[];
   visions: Vision[];
@@ -656,12 +691,10 @@ export class AppData {
 
   constructor(init?: Partial<Pick<AppData, keyof AppData>>) {
     this.education = init?.education ?? new Education();
-    this.version = init?.version ?? 4;
+    this.version = init?.version ?? 5;
     this.identities = init?.identities ?? [];
     this.tasks = init?.tasks ?? [];
     this.blocks = init?.blocks ?? [];
-    this.templates = init?.templates ?? [];
-    this.prints = init?.prints ?? [];
     this.projects = init?.projects ?? [
       { id: id(), name: "工作", color: "#df7561", appWhitelist: null },
       { id: id(), name: "学习", color: "#849b7d", appWhitelist: null },
@@ -751,8 +784,7 @@ export class AppData {
   tick(at: number): boolean {
     const teachingChanged = this.education.tick(at);
     const teachingTasksChanged = materializeTeachingTasks(this, at);
-    const materialized =
-      materializeTemplates(this, at) || teachingChanged || teachingTasksChanged;
+    const materialized = teachingChanged || teachingTasksChanged;
     const remindersChanged = tickReminders(this, at);
     const changed = this.tickWithLock(at) || materialized;
     const cycleChanged = this.refreshCycle(at);
@@ -882,27 +914,6 @@ export class AppData {
         this.education.apply(action.command, at);
         break;
       }
-      case "printInstances":
-        printInstances(this, action.shape, action.printing, at);
-        break;
-      case "saveTemplate": {
-        const id = action.template.id;
-        saveTemplate(this, action.template);
-        this.validate();
-        if (action.printDates.length > 0) {
-          printTemplate(this, id, action.printDates, at);
-        }
-        break;
-      }
-      case "deleteTemplate":
-        deleteTemplate(this, action.id);
-        break;
-      case "printTemplate":
-        printTemplate(this, action.id, action.dates, at);
-        break;
-      case "syncTemplate":
-        syncTemplate(this, action.id);
-        break;
       case "startReminder": {
         if (!this.reminderIdle()) {
           throw new AppError("请先结束当前计时");
@@ -997,8 +1008,13 @@ export class AppData {
         }
         const old = existingIndex >= 0 ? this.tasks[existingIndex]! : undefined;
         const task: Task = {
-          templateId: old?.templateId ?? null,
-          recurring: old?.recurring ?? false,
+          recurring: old?.completed
+            ? old.recurring
+            : d.repeat !== "none" || d.dueDate === null,
+          repeat:
+            d.dueDate === null && d.repeat === "none" ? "daily" : d.repeat,
+          repeatDays: [...d.repeatDays],
+          nextTaskId: old?.nextTaskId ?? null,
           id: d.id ?? id(),
           title: d.title.trim(),
           notes: d.notes,
@@ -1018,8 +1034,10 @@ export class AppData {
             old !== undefined &&
             old.dueDate === d.dueDate &&
             old.reminderTime === d.reminderTime &&
+            old.expiryDays === d.expiryDays &&
             old.reminderExpired,
           scrapMinutes: d.scrapMinutes,
+          expiryDays: d.expiryDays,
           focusMinutes: d.focusMinutes,
           reminderTime: d.reminderTime,
           dueDate: d.dueDate,
@@ -1035,13 +1053,6 @@ export class AppData {
             done: s.done,
           })),
         };
-        if (d.repeat !== "none") {
-          const template = fromTask(task, d.repeat, at);
-          task.templateId = template.id;
-          task.recurring = true;
-          this.prints.push({ templateId: template.id, date: task.dueDate });
-          this.templates.push(template);
-        }
         if (existingIndex >= 0) {
           this.tasks[existingIndex] = task;
         } else {
@@ -1112,6 +1123,7 @@ export class AppData {
         t.completedAt = t.completed ? at : null;
         if (t.completed) {
           this.education.taskCompleted(t, at);
+          createNextTask(this, t, at);
         }
         break;
       }
@@ -1140,12 +1152,6 @@ export class AppData {
           !this.projects.some((p) => p.id === task.projectId)
         ) {
           task.projectId = null;
-        }
-        if (
-          task.templateId !== null &&
-          !this.templates.some((t) => t.id === task.templateId)
-        ) {
-          task.templateId = null;
         }
         if (
           task.habitId !== null &&
@@ -1233,10 +1239,6 @@ export class AppData {
         for (const task of this.tasks) {
           if (task.projectId === action.id) task.projectId = null;
         }
-        for (const template of this.templates) {
-          if (template.shape.projectId === action.id)
-            template.shape.projectId = null;
-        }
         this.visions = this.visions.filter((a) => a.projectId !== action.id);
         break;
       }
@@ -1284,43 +1286,18 @@ export class AppData {
         } else {
           this.habits.push({ id: hid, name: action.name.trim() });
         }
-        saveTemplate(this, {
-          id: `habit:${hid}`,
-          automatic: true,
-          printAheadDays: 0,
-          printing: {
-            kind: "weekly",
-            slots: action.slots.map((s) => ({
-              days: [...s.days],
-              time: s.time,
-            })),
-          },
-          shape: {
-            title: action.name.trim(),
-            notes: "",
-            projectId: action.projectId,
-            habitId: hid,
-            focusMinutes: action.focusMinutes,
-            scrapMinutes: 0,
-            priority: 0,
-            estimate: 1,
-            tags: [],
-            subtasks: [],
-          },
-        });
+        saveHabitTasks(this, hid, action, at);
         break;
       }
       case "deleteHabit": {
-        const tids = this.templates
-          .filter((t) => t.shape.habitId === action.id)
-          .map((t) => t.id);
-        for (const tid of tids) {
-          deleteTemplate(this, tid);
-        }
         this.habits = this.habits.filter((h) => h.id !== action.id);
-        // 既有实例保留冻结来源：移除分组只清引用，历史缺勤仍计入统计。
         for (const task of this.tasks) {
-          if (task.habitId === action.id) task.habitId = null;
+          if (task.habitId === action.id) {
+            task.habitId = null;
+            task.repeat = "none";
+            task.repeatDays = [];
+            if (task.dueDate === null) task.dueDate = dateAt(at);
+          }
         }
         break;
       }
@@ -1501,8 +1478,10 @@ export class AppData {
         examples.forEach(([title, notes, priority, estimate], index) => {
           this.tasks.push({
             id: id(),
-            templateId: null,
             recurring: false,
+            repeat: "none",
+            repeatDays: [],
+            nextTaskId: null,
             title,
             notes,
             projectId: this.projects[index]?.id ?? null,
@@ -1514,6 +1493,7 @@ export class AppData {
             reminderPending: false,
             reminderExpired: false,
             scrapMinutes: 0,
+            expiryDays: 0,
             priority,
             estimate,
             completed: false,
@@ -1534,10 +1514,9 @@ export class AppData {
     this.educationValidate();
     validateTeachingTasks(this);
     validateLock(this.lock);
-    validateTemplates(this);
     validateIdentities(this);
     validateBlocks(this.blocks);
-    ensure(this.version === 4, "不支持此数据版本");
+    ensure(this.version === 5, "不支持此数据版本");
     ensure(
       this.tasks.length <= 50000 &&
         this.sessions.length <= 200000 &&
@@ -1605,6 +1584,7 @@ export class AppData {
     const taskIds = new Set<string>();
     for (const t of this.tasks) {
       this.validateReminderTask(t);
+      validateRepeat(t);
       ensure(t.id.length > 0 && !taskIds.has(t.id), "任务 ID 重复或为空");
       taskIds.add(t.id);
       ensure(
@@ -1623,16 +1603,18 @@ export class AppData {
       );
       ensure(t.scrapMinutes <= 10080, "重修窗口超出范围");
       ensure(
+        Number.isInteger(t.expiryDays) &&
+          t.expiryDays >= 0 &&
+          t.expiryDays <= 36500,
+        "报废天数需为 0–36500",
+      );
+      ensure(
         t.projectId === null || projectIds.has(t.projectId),
         "任务引用了不存在的项目",
       );
       ensure(
         t.habitId === null || habitIds.has(t.habitId),
         "任务引用了不存在的习惯",
-      );
-      ensure(
-        t.habitId === null || t.reminderTime !== null,
-        "习惯实例需要精确时间",
       );
       ensure(
         t.dueDate === null || (t.dueDate.length === 10 && validDate(t.dueDate)),
@@ -1864,11 +1846,6 @@ import { assistantOnly } from "./education";
 
 export type Action =
   | { type: "education"; command: import("./education").Command }
-  | { type: "printInstances"; shape: Shape; printing: Printing }
-  | { type: "saveTemplate"; template: Template; printDates: (string | null)[] }
-  | { type: "deleteTemplate"; id: string }
-  | { type: "printTemplate"; id: string; dates: (string | null)[] }
-  | { type: "syncTemplate"; id: string }
   | { type: "startReminder"; id: string }
   | { type: "saveTask"; task: TaskDraft }
   | { type: "toggleTask"; id: string }
@@ -1941,16 +1918,10 @@ export type Action =
 
 import { parsePlanFile } from "./plan";
 import { parseCommand } from "./education";
-import { parseTemplate, parsePrinting, parseShape } from "./templates";
 import { parseLockSchedule } from "./lock";
 
 const ACTION_KEYS: Record<string, string[]> = {
   education: ["type", "command"],
-  printInstances: ["type", "shape", "printing"],
-  saveTemplate: ["type", "template", "printDates"],
-  deleteTemplate: ["type", "id"],
-  printTemplate: ["type", "id", "dates"],
-  syncTemplate: ["type", "id"],
   startReminder: ["type", "id"],
   saveTask: ["type", "task"],
   toggleTask: ["type", "id"],
@@ -2021,33 +1992,6 @@ export function parseAction(raw: unknown): Action {
         type,
         command: parseCommand(requiredField(raw, "command", "动作", (v) => v)),
       };
-    case "printInstances":
-      return {
-        type,
-        shape: parseShape(requiredField(raw, "shape", "动作", (v) => v)),
-        printing: parsePrinting(
-          requiredField(raw, "printing", "动作", (v) => v),
-        ),
-      };
-    case "saveTemplate":
-      return {
-        type,
-        template: parseTemplate(
-          requiredField(raw, "template", "动作", (v) => v),
-        ),
-        printDates: field(
-          raw,
-          "printDates",
-          "动作",
-          (v) =>
-            asArray(v, "printDates").map((d) =>
-              d === null ? null : asStr(d, "printDates"),
-            ),
-          [],
-        ) as (string | null)[],
-      };
-    case "deleteTemplate":
-    case "syncTemplate":
     case "startReminder":
     case "toggleTask":
     case "deleteTask":
@@ -2057,17 +2001,6 @@ export function parseAction(raw: unknown): Action {
     case "deleteBlock":
     case "deleteLockSchedule":
       return { type, id: str("id") };
-    case "printTemplate":
-      return {
-        type,
-        id: str("id"),
-        dates: asArray(
-          requiredField(raw, "dates", "动作", (v) => v),
-          "dates",
-        ).map((d) => (d === null ? null : asStr(d, "dates"))) as (
-          string | null
-        )[],
-      };
     case "saveTask":
       return {
         type,
@@ -2138,10 +2071,13 @@ export function parseAction(raw: unknown): Action {
           (v) => asOpt(v, "focusMinutes", (x) => asInt(x, "focusMinutes")),
           null,
         ) as number | null,
-        slots: asArray(
-          requiredField(raw, "slots", "动作", (v) => v),
+        slots: field(
+          raw,
           "slots",
-        ).map(parseHabitSlot),
+          "动作",
+          (v) => asArray(v, "slots").map(parseHabitSlot),
+          [],
+        ),
       };
     case "saveVision":
       return {
@@ -2244,8 +2180,6 @@ const APP_DATA_KEYS = [
   "identities",
   "tasks",
   "blocks",
-  "templates",
-  "prints",
   "projects",
   "habits",
   "visions",
@@ -2257,27 +2191,7 @@ const APP_DATA_KEYS = [
 
 export function parseAppData(raw: unknown): AppData {
   if (!isObject(raw)) throw new AppError("数据必须是对象");
-  // 与 Rust #[serde(deny_unknown_fields)] 对齐：顶层未知字段直接拒绝（不兼容旧协议）。
-  rejectUnknown(
-    raw,
-    [
-      "education",
-      "version",
-      "identities",
-      "tasks",
-      "blocks",
-      "templates",
-      "prints",
-      "projects",
-      "habits",
-      "visions",
-      "settings",
-      "timer",
-      "sessions",
-      "lock",
-    ],
-    "数据",
-  );
+  rejectUnknown(raw, [...APP_DATA_KEYS], "数据");
   return new AppData({
     education: field(raw, "education", "数据", parseEducation, new Education()),
     version: requiredField(raw, "version", "数据", asInt),
@@ -2300,34 +2214,6 @@ export function parseAppData(raw: unknown): AppData {
       "blocks",
       "数据",
       (v) => asArray(v, "blocks").map(parseBlock),
-      [],
-    ),
-    templates: field(
-      raw,
-      "templates",
-      "数据",
-      (v) => asArray(v, "templates").map(parseTemplate),
-      [],
-    ),
-    prints: field(
-      raw,
-      "prints",
-      "数据",
-      (v) =>
-        asArray(v, "prints").map((p) => {
-          ensure(isObject(p), "印刷记录必须是对象");
-          rejectUnknown(p, ["templateId", "date"], "印刷记录");
-          return {
-            templateId: requiredField(p, "templateId", "印刷记录", asStr),
-            date: field(
-              p,
-              "date",
-              "印刷记录",
-              (d) => asOpt(d, "date", asStr),
-              null,
-            ) as string | null,
-          };
-        }),
       [],
     ),
     projects: requiredField(raw, "projects", "数据", (v) =>
@@ -2367,8 +2253,6 @@ export function serializeAppData(data: AppData): Record<string, unknown> {
     identities: data.identities.map(serializeIdentity),
     tasks: data.tasks.map(serializeTask),
     blocks: data.blocks.map(serializeBlock),
-    templates: data.templates.map(serializeTemplate),
-    prints: data.prints.map(serializePrintRecord),
     projects: data.projects.map(serializeProject),
     habits: data.habits.map(serializeHabit),
     visions: data.visions.map(serializeVision),
@@ -2379,6 +2263,5 @@ export function serializeAppData(data: AppData): Record<string, unknown> {
   };
 }
 
-import { serializePrintRecord, serializeTemplate } from "./templates";
 import { validateBlock } from "./blocks";
 import { isAbsolutePath } from "./education";

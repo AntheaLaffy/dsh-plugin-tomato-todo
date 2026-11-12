@@ -1534,10 +1534,10 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       catchUpDesignText: "キャッチアップは借金リストではなく、「まだやりたい」の余地があります。補うかどうかを決め、失敗しないようにします。",
       catchUpWhenHeading: "タスクがここに着陸したとき",
       catchUpWhenText: "計画ブロックが終了し、タスクが未完了でも修復ウィンドウ内にある場合、キャッチアップキューに移動し、再びここに表示されます。",
-      catchUpHabitHeading: "見逃した習慣は欠勤としてカウントされます",
-      catchUpHabitText: "習慣が切れると、今日のリストから外れ、欠勤が記録されます。",
-      catchUpExpireHeading: "ウィンドウを過ぎると無効になります",
-      catchUpExpireText: "修復ウィンドウを超えると、インスタンスは無効になり、リマインダーが停止します。それは別の日に運ぶことはありません。",
+      catchUpHabitHeading: "繰り返しタスクは保持されます",
+      catchUpHabitText: "繰り返しタスクは失効せず、時刻指定があれば後で実行できます。完了後に次回を作成します。",
+      catchUpExpireHeading: "単発タスクの失効",
+      catchUpExpireText: "時刻指定の単発タスクは猶予期間後、時刻なしの単発タスクは実施日と保持日数の終了後に失効します。",
       emptyActiveTitle: "今日のタスクはありません",
       emptyActiveHint: "1つのことを書き留めて、最初のステップを今のところ維持してください。",
       emptyDoneTitle: "完了したタスクはまだありません",
@@ -1795,50 +1795,6 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       fileFilter: "JSONファイル",
       exportBackupPending: "ランタイムのエクスポートエンドポイントはまだ準備できていません。"
     },
-    print: {
-      title: "タスクを印刷",
-      subtitle: "テンプレートからタスクインスタンスを生成します。既に印刷された日付はスキップされます。",
-      template: "テンプレート",
-      untitled: "無題のテンプレート",
-      emptyTitle: "テンプレートはまだありません",
-      emptyHint: "タスクページでタスクのグループをテンプレートとして保存してから、戻って印刷してください。",
-      noPrinting: "このテンプレートには使用可能な印刷ルールがありません",
-      noPrintingHint: "先にテンプレートエディタで一回限り、カレンダー、または毎週のルールを設定してください。",
-      ruleNone: "印刷ルールなし",
-      ruleOnce: "一回 · {date}{time}",
-      ruleCalendar: "カレンダー · {n}件の日付",
-      ruleWeekly: "毎週 · {days}{times}",
-      daySep: "、",
-      timesSep: "·",
-      untimed: "いつでも",
-      autoLabel: "自動印刷",
-      autoHint: "今日から{n}日先までの空きを埋めます。アプリが閉じている間は実行されません。",
-      autoOn: "自動印刷オン",
-      autoOff: "自動印刷オフ",
-      dates: "予定日",
-      pickDate: "日を選択",
-      chipToday: "今日",
-      chipTomorrow: "明日",
-      chipThisWeek: "今週",
-      chipNextDays: "次の7日間",
-      chipAllDates: "すべてのルール日付（{n}）",
-      chipRuleDate: "ルール日付：{date}",
-      addDate: "追加",
-      removeDate: "この日付を削除",
-      pickedEmpty: "日付がまだありません — 上のクイック日付をタップするか、1つ選択してください。",
-      invalidDate: "無効な日付です。別の日付を選択してください",
-      preview: "プレビュー",
-      previewCount: "{n}件のタスクを作成します",
-      previewNone: "作成するものはありません",
-      previewMore: "…他{n}件",
-      skipped: "スキップします",
-      skipPrinted: "印刷済み: {date}",
-      skipNotInRule: "カレンダーにない: {date}",
-      excludedHint: "ルール外の日付はバッチが失敗しないよう除外されます。",
-      pickDateFirst: "少なくとも1つの日付を選択してください",
-      confirm: "印刷",
-      done: "印刷を送信しました"
-    },
     schedule: {
       eyebrow: "トマト Todo",
       title: "予定されたロック",
@@ -1963,12 +1919,23 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       newTitle: "タスクを作成",
       editTitle: "タスクを編集",
       newSubtitle: "一度に一つずつ。日付とフォーカスブロックは後で設定できます。",
-      editSubtitle: "日付、完了状態、セッションはこのインスタンスに属します。パターンを変更するにはテンプレートを編集してください。",
+      editSubtitle: "現在のタスクと繰り返し条件を編集します。完了を確認してから次回を作成します。",
       title: "タイトル",
       titlePlaceholder: "何を終わらせたいですか？",
       project: "プロジェクト",
       noProject: "プロジェクトなし",
-      dueDate: "予定日",
+      dueDate: "実施日（任意）",
+      dateHint: "日付と時刻が空欄なら毎日の繰り返しタスクになります",
+      repeatDays: "曜日（空欄の場合は実施日の曜日）",
+      repeat: "繰り返し",
+      repeatHint: "繰り返しタスクは失効せず、完了後に次回を作成します",
+      repeat_none: "なし",
+      repeat_daily: "毎日",
+      repeat_weekdays: "平日",
+      repeat_weekly: "毎週",
+      expiry: "失効までの日数",
+      expiryHint: "時刻なしの単発タスク用。0 は実施日終了後に失効",
+      expiryInvalid: "日数は 0–36500",
       reminder: "リマインダー",
       reminderHint: "空欄の場合はその日のリストに表示するだけです",
       focusMinutes: "セッションあたりのフォーカス",
@@ -2031,7 +1998,6 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       tabActive: "To Do",
       tabCompleted: "完了",
       tabAll: "すべて",
-      tabTemplates: "テンプレート",
       selectMode: "選択",
       selectDone: "選択を完了",
       batchSelected: "{n}件を選択中",
@@ -2070,27 +2036,6 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       addSubmit: "追加",
       fullEdit: "詳細編集",
       added: "タスクを追加しました",
-      templateUnnamed: "無題のテンプレート",
-      printingOnce: "1回 · {date}{time}",
-      printingCalendar: "カレンダー · {n}スロット",
-      printingWeekly: "毎週 · {n}スロット",
-      printingNone: "印刷ルールはまだありません",
-      printingNoDate: "予定外",
-      printingTimes: "· {times}",
-      autoPrint: "自動印刷",
-      manualPrint: "手動",
-      printAhead: "{n}日前",
-      templateEstimate: "ポモドーロ{n}回を予定",
-      templateFocus: "1セッション{minutes}分",
-      templateDefaultFocus: "1セッション{minutes}分（デフォルト）",
-      templatesHint: "テンプレートは形と印刷ルールを保持します。印刷されたインスタンスは切り離されたままなので、必要に応じて同期してください。",
-      templatesTitle: "テンプレートと印刷",
-      newTemplate: "新規テンプレート",
-      editTemplate: "テンプレートを編集",
-      printTemplateAction: "テンプレートを印刷",
-      syncTemplate: "未完了のインスタンスに形を同期",
-      templateSynced: "テンプレートの形を未完了のインスタンスに同期しました",
-      syncingTemplate: "同期中…",
       emptyActive: "タスクはまだありません — 追加しましょう",
       emptyActiveHint: "やることを1つ書き出して、最初の一歩を踏み出しましょう。",
       emptyCompleted: "やり遂げたことは残す価値があります",
@@ -2098,92 +2043,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
       emptyAll: "タスクはまだありません",
       emptyAllHint: "やることを1つ書き出して、最初の一歩を踏み出しましょう。",
       emptySearch: "一致するタスクがありません",
-      emptySearchHint: "別のキーワードを試すか、フィルターを解除してください。",
-      emptyTemplates: "テンプレートはまだありません",
-      emptyTemplatesHint: "テンプレートは形を保ち、インスタンスは各実行を記録します。"
-    },
-    template: {
-      newTitle: "新規テンプレート",
-      editTitle: "テンプレートを編集",
-      newSubtitle: "テンプレートは形と印刷ルールを保存し、インスタンスは各実行を記録します。",
-      editSubtitle: "テンプレートを編集しても印刷済みのインスタンスは書き換わりません。未完了のものを更新するには同期を使ってください。",
-      title: "タイトル",
-      titleHint: "タイトルはテンプレート名です。習慣グループもこれを再利用します。",
-      titlePlaceholder: "もう一度印刷する価値のあること",
-      project: "プロジェクト",
-      noProject: "プロジェクトなし",
-      focusMinutes: "1セッションあたりの集中時間",
-      focusMinutesHint: "空欄の場合はデフォルトの{n}分を使用します",
-      estimate: "予定ポモドーロ数",
-      scrap: "修復ウィンドウ",
-      scrapHint: "プランブロック後にまだ使用可能な分数。0にすると時間通りに無効になります",
-      priority: "優先度",
-      tags: "タグ",
-      tagsPlaceholder: "カンマ区切り、例：数学、間違い",
-      notes: "メモ",
-      notesPlaceholder: "参考資料、場所、または自分用のメモ…",
-      subtasks: "サブタスク",
-      subtaskPlaceholder: "サブタスクを追加",
-      addSubtask: "サブタスクを追加",
-      removeSubtask: "サブタスクを削除",
-      untouched: "無題のステップ",
-      printingTitle: "印刷ルール",
-      printingHint: "このルールがインスタンスの出現時期を決定します。印刷されたインスタンスはテンプレートから切り離されます。",
-      kindOnce: "1回",
-      kindCalendar: "カレンダー",
-      kindWeekly: "毎週",
-      onceDate: "印刷日",
-      onceTime: "開始時刻",
-      timeOptional: "空欄は固定時刻なしを意味し、その日に参加するだけです",
-      calendarHint: "同じ開始時刻を共有する日付は1つのスロットに入ります。スロットは開始時刻を共有できません。",
-      addSlot: "スロットを追加",
-      removeSlot: "スロットを削除",
-      slotTime: "開始時刻",
-      slotDates: "日付",
-      addDate: "日付を追加",
-      removeDate: "日付を削除",
-      weeklyHint: "選択した曜日は印刷時に週全体に展開されます。同じ曜日/時刻は繰り返せません。",
-      weeklyDays: "曜日",
-      weeklyAutoHabit: "すべてのスロットに開始時刻がある毎週テンプレートは、コアによって習慣グループとして記録されます。",
-      habitNote: "このテンプレートは習慣グループに紐付けられているため、開始時刻が必須です。",
-      automatic: "自動印刷",
-      automaticHint: "今日から先の日数分の隙間を埋めます。アプリが閉じている間は何も印刷されません。",
-      printAhead: "先の日数",
-      printAheadHint: "0〜90日",
-      printNow: "保存後すぐに印刷",
-      printNowOnce: "保存後すぐにこれを印刷",
-      printNowCalendar: "保存後すぐにルールの日付を印刷",
-      printNowWeekly: "保存後すぐに今週分を印刷",
-      titleRequired: "テンプレートのタイトルは必須です",
-      titleTooLong: "テンプレートのタイトルは200文字以内にしてください",
-      focusInvalid: "セッションごとの集中時間は1〜180分にしてください",
-      estimateInvalid: "予定ポモドーロ数は1〜99にしてください",
-      scrapInvalid: "修復ウィンドウは0〜10080分にしてください",
-      tooManyTags: "タグは最大20個まで、それぞれ40文字未満にしてください",
-      subtaskEmpty: "サブタスクのタイトルは必須です",
-      dateRequired: "印刷日を選択してください",
-      dateInvalid: "無効な日付です。YYYY-MM-DD形式で入力してください",
-      timeInvalid: "開始時刻はHH:MM形式にしてください",
-      needSlot: "少なくとも1つのスロットが必要です",
-      needDays: "各スロットには少なくとも1つの曜日が必要です",
-      needDates: "各カレンダースロットには少なくとも1つの日付が必要です",
-      duplicateDates: "同じ開始時刻に日付が重複しています。統合してください",
-      duplicateTime: "スロットで開始時刻を共有できません",
-      duplicateWeekly: "同じ開始時刻に曜日が重複しています。統合してください",
-      needTime: "習慣テンプレートには開始時刻が必要です",
-      mixedTime: "1つのルールで時刻ありと時刻なしのスロットを混在できません",
-      aheadInvalid: "先の日数は0〜90にしてください",
-      saved: "テンプレートを保存しました",
-      created: "テンプレートを作成しました",
-      savedAndPrinted: "テンプレートを保存しました。印刷を送信しました",
-      deleted: "テンプレートを削除しました。インスタンスは保持されます",
-      deleteTitle: "このテンプレートを削除しますか？",
-      deleteBody: "印刷済みインスタンスは保持されますが、テンプレートとのリンクが失われ、印刷台帳はクリアされます。この操作は元に戻せません。",
-      deleteConfirm: "削除",
-      priorityNone: "なし",
-      priorityLow: "低",
-      priorityMedium: "中",
-      priorityHigh: "高"
+      emptySearchHint: "別のキーワードを試すか、フィルターを解除してください。"
     }
   };
 
@@ -4415,12 +4275,19 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
     const project = projectById(data, projectId);
     return project && project.color ? project.color : "var(--tomato-ink-3)";
   }
+  function listedTasks(data) {
+    return (data && data.tasks || []).filter(
+      (task) => task && (task.completed || !task.reminderExpired || task.repeat && task.repeat !== "none")
+    );
+  }
   function todayTasks(data, today) {
     const tasks = data && data.tasks || [];
-    return tasks.filter((task) => !task.completed && task.dueDate === today);
+    return tasks.filter(
+      (task) => !task.completed && (task.dueDate == null || task.dueDate <= today) && (!task.reminderExpired || task.repeat && task.repeat !== "none")
+    );
   }
   function overdueTasks(data, today) {
-    const tasks = data && data.tasks || [];
+    const tasks = listedTasks(data);
     return tasks.filter(
       (task) => !task.completed && task.dueDate !== null && task.dueDate !== void 0 && task.dueDate < today
     );
@@ -4505,27 +4372,29 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
   }
   function isCatchUp(input, task, today) {
     const data = input && input.data ? input.data : input;
-    const taskKinds = (input && input.data ? input.taskKinds : input && input.taskKinds) || {};
     if (!data || !task) return false;
-    const nowKey = dayKey(Date.now() / 1e3);
-    if (nowKey !== today) return false;
-    if (task.completed || task.reminderExpired) return false;
-    if (task.dueDate !== today || task.reminderTime === null) return false;
-    const kind = taskKinds[task.id];
-    if (kind === "habit" || task.habitId !== null || task.recurring) return false;
+    if (task.completed || task.reminderExpired && (!task.repeat || task.repeat === "none"))
+      return false;
+    if (!task.dueDate || !task.reminderTime || task.dueDate > today) return false;
     const start = parseHHMM(task.reminderTime);
     if (start === null) return false;
-    if (task.scrapMinutes <= 0) return false;
-    const elapsed = /* @__PURE__ */ new Date();
-    const nowSecs = elapsed.getHours() * 3600 + elapsed.getMinutes() * 60 + elapsed.getSeconds();
-    const end = start + windowMinutes(task, data.settings) * 60;
-    return nowSecs > end && nowSecs < end + task.scrapMinutes * 60;
+    const [year, month, day] = task.dueDate.split("-").map(Number);
+    const end = new Date(
+      year,
+      month - 1,
+      day,
+      0,
+      0,
+      start + windowMinutes(task, data.settings) * 60
+    ).getTime() / 1e3;
+    const now = input?.serverTime ?? Date.now() / 1e3;
+    return now >= end;
   }
   function catchUpTasks(input, today) {
     const data = input && input.data ? input.data : input;
     const tasks = data && data.tasks || [];
     return tasks.filter((task) => isCatchUp(input, task, today)).sort(
-      (a, b) => String(a.reminderTime).localeCompare(String(b.reminderTime))
+      (a, b) => String(a.dueDate).localeCompare(String(b.dueDate)) || String(a.reminderTime).localeCompare(String(b.reminderTime))
     );
   }
   function completedOn(data, today) {
@@ -5285,7 +5154,7 @@ html[data-tomato-skin=off] #tomato-ambient{display:none!important}
   }) {
     const data = state && state.data || {};
     const projects = Array.isArray(data.projects) ? data.projects : [];
-    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const tasks = listedTasks(data);
     const counts = /* @__PURE__ */ new Map();
     for (const task of tasks) {
       if (!task || task.completed || !task.projectId) continue;
@@ -8432,17 +8301,28 @@ ${JSON.stringify(refs, null, 2)}`;
   // plugin/src/client/pages/task-dialog.js
   registerCopy("task", {
     zh: {
-      newTitle: "直接创建实例",
-      editTitle: "编辑实例",
+      newTitle: "新建任务",
+      editTitle: "编辑任务",
       newSubtitle: "写下想完成的一件事，日期和专注时段可以慢慢补。",
-      editSubtitle: "日期、完成状态和专注记录属于这一次执行；改模板请去模板编辑。",
+      editSubtitle: "修改当前任务和循环规则，完成后按新规则安排下一次。",
       title: "任务名称",
       titlePlaceholder: "想完成什么？",
       project: "所属项目",
       noProject: "不分类",
-      dueDate: "计划日期",
+      dueDate: "计划日期（可选）",
+      dateHint: "日期和提醒都留空时，作为每日循环任务",
+      repeatDays: "每周发生日（留空沿用发生日期的星期）",
+      repeat: "循环",
+      repeatHint: "循环任务不会作废，完成后安排下一次",
+      repeat_none: "不循环",
+      repeat_daily: "每天",
+      repeat_weekdays: "工作日",
+      repeat_weekly: "每周",
       reminder: "提醒时刻",
-      reminderHint: "留空表示只放进当日待办，不单独提醒",
+      reminderHint: "可留空；无精确提醒的任务不进入待补队列",
+      expiry: "报废期限（天）",
+      expiryHint: "非循环且无精确提醒时有效；0 表示发生日结束后报废",
+      expiryInvalid: "报废天数需为 0–36500",
       focusMinutes: "单次专注时长",
       focusMinutesHint: "留空沿用设置里的 {n} 分钟",
       estimate: "预计番茄数",
@@ -8460,7 +8340,7 @@ ${JSON.stringify(refs, null, 2)}`;
       addSubtask: "添加子任务",
       removeSubtask: "删除子任务",
       titleRequired: "任务名称不能为空",
-      dateRequired: "请选择计划日期",
+      dateRequired: "设置提醒时间时需要计划日期",
       focusInvalid: "单次专注时长需为 1–180 分钟",
       estimateInvalid: "预计番茄数需为 1–99",
       scrapInvalid: "重修窗口需为 0–10080 分钟",
@@ -8480,14 +8360,25 @@ ${JSON.stringify(refs, null, 2)}`;
       newTitle: "Create task",
       editTitle: "Edit task",
       newSubtitle: "One thing at a time. Dates and focus blocks can come later.",
-      editSubtitle: "Date, completion and sessions belong to this instance; edit the template to change the pattern.",
+      editSubtitle: "Edit this task and its repeat rule; confirmation schedules the next one.",
       title: "Title",
       titlePlaceholder: "What do you want to finish?",
       project: "Project",
       noProject: "No project",
-      dueDate: "Planned date",
+      dueDate: "Planned date (optional)",
+      dateHint: "No date and no reminder means a daily task",
+      repeatDays: "Weekdays (empty uses the planned weekday)",
+      repeat: "Repeat",
+      repeatHint: "Repeating tasks stay until completed; completion schedules the next one",
+      repeat_none: "Never",
+      repeat_daily: "Daily",
+      repeat_weekdays: "Weekdays",
+      repeat_weekly: "Weekly",
       reminder: "Reminder",
-      reminderHint: "Leave empty to just list it for the day",
+      reminderHint: "Optional; untimed tasks do not enter catch-up",
+      expiry: "Expiry (days)",
+      expiryHint: "For untimed, non-repeating tasks; 0 expires after the planned day",
+      expiryInvalid: "Expiry must be 0–36500 days",
       focusMinutes: "Focus per session",
       focusMinutesHint: "Empty uses the {n} min default",
       estimate: "Pomodoros planned",
@@ -8564,19 +8455,24 @@ ${JSON.stringify(refs, null, 2)}`;
       title: initialTitle ?? "",
       notes: "",
       projectId: initialProjectId ?? "",
-      dueDate: today ?? "",
+      dueDate: "",
       reminderTime: "",
       focusMinutes: "",
       scrapMinutes: "0",
+      expiryDays: "0",
       priority: 0,
       estimate: "1",
       tagsText: "",
-      subtasks: []
+      subtasks: [],
+      repeat: "none",
+      repeatDays: []
     };
   }
   function taskToDraft(task) {
     return {
       id: task.id,
+      repeat: task.repeat || "none",
+      repeatDays: task.repeatDays || [],
       title: task.title ?? "",
       notes: task.notes ?? "",
       projectId: task.projectId ?? "",
@@ -8584,6 +8480,7 @@ ${JSON.stringify(refs, null, 2)}`;
       reminderTime: task.reminderTime ?? "",
       focusMinutes: task.focusMinutes === null || task.focusMinutes === void 0 ? "" : String(task.focusMinutes),
       scrapMinutes: String(task.scrapMinutes ?? 0),
+      expiryDays: String(task.expiryDays ?? 0),
       priority: Number(task.priority) || 0,
       estimate: String(Math.max(1, Number(task.estimate) || 1)),
       tagsText: Array.isArray(task.tags) ? task.tags.join(", ") : "",
@@ -8651,7 +8548,7 @@ ${JSON.stringify(refs, null, 2)}`;
         setError(t("task.titleRequired"));
         return;
       }
-      if (!draft.dueDate) {
+      if (!draft.dueDate && draft.reminderTime) {
         setError(t("task.dateRequired"));
         return;
       }
@@ -8663,6 +8560,11 @@ ${JSON.stringify(refs, null, 2)}`;
       const focusMinutes = draft.focusMinutes === null || String(draft.focusMinutes).trim() === "" ? null : intOf(draft.focusMinutes, null);
       if (focusMinutes !== null && (focusMinutes < 1 || focusMinutes > 180)) {
         setError(t("task.focusInvalid"));
+        return;
+      }
+      const expiryDays = intOf(draft.expiryDays, 0);
+      if (expiryDays === null || expiryDays < 0 || expiryDays > 36500) {
+        setError(t("task.expiryInvalid"));
         return;
       }
       const scrapMinutes = intOf(draft.scrapMinutes, 0);
@@ -8692,6 +8594,7 @@ ${JSON.stringify(refs, null, 2)}`;
           reminderTime: draft.reminderTime ? draft.reminderTime : null,
           focusMinutes,
           scrapMinutes,
+          expiryDays,
           priority: Number(draft.priority) || 0,
           estimate,
           tags,
@@ -8700,7 +8603,8 @@ ${JSON.stringify(refs, null, 2)}`;
             title: String(sub.title ?? "").trim(),
             done: !!sub.done
           })),
-          repeat: "none"
+          repeat: draft.dueDate ? draft.repeat : "daily",
+          repeatDays: draft.repeat === "weekly" && draft.dueDate ? draft.repeatDays : []
         }
       });
       setBusy(false);
@@ -8792,13 +8696,48 @@ ${JSON.stringify(refs, null, 2)}`;
         ),
         h(
           Field,
-          { label: t("task.dueDate") },
+          { label: t("task.dueDate"), hint: t("task.dateHint") },
           h(Input, {
             type: "date",
             value: draft.dueDate,
             onChange: (value) => patch({ dueDate: value })
           })
         ),
+        h(
+          Field,
+          { label: t("task.repeat"), hint: t("task.repeatHint") },
+          h(Select, {
+            value: draft.dueDate ? draft.repeat : "daily",
+            width: "100%",
+            options: ["none", "daily", "weekdays", "weekly"].map((value) => ({
+              value,
+              label: t(`task.repeat_${value}`)
+            })),
+            onChange: (value) => patch({
+              repeat: value,
+              repeatDays: value === "weekly" ? draft.repeatDays : []
+            }),
+            disabled: !draft.dueDate
+          })
+        ),
+        draft.dueDate && draft.repeat === "weekly" ? h(
+          Field,
+          { label: t("task.repeatDays") },
+          h(
+            "div",
+            { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+            [1, 2, 3, 4, 5, 6, 7].map(
+              (day) => h(Check, {
+                key: day,
+                label: t("common.weekFull")[day - 1],
+                checked: draft.repeatDays.includes(day),
+                onChange: () => patch({
+                  repeatDays: draft.repeatDays.includes(day) ? draft.repeatDays.filter((d) => d !== day) : [...draft.repeatDays, day].sort((a, b) => a - b)
+                })
+              })
+            )
+          )
+        ) : null,
         h(
           Field,
           { label: t("task.reminder"), hint: t("task.reminderHint") },
@@ -8840,7 +8779,16 @@ ${JSON.stringify(refs, null, 2)}`;
             width: "100%"
           })
         ),
-        h(
+        draft.dueDate && draft.repeat === "none" && !draft.reminderTime ? h(
+          Field,
+          { label: t("task.expiry"), hint: t("task.expiryHint") },
+          h(Input, {
+            type: "number",
+            value: draft.expiryDays,
+            onChange: (value) => patch({ expiryDays: value })
+          })
+        ) : null,
+        draft.dueDate && draft.repeat === "none" && draft.reminderTime ? h(
           Field,
           { label: t("task.scrap"), hint: t("task.scrapHint") },
           h(Input, {
@@ -8848,7 +8796,7 @@ ${JSON.stringify(refs, null, 2)}`;
             value: draft.scrapMinutes,
             onChange: (value) => patch({ scrapMinutes: value })
           })
-        ),
+        ) : null,
         h(
           Field,
           { label: t("task.tags") },
@@ -9620,7 +9568,7 @@ ${JSON.stringify(refs, null, 2)}`;
     zh: {
       materialsHomework: "资料与试卷",
       materialsLesson: "课程资料",
-      materialsHint: "这次作业/考试绑定的资料与试卷；预览在弹窗内打开，下载取原件。",
+      materialsHint: "本次任务指定的资料与试卷；未指定时显示项目资料。",
       materialsEmpty: "这次作业没有绑定资料",
       lessonMaterialsEmpty: "这节课没有绑定资料",
       related: "相关资料",
@@ -9666,7 +9614,9 @@ ${JSON.stringify(refs, null, 2)}`;
       submitHomework: "提交作业",
       submitExam: "提交试卷",
       submitting: "提交中…",
-      submitDone: "已提交",
+      submitDone: "已提交，请确认任务是否完成",
+      confirmComplete: "确认任务完成",
+      taskCompleted: "任务已完成",
       examStart: "开始考试",
       examStop: "停笔",
       examTitle: "考试",
@@ -9697,7 +9647,7 @@ ${JSON.stringify(refs, null, 2)}`;
     en: {
       materialsHomework: "Materials & papers",
       materialsLesson: "Lesson materials",
-      materialsHint: "Files bound to this assignment; preview opens in a dialog, download saves the original.",
+      materialsHint: "Materials selected for this task; shows project materials when none are specified.",
       materialsEmpty: "No materials are bound to this assignment",
       lessonMaterialsEmpty: "No materials are bound to this lesson",
       related: "Related materials",
@@ -9743,7 +9693,9 @@ ${JSON.stringify(refs, null, 2)}`;
       submitHomework: "Submit homework",
       submitExam: "Submit exam",
       submitting: "Submitting…",
-      submitDone: "Submitted",
+      submitDone: "Submitted; confirm whether the task is complete",
+      confirmComplete: "Confirm task complete",
+      taskCompleted: "Task complete",
       examStart: "Start exam",
       examStop: "Stop writing",
       examTitle: "Exam",
@@ -9820,7 +9772,9 @@ ${JSON.stringify(refs, null, 2)}`;
       submitHomework: "宿題を提出",
       submitExam: "答案を提出",
       submitting: "提出中…",
-      submitDone: "提出しました",
+      submitDone: "提出済み。タスクの完了を確認してください",
+      confirmComplete: "タスク完了を確認",
+      taskCompleted: "タスク完了",
       examStart: "試験を開始",
       examStop: "筆記終了",
       examTitle: "試験",
@@ -10105,6 +10059,14 @@ ${JSON.stringify(refs, null, 2)}`;
       submissionId: submission ? String(submission.id) : ""
     };
   }
+  function teachingMaterialIds(subject, resources = []) {
+    if (!subject) return [];
+    const specified = unique(asArray(subject.resourceIds));
+    if (specified.length > 0) return specified;
+    return unique(
+      asArray(resources).filter((r) => r && r.projectId === subject.projectId).map((r) => r.id)
+    );
+  }
   function AssignmentDialog({
     open = false,
     onClose,
@@ -10121,31 +10083,26 @@ ${JSON.stringify(refs, null, 2)}`;
     const assessment = assessmentId ? assessments.find((item) => item && item.id === assessmentId) || null : null;
     const lesson = lessonId ? lessons.find((item) => item && item.id === lessonId) || null : null;
     const subject = assessment || lesson;
+    const linkedId = asArray(education.focusTasks).find(
+      (link) => link.sourceId === subject?.id
+    )?.taskId;
+    const linkedTask = asArray(data?.tasks).find((task) => task.id === linkedId) || null;
     const projectId = subject && typeof subject.projectId === "string" ? subject.projectId : "";
     const project = projectOf(data, projectId);
-    const projectStudy = asArray(education.projects).find(
-      (item) => item && item.projectId === projectId
-    ) || null;
     const isExam = assessment !== null && assessment.kind !== "homework";
     const at = Number.isFinite(Number(now)) && Number(now) > 0 ? Number(now) : Math.floor(Date.now() / 1e3);
     const submission = assessment ? latestSubmissionOf(education, assessment.id) : null;
     const grade = submission ? latestGradeOf(education, submission.id) : null;
-    const materialIds = assessment ? unique(
-      asArray(assessment.questions).flatMap(
-        (question) => asArray(question && question.sourceIds)
-      )
-    ) : unique(asArray(lesson && lesson.resourceIds));
-    const relatedIds = projectStudy ? unique([
-      projectStudy.syllabusId,
-      ...asArray(projectStudy.pastPaperIds),
-      ...asArray(projectStudy.mockPaperIds)
-    ]) : [];
+    const [fetchedCatalog, setFetchedCatalog] = useState([]);
+    const materialIds = teachingMaterialIds(subject, [
+      ...asArray(education.resources),
+      ...fetchedCatalog
+    ]);
     const submissionIds = submission ? unique(asArray(submission.resourceIds)) : [];
-    const infoIds = unique([...materialIds, ...relatedIds]);
+    const infoIds = unique([...materialIds, ...submissionIds]);
     const infoKey = infoIds.join("|");
     const [access, setAccess] = useState("");
     const [tokenError, setTokenError] = useState(null);
-    const [fetchedCatalog, setFetchedCatalog] = useState([]);
     const [loadingCatalog, setLoadingCatalog] = useState(false);
     const [catalogError, setCatalogError] = useState(null);
     const [fileInfo, setFileInfo] = useState({});
@@ -10154,6 +10111,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const [pickedSheets, setPickedSheets] = useState([]);
     const [submitError, setSubmitError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const [pendingId, setPendingId] = useState(null);
     const [examBusy, setExamBusy] = useState(false);
     const [examError, setExamError] = useState(null);
@@ -10293,10 +10251,9 @@ ${JSON.stringify(refs, null, 2)}`;
       return strOr(resource.title) || strOr(info && info.name) || basenameOf(resource.path) || resource.id;
     };
     const answerSheets = Array.from(catalog.values()).filter(
-      (item) => item && item.projectId === projectId && item.kind === "answerSheet" && typeof item.id === "string"
+      (item) => item && item.projectId === projectId && item.kind === "answerSheet" && (materialIds.includes(item.id) || submissionIds.includes(item.id) || pickedSheets.includes(item.id)) && typeof item.id === "string"
     ).sort((a, b) => strOr(a.title).localeCompare(strOr(b.title)));
     const materialRows = materialIds.map(resourceOf);
-    const relatedRows = relatedIds.filter((id) => !materialIds.includes(id)).map(resourceOf);
     const attachmentRows = submissionIds.map(resourceOf);
     const lessonWindowOpen = lesson !== null && hasTs(lesson.startsAt) && hasTs(lesson.endsAt) && at >= Number(lesson.startsAt) && at < Number(lesson.endsAt);
     const resourceRow = (resource) => {
@@ -10643,16 +10600,6 @@ ${JSON.stringify(refs, null, 2)}`;
       materialsBody,
       catalogError ? errorBlock(t("assignment.loadFailed", { error: catalogError })) : null
     );
-    const relatedSection = relatedRows.length === 0 ? null : h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 4 } },
-      h(SectionTitle, {
-        icon: "tag",
-        title: t("assignment.related"),
-        hint: t("assignment.relatedHint")
-      }),
-      h("div", null, relatedRows.map(resourceRow))
-    );
     const tokenNote = tokenError ? errorBlock(t("assignment.fileTokenFailed", { error: tokenError })) : null;
     const examSection = !isExam ? null : h(
       "div",
@@ -10993,6 +10940,25 @@ ${JSON.stringify(refs, null, 2)}`;
         { style: { flex: 1, fontSize: 11.5, color: "var(--tomato-ink-3)" } },
         isExam && !examStopped ? t("assignment.examRunning") : ""
       ),
+      linkedTask ? h(
+        Btn,
+        {
+          variant: linkedTask.completed ? "soft" : "primary",
+          size: "sm",
+          icon: "check",
+          disabled: completing || linkedTask.completed || assessment && (!submission || submission.unfinished),
+          onClick: async () => {
+            setCompleting(true);
+            const result = await tryDispatch({
+              type: "toggleTask",
+              id: linkedTask.id
+            });
+            setCompleting(false);
+            if (!result.ok) notify(result.error, "danger");
+          }
+        },
+        linkedTask.completed ? t("assignment.taskCompleted") : t("assignment.confirmComplete")
+      ) : null,
       h(
         Btn,
         {
@@ -11037,7 +11003,6 @@ ${JSON.stringify(refs, null, 2)}`;
           { style: { display: "flex", flexDirection: "column", gap: 16 } },
           header,
           materialsSection,
-          relatedSection,
           tokenNote,
           examSection ? h(Divider, null) : null,
           examSection,
@@ -11368,7 +11333,7 @@ ${JSON.stringify(refs, null, 2)}`;
     if (!open) return null;
     const data = state && state.data || {};
     const todayKey2 = state && state.today || "";
-    const allTasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const allTasks = listedTasks(data);
     const normalized = query.trim().toLowerCase();
     const results = allTasks.filter((task) => matches(task, normalized)).sort(sortResults).slice(0, normalized === "" ? 8 : 30);
     const pick = (task) => {
@@ -11629,11 +11594,11 @@ ${JSON.stringify(refs, null, 2)}`;
       catchUpDesignHeading: "设计理念",
       catchUpDesignText: "待补是给「还想做」留的位置，不是欠债清单：补不补由你决定，没做也不算失败。",
       catchUpWhenHeading: "什么时候进入",
-      catchUpWhenText: "计划块结束了但还没做完时，普通组若仍在「重修窗口」内，就会进入待补队列，重新出现在今日专注里。",
-      catchUpHabitHeading: "习惯漏做记缺勤",
-      catchUpHabitText: "习惯过期后直接从今日待办移出并计一次缺勤。",
+      catchUpWhenText: "设置了发生日期与精确提醒时间的任务，超过预计总时长后，未完成且未报废就进入待补队列；无精确提醒的任务不进入。",
+      catchUpHabitHeading: "循环任务持续保留",
+      catchUpHabitText: "循环任务没有报废期限；有精确提醒时可以进入待补，完成后才安排下一次。",
       catchUpExpireHeading: "超过窗口就报废",
-      catchUpExpireText: "超过重修窗口，实例作废、不再提醒。跨日不补。",
+      catchUpExpireText: "非循环定时任务超过重修窗口后报废；无精确提醒的非循环任务按报废天数处理，默认发生日结束后报废。",
       emptyActiveTitle: "今天没有待办任务",
       emptyActiveHint: "写下想做的事，把第一步留给现在。",
       emptyDoneTitle: "还没有完成的任务",
@@ -11728,11 +11693,11 @@ ${JSON.stringify(refs, null, 2)}`;
       catchUpDesignHeading: "Why it exists",
       catchUpDesignText: "Catch-up is room for “still want to”, not a debt list: you decide whether to make it up, and skipping it isn't failure.",
       catchUpWhenHeading: "When tasks land here",
-      catchUpWhenText: "If a plan block ends and the task is unfinished but still inside its repair window, it moves into the catch-up queue and shows up here again.",
-      catchUpHabitHeading: "Missed habits count as absences",
-      catchUpHabitText: "Once a habit expires it leaves today's list and records an absence.",
+      catchUpWhenText: "Dated tasks with an exact reminder enter catch-up after their planned block ends if unfinished and still valid. Untimed tasks never enter catch-up.",
+      catchUpHabitHeading: "Repeating tasks stay available",
+      catchUpHabitText: "Repeating tasks never expire. Timed ones can enter catch-up; completion schedules the next one.",
       catchUpExpireHeading: "Past the window, it's void",
-      catchUpExpireText: "Beyond the repair window the instance is voided and stops reminding. It never carries to another day.",
+      catchUpExpireText: "Timed one-off tasks expire after their repair window. Untimed one-offs expire after their planned day plus the configured expiry days (default 0).",
       emptyActiveTitle: "No tasks for today",
       emptyActiveHint: "Write down one thing and keep the first step for now.",
       emptyDoneTitle: "Nothing finished yet",
@@ -12672,7 +12637,9 @@ ${JSON.stringify(refs, null, 2)}`;
     onCatchUpHelp
   }) {
     const pending = todayTasks(data, today);
-    const overdue = overdueTasks(data, today);
+    const overdue = overdueTasks(data, today).filter(
+      (task) => !pending.some((item) => item.id === task.id)
+    );
     const catchUps = catchUpTasks(data, today);
     const catchIds = new Set(catchUps.map((task) => task.id));
     const timed = pending.filter(
@@ -13676,2040 +13643,6 @@ ${JSON.stringify(refs, null, 2)}`;
     }
   });
 
-  // plugin/src/client/pages/template-dialog.js
-  registerCopy("template", {
-    zh: {
-      newTitle: "新建模板",
-      editTitle: "编辑模板",
-      newSubtitle: "模板保存形状与印刷规则；实例记录每一次执行，两者互不覆盖。",
-      editSubtitle: "改模板不会改已印出的实例；需要时用「同步」更新未完成实例。",
-      title: "标题",
-      titleHint: "模板名就是标题；自动记为习惯组时也用它。",
-      titlePlaceholder: "想反复印刷的一件事",
-      project: "所属项目",
-      noProject: "不分类",
-      focusMinutes: "单次专注时长",
-      focusMinutesHint: "留空沿用设置里的 {n} 分钟",
-      estimate: "预计番茄数",
-      scrap: "重修窗口",
-      scrapHint: "计划块结束后仍可补做的分钟数；0 表示到点作废",
-      priority: "优先级",
-      tags: "标签",
-      tagsPlaceholder: "用逗号分隔，例如：数学, 错题",
-      notes: "备注",
-      notesPlaceholder: "补充资料、位置或提醒自己的话…",
-      subtasks: "子任务",
-      subtaskPlaceholder: "添加一个子任务",
-      addSubtask: "添加子任务",
-      removeSubtask: "删除子任务",
-      untouched: "未命名步骤",
-      printingTitle: "印刷规则",
-      printingHint: "规则决定实例什么时候出现；实例印出后与模板解耦。",
-      kindOnce: "单次",
-      kindCalendar: "日程",
-      kindWeekly: "每周",
-      onceDate: "印刷日期",
-      onceTime: "开始时刻",
-      timeOptional: "留空表示不定时，只进当日待办",
-      calendarHint: "同一开始时刻的日期合并到一个时段；不同时段不能共用开始时刻。",
-      addSlot: "添加时段",
-      removeSlot: "删除时段",
-      slotTime: "开始时刻",
-      slotDates: "日期",
-      addDate: "添加日期",
-      removeDate: "移除日期",
-      weeklyHint: "选中的星期在印刷时按整周展开；同一天同一时刻不能重复。",
-      weeklyDays: "印刷日",
-      weeklyAutoHabit: "每周且所有时段都有开始时刻时，core 会自动把它记为习惯组。",
-      habitNote: "这个模板已关联习惯组，开始时刻必填。",
-      automatic: "自动印刷",
-      automaticHint: "按「今天 + 提前天数」补齐遗漏；程序关闭期间不会补印。",
-      printAhead: "提前天数",
-      printAheadHint: "0–90 天",
-      printNow: "保存后立即印刷",
-      printNowOnce: "保存后立即印刷这一次",
-      printNowCalendar: "保存后立即印刷规则内的日期",
-      printNowWeekly: "保存后立即印刷本周",
-      titleRequired: "模板标题不能为空",
-      titleTooLong: "模板标题最多 200 字",
-      focusInvalid: "单次专注时长需为 1–180 分钟",
-      estimateInvalid: "预计番茄数需为 1–99",
-      scrapInvalid: "重修窗口需为 0–10080 分钟",
-      tooManyTags: "标签最多 20 个，每个不超过 40 字",
-      subtaskEmpty: "子任务名称不能为空",
-      dateRequired: "请选择印刷日期",
-      dateInvalid: "日期无效，请用 YYYY-MM-DD",
-      timeInvalid: "开始时刻需为 HH:MM",
-      needSlot: "至少需要一个时段",
-      needDays: "每个时段至少选一个星期",
-      needDates: "每个日程时段至少需要一个日期",
-      duplicateDates: "同一日期在同一时刻重复出现，请合并",
-      duplicateTime: "不同时段不能共用同一开始时刻",
-      duplicateWeekly: "同一星期同一时刻重复出现，请合并",
-      needTime: "习惯模板必须填写开始时刻",
-      mixedTime: "同一规则不能混用定时与不定时时段",
-      aheadInvalid: "提前天数需为 0–90",
-      saved: "模板已保存",
-      created: "模板已创建",
-      savedAndPrinted: "模板已保存，已提交印刷",
-      deleted: "模板已删除，实例保留",
-      deleteTitle: "删除这个模板？",
-      deleteBody: "已印出的实例会保留并解除与模板的关联；印刷记账会一起清掉，这一步不能撤销。",
-      deleteConfirm: "确认删除"
-    },
-    en: {
-      newTitle: "New template",
-      editTitle: "Edit template",
-      newSubtitle: "A template stores the shape and the printing rule; instances record each run.",
-      editSubtitle: "Editing the template won't rewrite printed instances; use Sync to update unfinished ones.",
-      title: "Title",
-      titleHint: "The title is the template name; a habit group reuses it too.",
-      titlePlaceholder: "Something worth printing again",
-      project: "Project",
-      noProject: "No project",
-      focusMinutes: "Focus per session",
-      focusMinutesHint: "Empty uses the {n} min default",
-      estimate: "Pomodoros planned",
-      scrap: "Repair window",
-      scrapHint: "Minutes still usable after the plan block; 0 voids it on time",
-      priority: "Priority",
-      tags: "Tags",
-      tagsPlaceholder: "Comma separated, e.g. math, mistakes",
-      notes: "Notes",
-      notesPlaceholder: "References, location, or a note to yourself…",
-      subtasks: "Subtasks",
-      subtaskPlaceholder: "Add a subtask",
-      addSubtask: "Add subtask",
-      removeSubtask: "Remove subtask",
-      untouched: "Untitled step",
-      printingTitle: "Printing rule",
-      printingHint: "The rule decides when instances appear; printed instances are decoupled from the template.",
-      kindOnce: "Once",
-      kindCalendar: "Calendar",
-      kindWeekly: "Weekly",
-      onceDate: "Print date",
-      onceTime: "Start time",
-      timeOptional: "Empty means no fixed time; it just joins that day",
-      calendarHint: "Dates sharing one start time go in one slot; slots can't share a start time.",
-      addSlot: "Add slot",
-      removeSlot: "Remove slot",
-      slotTime: "Start time",
-      slotDates: "Dates",
-      addDate: "Add date",
-      removeDate: "Remove date",
-      weeklyHint: "Selected weekdays expand to whole weeks when printed; one weekday/time can't repeat.",
-      weeklyDays: "Weekdays",
-      weeklyAutoHabit: "A weekly template whose slots all have start times is recorded as a habit group by core.",
-      habitNote: "This template is tied to a habit group, so start times are required.",
-      automatic: "Auto print",
-      automaticHint: "Fills gaps within today + days ahead; nothing is printed while the app is closed.",
-      printAhead: "Days ahead",
-      printAheadHint: "0–90 days",
-      printNow: "Print right after saving",
-      printNowOnce: "Print this one right after saving",
-      printNowCalendar: "Print the rule's dates right after saving",
-      printNowWeekly: "Print this week right after saving",
-      titleRequired: "Template title is required",
-      titleTooLong: "Template title must be at most 200 characters",
-      focusInvalid: "Focus per session must be 1–180 minutes",
-      estimateInvalid: "Planned pomodoros must be 1–99",
-      scrapInvalid: "Repair window must be 0–10080 minutes",
-      tooManyTags: "At most 20 tags, each under 40 characters",
-      subtaskEmpty: "Subtask title is required",
-      dateRequired: "Pick a print date",
-      dateInvalid: "Invalid date; use YYYY-MM-DD",
-      timeInvalid: "Start time must be HH:MM",
-      needSlot: "At least one slot is required",
-      needDays: "Each slot needs at least one weekday",
-      needDates: "Each calendar slot needs at least one date",
-      duplicateDates: "A date repeats at the same start time; please merge it",
-      duplicateTime: "Slots can't share a start time",
-      duplicateWeekly: "A weekday repeats at the same start time; please merge it",
-      needTime: "Habit templates require start times",
-      mixedTime: "One rule can't mix timed and untimed slots",
-      aheadInvalid: "Days ahead must be 0–90",
-      saved: "Template saved",
-      created: "Template created",
-      savedAndPrinted: "Template saved; printing submitted",
-      deleted: "Template deleted; instances kept",
-      deleteTitle: "Delete this template?",
-      deleteBody: "Printed instances stay and lose their template link; the printing ledger is cleared. This cannot be undone.",
-      deleteConfirm: "Delete"
-    }
-  });
-  var PRIORITY_KEYS2 = [
-    "priorityNone",
-    "priorityLow",
-    "priorityMedium",
-    "priorityHigh"
-  ];
-  registerCopy("template", {
-    zh: {
-      priorityNone: "无",
-      priorityLow: "低",
-      priorityMedium: "中",
-      priorityHigh: "高"
-    },
-    en: {
-      priorityNone: "None",
-      priorityLow: "Low",
-      priorityMedium: "Medium",
-      priorityHigh: "High"
-    }
-  });
-  var KINDS = ["once", "calendar", "weekly"];
-  function newId2() {
-    try {
-      if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
-        return globalThis.crypto.randomUUID();
-      }
-    } catch {
-    }
-    return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-  function intOf2(raw, fallback = null) {
-    if (raw === null || raw === void 0) return fallback;
-    const text = String(raw).trim();
-    if (text === "") return fallback;
-    const n = Number(text);
-    return Number.isFinite(n) ? Math.round(n) : fallback;
-  }
-  function validDate(text) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(text ?? ""))) return false;
-    const [y, m, d] = String(text).split("-").map(Number);
-    const dt = new Date(y, m - 1, d);
-    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
-  }
-  function validTime(text) {
-    return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(text ?? ""));
-  }
-  function blankTemplateDraft(today) {
-    return {
-      id: null,
-      habitId: null,
-      title: "",
-      notes: "",
-      projectId: "",
-      focusMinutes: "",
-      scrapMinutes: "0",
-      priority: 0,
-      estimate: "1",
-      tagsText: "",
-      subtasks: [],
-      printingKind: "weekly",
-      onceDate: today ?? "",
-      onceTime: "",
-      weeklySlots: [{ days: [1, 2, 3, 4, 5], time: "" }],
-      calendarSlots: [{ dates: [], time: "" }],
-      automatic: false,
-      printAheadDays: "7",
-      printNow: false
-    };
-  }
-  function templateToDraft(template, today) {
-    if (!template || typeof template !== "object")
-      return blankTemplateDraft(today);
-    const shape = template.shape || {};
-    const printing = template.printing || { kind: "weekly", slots: [] };
-    const draft = blankTemplateDraft(today);
-    draft.id = template.id ?? null;
-    draft.habitId = shape.habitId ?? null;
-    draft.title = shape.title ?? "";
-    draft.notes = shape.notes ?? "";
-    draft.projectId = shape.projectId ?? "";
-    draft.focusMinutes = shape.focusMinutes === null || shape.focusMinutes === void 0 ? "" : String(shape.focusMinutes);
-    draft.scrapMinutes = String(shape.scrapMinutes ?? 0);
-    draft.priority = Number(shape.priority) || 0;
-    draft.estimate = String(Math.max(1, Number(shape.estimate) || 1));
-    draft.tagsText = Array.isArray(shape.tags) ? shape.tags.join(", ") : "";
-    draft.subtasks = Array.isArray(shape.subtasks) ? shape.subtasks.map((sub) => ({
-      id: sub.id || newId2(),
-      title: sub.title ?? ""
-    })) : [];
-    draft.automatic = !!template.automatic;
-    const ahead = Number(template.printAheadDays);
-    draft.printAheadDays = String(
-      Number.isFinite(ahead) && ahead >= 0 ? ahead : 7
-    );
-    if (KINDS.includes(printing.kind)) draft.printingKind = printing.kind;
-    if (printing.kind === "once") {
-      draft.onceDate = printing.date || today || "";
-      draft.onceTime = printing.time ?? "";
-    } else if (printing.kind === "calendar" && Array.isArray(printing.slots) && printing.slots.length > 0) {
-      draft.calendarSlots = printing.slots.map((slot) => ({
-        dates: Array.isArray(slot.dates) ? slot.dates.filter((d) => validDate(d)).sort() : [],
-        time: slot.time ?? ""
-      }));
-    } else if (printing.kind === "weekly" && Array.isArray(printing.slots) && printing.slots.length > 0) {
-      draft.weeklySlots = printing.slots.map((slot) => ({
-        days: Array.isArray(slot.days) ? slot.days.filter((d) => d >= 1 && d <= 7) : [],
-        time: slot.time ?? ""
-      }));
-    }
-    return draft;
-  }
-  function TemplateDialog({
-    open,
-    onClose,
-    template = null,
-    today = "",
-    data = {},
-    settings = {}
-  }) {
-    const templateId = template && template.id ? template.id : null;
-    const [draft, setDraft] = useState(() => templateToDraft(template, today));
-    const [dateInput, setDateInput] = useState("");
-    const [subInput, setSubInput] = useState("");
-    const [error, setError] = useState(null);
-    const [busy, setBusy] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    useEffect(() => {
-      if (!open) return;
-      setDraft(templateToDraft(template, today));
-      setDateInput("");
-      setError(null);
-      setBusy(false);
-      setConfirmDelete(false);
-    }, [open, templateId, today]);
-    if (!open) return null;
-    const editing = templateId !== null;
-    const patch = (next) => setDraft((current4) => ({ ...current4, ...next }));
-    const projects = Array.isArray(data.projects) ? data.projects : [];
-    const defaultFocus = Number(settings.focusMinutes) || 45;
-    const weekFull = t("common.weekFull");
-    const weekLabels = Array.isArray(weekFull) ? weekFull : [];
-    const priorityOptions = PRIORITY_KEYS2.map((key, value) => ({
-      value: String(value),
-      label: t(`template.${key}`)
-    }));
-    const setKind = (kind) => {
-      if (!KINDS.includes(kind)) return;
-      patch({
-        printingKind: kind,
-        habitId: kind === "weekly" ? draft.habitId : null
-      });
-    };
-    const patchWeeklySlot = (index, next) => patch({
-      weeklySlots: draft.weeklySlots.map(
-        (slot, i) => i === index ? { ...slot, ...next } : slot
-      )
-    });
-    const toggleWeekday = (index, day) => {
-      const slot = draft.weeklySlots[index];
-      if (!slot) return;
-      const days = slot.days.includes(day) ? slot.days.filter((d) => d !== day) : [...slot.days, day].sort((a, b) => a - b);
-      patchWeeklySlot(index, { days });
-    };
-    const patchCalendarSlot = (index, next) => patch({
-      calendarSlots: draft.calendarSlots.map(
-        (slot, i) => i === index ? { ...slot, ...next } : slot
-      )
-    });
-    const addCalendarDate = (index) => {
-      const date = String(dateInput ?? "").trim();
-      if (!validDate(date)) {
-        setError(t("template.dateInvalid"));
-        return;
-      }
-      const slot = draft.calendarSlots[index];
-      if (!slot) return;
-      if (slot.dates.includes(date)) return;
-      patchCalendarSlot(index, { dates: [...slot.dates, date].sort() });
-      setDateInput("");
-    };
-    const addSubtask = () => {
-      const title = String(subInput ?? "").trim();
-      if (title === "") return;
-      patch({ subtasks: [...draft.subtasks, { id: newId2(), title }] });
-      setSubInput("");
-    };
-    const onEnter = (fn) => (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        fn();
-      }
-    };
-    const buildPrinting = () => {
-      if (draft.printingKind === "once") {
-        const date = String(draft.onceDate ?? "").trim();
-        if (date === "") return { error: t("template.dateRequired") };
-        if (!validDate(date)) return { error: t("template.dateInvalid") };
-        const time = String(draft.onceTime ?? "").trim();
-        if (time !== "" && !validTime(time))
-          return { error: t("template.timeInvalid") };
-        return {
-          printing: { kind: "once", date, time: time === "" ? null : time }
-        };
-      }
-      if (draft.printingKind === "calendar") {
-        const slots2 = draft.calendarSlots.map((slot) => ({
-          dates: Array.from(new Set(slot.dates)).sort(),
-          time: String(slot.time ?? "").trim()
-        })).filter((slot) => slot.dates.length > 0);
-        if (slots2.length === 0) return { error: t("template.needDates") };
-        const times = /* @__PURE__ */ new Set();
-        const seen2 = /* @__PURE__ */ new Set();
-        for (const slot of slots2) {
-          if (slot.time !== "" && !validTime(slot.time))
-            return { error: t("template.timeInvalid") };
-          const timeKey = slot.time === "" ? "null" : slot.time;
-          if (times.has(timeKey)) return { error: t("template.duplicateTime") };
-          times.add(timeKey);
-          for (const date of slot.dates) {
-            if (!validDate(date)) return { error: t("template.dateInvalid") };
-            const key = `${date}|${timeKey}`;
-            if (seen2.has(key)) return { error: t("template.duplicateDates") };
-            seen2.add(key);
-          }
-        }
-        return {
-          printing: {
-            kind: "calendar",
-            slots: slots2.map((slot) => ({
-              dates: slot.dates,
-              time: slot.time === "" ? null : slot.time
-            }))
-          }
-        };
-      }
-      const slots = draft.weeklySlots.map((slot) => ({
-        days: Array.from(new Set(slot.days)).sort((a, b) => a - b),
-        time: String(slot.time ?? "").trim()
-      })).filter((slot) => slot.days.length > 0);
-      if (slots.length === 0) return { error: t("template.needDays") };
-      const seen = /* @__PURE__ */ new Set();
-      const timed = slots.filter((slot) => slot.time !== "").length;
-      if (timed > 0 && timed < slots.length)
-        return { error: t("template.mixedTime") };
-      for (const slot of slots) {
-        if (slot.time !== "" && !validTime(slot.time))
-          return { error: t("template.timeInvalid") };
-        if (draft.habitId !== null && slot.time === "")
-          return { error: t("template.needTime") };
-        for (const day of slot.days) {
-          const key = `${day}|${slot.time === "" ? "null" : slot.time}`;
-          if (seen.has(key)) return { error: t("template.duplicateWeekly") };
-          seen.add(key);
-        }
-      }
-      return {
-        printing: {
-          kind: "weekly",
-          slots: slots.map((slot) => ({
-            days: slot.days,
-            time: slot.time === "" ? null : slot.time
-          }))
-        }
-      };
-    };
-    const printDatesOf = (printing) => {
-      if (!draft.printNow) return [];
-      if (printing.kind === "once") return [printing.date];
-      if (printing.kind === "calendar") {
-        return Array.from(
-          new Set(printing.slots.flatMap((slot) => slot.dates))
-        ).sort();
-      }
-      const anchor = validDate(today) ? today : (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-      return [weekStart(anchor)];
-    };
-    const submit = async () => {
-      if (busy) return;
-      const title = String(draft.title ?? "").trim();
-      if (title === "") {
-        setError(t("template.titleRequired"));
-        return;
-      }
-      if (Array.from(title).length > 200) {
-        setError(t("template.titleTooLong"));
-        return;
-      }
-      const estimate = intOf2(draft.estimate, 1);
-      if (estimate === null || estimate < 1 || estimate > 99) {
-        setError(t("template.estimateInvalid"));
-        return;
-      }
-      const focusMinutes = String(draft.focusMinutes ?? "").trim() === "" ? null : intOf2(draft.focusMinutes, null);
-      if (focusMinutes !== null && (focusMinutes < 1 || focusMinutes > 180)) {
-        setError(t("template.focusInvalid"));
-        return;
-      }
-      const scrapMinutes = intOf2(draft.scrapMinutes, 0);
-      if (scrapMinutes === null || scrapMinutes < 0 || scrapMinutes > 10080) {
-        setError(t("template.scrapInvalid"));
-        return;
-      }
-      const ahead = intOf2(draft.printAheadDays, 7);
-      if (ahead === null || ahead < 0 || ahead > 90) {
-        setError(t("template.aheadInvalid"));
-        return;
-      }
-      const tags = String(draft.tagsText ?? "").split(/[,，]/).map((tag) => tag.trim()).filter((tag) => tag !== "");
-      if (tags.length > 20 || tags.some((tag) => Array.from(tag).length > 40)) {
-        setError(t("template.tooManyTags"));
-        return;
-      }
-      if (draft.subtasks.some((sub) => String(sub.title ?? "").trim() === "")) {
-        setError(t("template.subtaskEmpty"));
-        return;
-      }
-      const built = buildPrinting();
-      if (built.error) {
-        setError(built.error);
-        return;
-      }
-      const printing = built.printing;
-      const template2 = {
-        id: draft.id ?? newId2(),
-        shape: {
-          title,
-          notes: String(draft.notes ?? ""),
-          projectId: draft.projectId ? draft.projectId : null,
-          habitId: draft.habitId ?? null,
-          focusMinutes,
-          scrapMinutes,
-          priority: Number(draft.priority) || 0,
-          estimate,
-          tags,
-          subtasks: draft.subtasks.map((sub) => ({
-            id: sub.id || newId2(),
-            title: String(sub.title ?? "").trim()
-          }))
-        },
-        printing,
-        automatic: !!draft.automatic,
-        printAheadDays: ahead
-      };
-      setBusy(true);
-      setError(null);
-      const result = await tryDispatch({
-        type: "saveTemplate",
-        template: template2,
-        printDates: printDatesOf(printing)
-      });
-      setBusy(false);
-      if (!result.ok) {
-        setError(result.error || t("common.writeFailed"));
-        return;
-      }
-      notify(
-        draft.printNow ? t("template.savedAndPrinted") : editing ? t("template.saved") : t("template.created"),
-        "brand"
-      );
-      onClose?.();
-    };
-    const remove = async () => {
-      if (busy || draft.id === null) return;
-      setBusy(true);
-      setError(null);
-      const result = await tryDispatch({ type: "deleteTemplate", id: draft.id });
-      setBusy(false);
-      if (!result.ok) {
-        setError(result.error || t("common.writeFailed"));
-        return;
-      }
-      notify(t("template.deleted"), "neutral");
-      onClose?.();
-    };
-    const kindItems = [
-      { value: "once", label: t("template.kindOnce"), icon: "calendar" },
-      {
-        value: "calendar",
-        label: t("template.kindCalendar"),
-        icon: "calendarClock"
-      },
-      { value: "weekly", label: t("template.kindWeekly"), icon: "refresh" }
-    ];
-    const onceEditor = h(
-      "div",
-      { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } },
-      h(
-        Field,
-        { label: t("template.onceDate") },
-        h(Input, {
-          type: "date",
-          value: draft.onceDate,
-          onChange: (value) => patch({ onceDate: value })
-        })
-      ),
-      h(
-        Field,
-        { label: t("template.onceTime"), hint: t("template.timeOptional") },
-        h(Input, {
-          type: "time",
-          value: draft.onceTime,
-          onChange: (value) => patch({ onceTime: value })
-        })
-      )
-    );
-    const calendarEditor = h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 10 } },
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 11.5,
-            color: "var(--tomato-ink-3)",
-            lineHeight: 1.6
-          }
-        },
-        t("template.calendarHint")
-      ),
-      draft.calendarSlots.map(
-        (slot, index) => h(
-          "div",
-          {
-            key: `cal-${index}`,
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "var(--tomato-surface-2)"
-            }
-          },
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                alignItems: "flex-end",
-                gap: 10,
-                flexWrap: "wrap"
-              }
-            },
-            h(
-              Field,
-              { label: t("template.slotTime"), style: { flex: "0 1 150px" } },
-              h(Input, {
-                type: "time",
-                value: slot.time,
-                onChange: (value) => patchCalendarSlot(index, { time: value })
-              })
-            ),
-            h("div", { style: { flex: 1 } }),
-            h(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flex: "1 1 220px"
-                }
-              },
-              h(Input, {
-                type: "date",
-                value: dateInput,
-                onChange: setDateInput,
-                onKeyDown: onEnter(() => addCalendarDate(index)),
-                style: { flex: 1 }
-              }),
-              h(
-                Btn,
-                {
-                  variant: "soft",
-                  size: "sm",
-                  icon: "plus",
-                  onClick: () => addCalendarDate(index)
-                },
-                t("template.addDate")
-              )
-            ),
-            draft.calendarSlots.length > 1 ? h(IconBtn, {
-              name: "trash",
-              size: 15,
-              box: 30,
-              title: t("template.removeSlot"),
-              onClick: () => patch({
-                calendarSlots: draft.calendarSlots.filter(
-                  (_, i) => i !== index
-                )
-              })
-            }) : null
-          ),
-          slot.dates.length > 0 ? h(
-            "div",
-            { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
-            slot.dates.map(
-              (date) => h(
-                Chip,
-                {
-                  key: date,
-                  tone: "brand",
-                  active: true,
-                  onClick: () => patchCalendarSlot(index, {
-                    dates: slot.dates.filter((d) => d !== date)
-                  })
-                },
-                `${dayLabel(date, today)} ×`
-              )
-            )
-          ) : h(
-            "div",
-            { style: { fontSize: 11.5, color: "var(--tomato-ink-3)" } },
-            t("template.slotDates")
-          )
-        )
-      ),
-      h(
-        Btn,
-        {
-          variant: "plain",
-          size: "sm",
-          icon: "plus",
-          onClick: () => patch({
-            calendarSlots: [...draft.calendarSlots, { dates: [], time: "" }]
-          })
-        },
-        t("template.addSlot")
-      )
-    );
-    const weeklyEditor = h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 10 } },
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 11.5,
-            color: "var(--tomato-ink-3)",
-            lineHeight: 1.6
-          }
-        },
-        t("template.weeklyHint")
-      ),
-      draft.habitId !== null ? h(
-        "div",
-        {
-          style: {
-            fontSize: 11.5,
-            color: "var(--tomato-brand-deep)",
-            lineHeight: 1.6
-          }
-        },
-        t("template.habitNote")
-      ) : null,
-      draft.weeklySlots.map(
-        (slot, index) => h(
-          "div",
-          {
-            key: `week-${index}`,
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "var(--tomato-surface-2)"
-            }
-          },
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap"
-              }
-            },
-            weekLabels.map((label, dayIndex) => {
-              const day = dayIndex + 1;
-              const selected = slot.days.includes(day);
-              return h(
-                Chip,
-                {
-                  key: day,
-                  tone: selected ? "brand" : "neutral",
-                  active: selected,
-                  onClick: () => toggleWeekday(index, day),
-                  style: { height: 28, padding: "0 10px", fontSize: 12 }
-                },
-                label
-              );
-            }),
-            h("div", { style: { flex: 1 } }),
-            draft.weeklySlots.length > 1 ? h(IconBtn, {
-              name: "trash",
-              size: 15,
-              box: 30,
-              title: t("template.removeSlot"),
-              onClick: () => patch({
-                weeklySlots: draft.weeklySlots.filter(
-                  (_, i) => i !== index
-                )
-              })
-            }) : null
-          ),
-          h(
-            Field,
-            { label: t("template.slotTime"), hint: t("template.timeOptional") },
-            h(Input, {
-              type: "time",
-              value: slot.time,
-              onChange: (value) => patchWeeklySlot(index, { time: value }),
-              style: { maxWidth: 180 }
-            })
-          )
-        )
-      ),
-      h(
-        Btn,
-        {
-          variant: "plain",
-          size: "sm",
-          icon: "plus",
-          onClick: () => patch({
-            weeklySlots: [...draft.weeklySlots, { days: [], time: "" }]
-          })
-        },
-        t("template.addSlot")
-      ),
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 11.5,
-            color: "var(--tomato-ink-3)",
-            lineHeight: 1.6
-          }
-        },
-        t("template.weeklyAutoHabit")
-      )
-    );
-    const printNowLabel = draft.printingKind === "once" ? t("template.printNowOnce") : draft.printingKind === "calendar" ? t("template.printNowCalendar") : t("template.printNowWeekly");
-    const body = confirmDelete ? h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 14 } },
-      h(
-        "div",
-        {
-          style: {
-            padding: "14px 16px",
-            borderRadius: 13,
-            background: "var(--tomato-surface-2)",
-            color: "var(--tomato-ink-2)",
-            fontSize: 13,
-            lineHeight: 1.65
-          }
-        },
-        t("template.deleteBody")
-      ),
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 13.5,
-            color: "var(--tomato-ink)",
-            fontWeight: 550
-          }
-        },
-        draft.title || t("template.untouched")
-      )
-    ) : h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 16 } },
-      h(
-        Field,
-        { label: t("template.title"), hint: t("template.titleHint") },
-        h(Input, {
-          value: draft.title,
-          onChange: (value) => patch({ title: value }),
-          placeholder: t("template.titlePlaceholder"),
-          maxLength: 200,
-          autoFocus: true
-        })
-      ),
-      h(
-        "div",
-        {
-          style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }
-        },
-        h(
-          Field,
-          { label: t("template.project") },
-          h(Select, {
-            value: draft.projectId,
-            options: [
-              { value: "", label: t("template.noProject") },
-              ...projects.map((project) => ({
-                value: project.id,
-                label: project.name
-              }))
-            ],
-            onChange: (value) => patch({ projectId: value }),
-            width: "100%"
-          })
-        ),
-        h(
-          Field,
-          { label: t("template.priority") },
-          h(Select, {
-            value: String(draft.priority),
-            options: priorityOptions,
-            onChange: (value) => patch({ priority: Number(value) }),
-            width: "100%"
-          })
-        ),
-        h(
-          Field,
-          {
-            label: t("template.focusMinutes"),
-            hint: t("template.focusMinutesHint", { n: defaultFocus })
-          },
-          h(Input, {
-            type: "number",
-            value: draft.focusMinutes,
-            onChange: (value) => patch({ focusMinutes: value }),
-            placeholder: String(defaultFocus)
-          })
-        ),
-        h(
-          Field,
-          { label: t("template.estimate") },
-          h(Input, {
-            type: "number",
-            value: draft.estimate,
-            onChange: (value) => patch({ estimate: value })
-          })
-        ),
-        h(
-          Field,
-          { label: t("template.scrap"), hint: t("template.scrapHint") },
-          h(Input, {
-            type: "number",
-            value: draft.scrapMinutes,
-            onChange: (value) => patch({ scrapMinutes: value })
-          })
-        ),
-        h(
-          Field,
-          { label: t("template.tags") },
-          h(Input, {
-            value: draft.tagsText,
-            onChange: (value) => patch({ tagsText: value }),
-            placeholder: t("template.tagsPlaceholder")
-          })
-        )
-      ),
-      h(
-        Field,
-        { label: t("template.notes") },
-        h(TextArea, {
-          value: draft.notes,
-          onChange: (value) => patch({ notes: value }),
-          placeholder: t("template.notesPlaceholder"),
-          rows: 2,
-          style: { maxHeight: 120 }
-        })
-      ),
-      h(Divider, null),
-      h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 8 } },
-        h(
-          "div",
-          {
-            style: {
-              fontSize: 12,
-              fontWeight: 550,
-              color: "var(--tomato-ink-2)"
-            }
-          },
-          t("template.subtasks")
-        ),
-        draft.subtasks.length > 0 ? h(
-          "div",
-          { style: { display: "flex", flexDirection: "column", gap: 4 } },
-          draft.subtasks.map(
-            (sub, index) => h(
-              "div",
-              {
-                key: sub.id ?? index,
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  minHeight: 32,
-                  padding: "2px 4px",
-                  borderRadius: 9
-                }
-              },
-              h(Icon, {
-                name: "grip",
-                size: 14,
-                style: { color: "var(--tomato-ink-3)" }
-              }),
-              h(
-                "div",
-                {
-                  style: {
-                    flex: 1,
-                    minWidth: 0,
-                    fontSize: 13,
-                    color: "var(--tomato-ink)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap"
-                  }
-                },
-                sub.title
-              ),
-              h(IconBtn, {
-                name: "x",
-                size: 14,
-                box: 28,
-                title: t("template.removeSubtask"),
-                onClick: () => patch({
-                  subtasks: draft.subtasks.filter(
-                    (_, i) => i !== index
-                  )
-                })
-              })
-            )
-          )
-        ) : h(
-          "div",
-          { style: { fontSize: 12, color: "var(--tomato-ink-3)" } },
-          t("template.subtaskPlaceholder")
-        ),
-        h(
-          "div",
-          { style: { display: "flex", gap: 8, alignItems: "center" } },
-          h(Input, {
-            value: subInput,
-            onChange: setSubInput,
-            onKeyDown: onEnter(addSubtask),
-            placeholder: t("template.subtaskPlaceholder"),
-            maxLength: 200
-          }),
-          h(Btn, {
-            variant: "soft",
-            size: "sm",
-            icon: "plus",
-            title: t("template.addSubtask"),
-            onClick: addSubtask
-          })
-        )
-      ),
-      h(Divider, null),
-      h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 10 } },
-        h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap"
-            }
-          },
-          h(Icon, {
-            name: "calendarClock",
-            size: 16,
-            style: { color: "var(--tomato-brand-deep)" }
-          }),
-          h(
-            "div",
-            {
-              style: {
-                fontSize: 13,
-                fontWeight: 620,
-                color: "var(--tomato-ink)"
-              }
-            },
-            t("template.printingTitle")
-          )
-        ),
-        h(
-          "div",
-          {
-            style: {
-              fontSize: 11.5,
-              color: "var(--tomato-ink-3)",
-              lineHeight: 1.6
-            }
-          },
-          t("template.printingHint")
-        ),
-        h(
-          "div",
-          { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-          kindItems.map(
-            (item) => h(
-              Chip,
-              {
-                key: item.value,
-                tone: draft.printingKind === item.value ? "brand" : "neutral",
-                active: draft.printingKind === item.value,
-                icon: item.icon,
-                onClick: () => setKind(item.value),
-                style: { height: 28, padding: "0 12px", fontSize: 12.5 }
-              },
-              item.label
-            )
-          )
-        ),
-        draft.printingKind === "once" ? onceEditor : draft.printingKind === "calendar" ? calendarEditor : weeklyEditor,
-        h(
-          "div",
-          {
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              padding: "12px 14px",
-              borderRadius: 12,
-              background: "var(--tomato-surface-2)"
-            }
-          },
-          h(Toggle, {
-            checked: draft.automatic,
-            label: t("template.automatic"),
-            hint: t("template.automaticHint"),
-            onChange: (checked) => patch({ automatic: checked })
-          }),
-          h(
-            Field,
-            {
-              label: t("template.printAhead"),
-              hint: t("template.printAheadHint"),
-              inline: true
-            },
-            h(Input, {
-              type: "number",
-              value: draft.printAheadDays,
-              onChange: (value) => patch({ printAheadDays: value }),
-              style: { width: 90 }
-            })
-          ),
-          h(Toggle, {
-            checked: draft.printNow,
-            label: printNowLabel,
-            onChange: (checked) => patch({ printNow: checked })
-          })
-        )
-      ),
-      error ? h(
-        "div",
-        {
-          style: {
-            padding: "9px 12px",
-            borderRadius: 10,
-            background: "var(--tomato-brand-soft)",
-            color: "var(--tomato-brand-deep)",
-            fontSize: 12.5
-          },
-          role: "alert"
-        },
-        error
-      ) : null
-    );
-    const footer = confirmDelete ? h(
-      "div",
-      { style: { display: "flex", gap: 9, marginLeft: "auto" } },
-      h(
-        Btn,
-        {
-          variant: "ghost",
-          size: "sm",
-          onClick: () => setConfirmDelete(false),
-          disabled: busy
-        },
-        t("common.cancel")
-      ),
-      h(
-        Btn,
-        {
-          variant: "danger",
-          size: "sm",
-          icon: "trash",
-          onClick: remove,
-          disabled: busy
-        },
-        t("template.deleteConfirm")
-      )
-    ) : h(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          width: "100%"
-        }
-      },
-      editing ? h(
-        Btn,
-        {
-          variant: "danger",
-          size: "sm",
-          icon: "trash",
-          onClick: () => setConfirmDelete(true),
-          disabled: busy
-        },
-        t("common.delete")
-      ) : null,
-      h("div", { style: { flex: 1 } }),
-      h(
-        Btn,
-        { variant: "plain", size: "sm", onClick: onClose, disabled: busy },
-        t("common.cancel")
-      ),
-      h(
-        Btn,
-        {
-          variant: "primary",
-          size: "sm",
-          icon: "check",
-          onClick: submit,
-          disabled: busy
-        },
-        editing ? t("common.save") : t("common.add")
-      )
-    );
-    return h(
-      Modal,
-      {
-        open,
-        onClose: () => {
-          if (!busy) onClose?.();
-        },
-        icon: confirmDelete ? "trash" : editing ? "edit" : "sparkle",
-        title: confirmDelete ? t("template.deleteTitle") : editing ? t("template.editTitle") : t("template.newTitle"),
-        subtitle: confirmDelete ? void 0 : editing ? t("template.editSubtitle") : t("template.newSubtitle"),
-        width: 660,
-        footer
-      },
-      body
-    );
-  }
-
-  // plugin/src/client/pages/print-dialog.js
-  registerCopy("print", {
-    zh: {
-      title: "印刷任务",
-      subtitle: "按模板和日期生成任务实例；已印刷过的日期会自动跳过。",
-      template: "模板",
-      untitled: "未命名模板",
-      emptyTitle: "还没有模板",
-      emptyHint: "先在任务页把一组安排保存成模板，再回来印刷。",
-      noPrinting: "这个模板没有可用的印刷规则",
-      noPrintingHint: "请先在模板编辑里设置一次性、日程表或每周循环。",
-      ruleNone: "没有印刷规则",
-      ruleOnce: "一次性 · {date}{time}",
-      ruleCalendar: "日程表 · {n} 个日期",
-      ruleWeekly: "每周 · {days}{times}",
-      daySep: "、",
-      timesSep: " · ",
-      untimed: "不定时",
-      autoLabel: "自动印刷",
-      autoHint: "按「今天 + 提前 {n} 天」补齐遗漏；程序关闭时不会补。",
-      autoOn: "已开启自动印刷",
-      autoOff: "已关闭自动印刷",
-      dates: "计划日期",
-      pickDate: "再选一天",
-      chipToday: "今天",
-      chipTomorrow: "明天",
-      chipThisWeek: "本周",
-      chipNextDays: "接下来 7 天",
-      chipAllDates: "全部规则日期（{n}）",
-      chipRuleDate: "规则日期：{date}",
-      addDate: "添加",
-      removeDate: "移除这个日期",
-      pickedEmpty: "还没有选日期；点上面的快捷日期，或手动选一天。",
-      invalidDate: "日期无效，请重新选择",
-      preview: "预览",
-      previewCount: "将生成 {n} 个任务",
-      previewNone: "没有可生成的任务",
-      previewMore: "…还有 {n} 条",
-      skipped: "将跳过",
-      skipPrinted: "已印刷：{date}",
-      skipNotInRule: "不在日程表：{date}",
-      excludedHint: "不在规则内的日期已从提交中排除，避免整批报错。",
-      pickDateFirst: "请至少选择一个日期",
-      confirm: "印刷",
-      done: "印刷完成"
-    },
-    en: {
-      title: "Print tasks",
-      subtitle: "Generate task instances from a template; dates already printed are skipped.",
-      template: "Template",
-      untitled: "Untitled template",
-      emptyTitle: "No templates yet",
-      emptyHint: "Save a group of tasks as a template on the Tasks page, then come back to print.",
-      noPrinting: "This template has no usable printing rule",
-      noPrintingHint: "Set up a one-off, calendar, or weekly rule in the template editor first.",
-      ruleNone: "No printing rule",
-      ruleOnce: "Once · {date}{time}",
-      ruleCalendar: "Calendar · {n} dates",
-      ruleWeekly: "Weekly · {days}{times}",
-      daySep: ", ",
-      timesSep: " · ",
-      untimed: "Anytime",
-      autoLabel: "Auto print",
-      autoHint: "Fills gaps for today + {n} days ahead; nothing runs while the app is closed.",
-      autoOn: "Auto print on",
-      autoOff: "Auto print off",
-      dates: "Planned dates",
-      pickDate: "Pick a day",
-      chipToday: "Today",
-      chipTomorrow: "Tomorrow",
-      chipThisWeek: "This week",
-      chipNextDays: "Next 7 days",
-      chipAllDates: "All rule dates ({n})",
-      chipRuleDate: "Rule date: {date}",
-      addDate: "Add",
-      removeDate: "Remove this date",
-      pickedEmpty: "No dates yet — tap a quick date above, or pick one.",
-      invalidDate: "Invalid date, pick another",
-      preview: "Preview",
-      previewCount: "Will create {n} tasks",
-      previewNone: "Nothing to create",
-      previewMore: "…and {n} more",
-      skipped: "Will skip",
-      skipPrinted: "Already printed: {date}",
-      skipNotInRule: "Not in calendar: {date}",
-      excludedHint: "Dates outside the rule are left out of the batch so it does not fail.",
-      pickDateFirst: "Pick at least one date",
-      confirm: "Print",
-      done: "Printing submitted"
-    }
-  });
-  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-  var MAX_PREVIEW_ROWS = 30;
-  var CALENDAR_LOOKAHEAD_DAYS = 14;
-  var QUICK_UPCOMING_LIMIT = 7;
-  var ALL_DATES_LIMIT = 30;
-  function isDateText(value) {
-    if (typeof value !== "string" || !DATE_RE.test(value)) return false;
-    const year = Number(value.slice(0, 4));
-    const month = Number(value.slice(5, 7));
-    const day = Number(value.slice(8, 10));
-    const probe = new Date(year, month - 1, day);
-    return probe.getFullYear() === year && probe.getMonth() === month - 1 && probe.getDate() === day;
-  }
-  function uniqueSorted(values) {
-    const out = [];
-    const seen = /* @__PURE__ */ new Set();
-    for (const value of Array.isArray(values) ? values : []) {
-      if (!isDateText(value) || seen.has(value)) continue;
-      seen.add(value);
-      out.push(value);
-    }
-    return out.sort();
-  }
-  function templateList(templates) {
-    const out = [];
-    const seen = /* @__PURE__ */ new Set();
-    for (const item of Array.isArray(templates) ? templates : []) {
-      if (!item || typeof item !== "object") continue;
-      if (typeof item.id !== "string" || item.id === "" || seen.has(item.id))
-        continue;
-      seen.add(item.id);
-      out.push(item);
-    }
-    return out;
-  }
-  function shapeTitle(template) {
-    const title = template && template.shape && template.shape.title;
-    return typeof title === "string" && title.trim() !== "" ? title : t("print.untitled");
-  }
-  function printingOf(template) {
-    const rule = template && typeof template === "object" ? template.printing : null;
-    if (!rule || typeof rule !== "object") return null;
-    if (rule.kind === "once") {
-      if (!isDateText(rule.date)) return null;
-      return {
-        kind: "once",
-        date: rule.date,
-        time: typeof rule.time === "string" && rule.time !== "" ? rule.time : null
-      };
-    }
-    if (rule.kind === "calendar") {
-      const slots = [];
-      for (const slot of Array.isArray(rule.slots) ? rule.slots : []) {
-        if (!slot || typeof slot !== "object" || !Array.isArray(slot.dates))
-          continue;
-        const dates = slot.dates.filter(isDateText);
-        if (dates.length === 0) continue;
-        slots.push({
-          dates,
-          time: typeof slot.time === "string" && slot.time !== "" ? slot.time : null
-        });
-      }
-      return slots.length > 0 ? { kind: "calendar", slots } : null;
-    }
-    if (rule.kind === "weekly") {
-      const slots = [];
-      for (const slot of Array.isArray(rule.slots) ? rule.slots : []) {
-        if (!slot || typeof slot !== "object" || !Array.isArray(slot.days))
-          continue;
-        const days = slot.days.filter(
-          (day) => Number.isInteger(day) && day >= 1 && day <= 7
-        );
-        if (days.length === 0) continue;
-        slots.push({
-          days,
-          time: typeof slot.time === "string" && slot.time !== "" ? slot.time : null
-        });
-      }
-      return slots.length > 0 ? { kind: "weekly", slots } : null;
-    }
-    return null;
-  }
-  function ruleSummary(template, today) {
-    const printing = printingOf(template);
-    if (!printing) return t("print.ruleNone");
-    if (printing.kind === "once") {
-      const date = dayLabel(printing.date, today);
-      const time = printing.time ? ` ${printing.time}` : "";
-      return t("print.ruleOnce", { date, time });
-    }
-    if (printing.kind === "calendar") {
-      return t("print.ruleCalendar", { n: calendarRuleDates(printing).length });
-    }
-    const days = /* @__PURE__ */ new Set();
-    const times = /* @__PURE__ */ new Set();
-    for (const slot of printing.slots) {
-      for (const day of slot.days) days.add(day);
-      if (slot.time) times.add(slot.time);
-    }
-    const labels = t("common.weekFull");
-    const dayText = Array.from(days).sort((a, b) => a - b).map((day) => Array.isArray(labels) ? labels[day - 1] : String(day)).join(t("print.daySep"));
-    const timesText = times.size > 0 ? `${t("print.timesSep")}${Array.from(times).join(" / ")}` : "";
-    return t("print.ruleWeekly", { days: dayText || "—", times: timesText });
-  }
-  function calendarRuleDates(printing) {
-    const dates = /* @__PURE__ */ new Set();
-    for (const slot of printing.slots) {
-      for (const date of slot.dates) if (isDateText(date)) dates.add(date);
-    }
-    return Array.from(dates).sort();
-  }
-  function weeklyExpandedDates(printing, dates) {
-    const days = Array.from(
-      new Set(printing.slots.flatMap((slot) => slot.days))
-    ).sort((a, b) => a - b);
-    const expanded = [];
-    const weeks = new Set(dates.map((date) => weekStart(date)));
-    for (const monday of weeks) {
-      for (const day of days) expanded.push(addDays(monday, day - 1));
-    }
-    return uniqueSorted(expanded);
-  }
-  function timesOf(printing, date) {
-    if (printing.kind === "once") return [printing.time];
-    if (printing.kind === "calendar") {
-      const times2 = [];
-      for (const slot of printing.slots) {
-        if (slot.dates.includes(date)) times2.push(slot.time);
-      }
-      return times2;
-    }
-    const weekday = weekdayIndex(date) + 1;
-    const times = [];
-    for (const slot of printing.slots) {
-      if (slot.days.includes(weekday)) times.push(slot.time);
-    }
-    return times;
-  }
-  function printedDatesOf(prints, templateId) {
-    const out = /* @__PURE__ */ new Set();
-    if (!templateId) return out;
-    for (const item of Array.isArray(prints) ? prints : []) {
-      if (!item || item.templateId !== templateId) continue;
-      if (isDateText(item.date)) out.add(item.date);
-    }
-    return out;
-  }
-  function buildPreview(printing, pickedDates, printedDates) {
-    const rows = [];
-    const skippedPrinted = [];
-    let skippedNotInRule = [];
-    let submitDates = [];
-    if (!printing) {
-      return {
-        rows,
-        skippedPrinted,
-        skippedNotInRule,
-        submitDates,
-        taskCount: 0
-      };
-    }
-    if (printing.kind === "weekly") {
-      submitDates = pickedDates;
-      for (const date of weeklyExpandedDates(printing, pickedDates)) {
-        if (printedDates.has(date)) {
-          skippedPrinted.push(date);
-          continue;
-        }
-        const times = timesOf(printing, date);
-        if (times.length > 0) rows.push({ date, times });
-      }
-    } else if (printing.kind === "calendar") {
-      const rule = new Set(calendarRuleDates(printing));
-      submitDates = pickedDates.filter((date) => rule.has(date));
-      skippedNotInRule = pickedDates.filter((date) => !rule.has(date));
-      for (const date of submitDates) {
-        if (printedDates.has(date)) {
-          skippedPrinted.push(date);
-          continue;
-        }
-        const times = timesOf(printing, date);
-        if (times.length > 0) rows.push({ date, times });
-      }
-    } else {
-      submitDates = pickedDates;
-      for (const date of pickedDates) {
-        if (printedDates.has(date)) {
-          skippedPrinted.push(date);
-          continue;
-        }
-        rows.push({ date, times: timesOf(printing, date) });
-      }
-    }
-    const taskCount = rows.reduce((sum, row) => sum + row.times.length, 0);
-    return { rows, skippedPrinted, skippedNotInRule, submitDates, taskCount };
-  }
-  function PrintDialog({
-    open,
-    onClose,
-    templates = [],
-    prints = [],
-    today = "",
-    initialTemplateId = null
-  }) {
-    const [templateId, setTemplateId] = useState("");
-    const [picked, setPicked] = useState([]);
-    const [dateInput, setDateInput] = useState("");
-    const [autoDraft, setAutoDraft] = useState(false);
-    const [error, setError] = useState(null);
-    const [busy, setBusy] = useState(false);
-    const [autoBusy, setAutoBusy] = useState(false);
-    const baseToday = isDateText(today) ? today : todayKey();
-    const list = templateList(templates);
-    const fallbackTemplateId = list.some((item) => item.id === initialTemplateId) ? initialTemplateId : list.length > 0 ? list[0].id : "";
-    const activeTemplateId = list.some((item) => item.id === templateId) ? templateId : fallbackTemplateId;
-    const current4 = list.find((item) => item.id === activeTemplateId) || null;
-    const printing = current4 ? printingOf(current4) : null;
-    const autoOn = !!(current4 && current4.automatic);
-    useEffect(() => {
-      if (!open) return;
-      setTemplateId(fallbackTemplateId);
-      setPicked([]);
-      setDateInput("");
-      setError(null);
-      setBusy(false);
-      setAutoBusy(false);
-    }, [open, fallbackTemplateId]);
-    if (!open) return null;
-    const autoChecked = autoBusy ? autoDraft : autoOn;
-    const autoAhead = current4 ? Math.max(0, Math.round(Number(current4.printAheadDays) || 0)) : 0;
-    const printedDates = printedDatesOf(prints, current4 && current4.id);
-    const pickedSorted = uniqueSorted(picked);
-    const { rows, skippedPrinted, skippedNotInRule, submitDates, taskCount } = buildPreview(printing, pickedSorted, printedDates);
-    const addDates = (values) => {
-      const clean = uniqueSorted(values);
-      if (clean.length === 0) return;
-      setPicked((currentPicked) => uniqueSorted([...currentPicked, ...clean]));
-      setError(null);
-    };
-    const removeDate = (date) => {
-      setPicked((currentPicked) => currentPicked.filter((item) => item !== date));
-    };
-    const addFromInput = () => {
-      const value = String(dateInput ?? "").trim();
-      if (value === "") return;
-      if (!isDateText(value)) {
-        setError(t("print.invalidDate"));
-        return;
-      }
-      addDates([value]);
-      setDateInput("");
-    };
-    const chooseTemplate = (nextId) => {
-      setTemplateId(nextId);
-      setPicked([]);
-      setDateInput("");
-      setError(null);
-    };
-    const toggleAutomatic = async (next) => {
-      if (autoBusy || busy || !current4 || !printing) return;
-      setAutoDraft(!!next);
-      setAutoBusy(true);
-      setError(null);
-      const result = await tryDispatch({
-        type: "saveTemplate",
-        template: {
-          ...current4,
-          automatic: next,
-          printAheadDays: current4.printAheadDays
-        },
-        printDates: []
-      });
-      setAutoBusy(false);
-      if (!result.ok) {
-        setError(result.error || t("common.writeFailed"));
-        return;
-      }
-      notify(next ? t("print.autoOn") : t("print.autoOff"), "brand");
-    };
-    const submit = async () => {
-      if (busy) return;
-      if (!current4 || !printing) {
-        setError(t("print.noPrinting"));
-        return;
-      }
-      if (submitDates.length === 0) {
-        setError(t("print.pickDateFirst"));
-        return;
-      }
-      setBusy(true);
-      setError(null);
-      const result = await tryDispatch({
-        type: "printTemplate",
-        id: current4.id,
-        dates: submitDates
-      });
-      setBusy(false);
-      if (!result.ok) {
-        setError(result.error || t("common.writeFailed"));
-        return;
-      }
-      notify(t("print.done"), "brand");
-      onClose?.();
-    };
-    const quickChips = [];
-    if (printing) {
-      quickChips.push({
-        key: "today",
-        label: t("print.chipToday"),
-        icon: "sun",
-        dates: [baseToday]
-      });
-      quickChips.push({
-        key: "tomorrow",
-        label: t("print.chipTomorrow"),
-        icon: "calendar",
-        dates: [addDays(baseToday, 1)]
-      });
-      if (printing.kind === "weekly") {
-        quickChips.push({
-          key: "week",
-          label: t("print.chipThisWeek"),
-          icon: "calendarClock",
-          dates: [weekStart(baseToday)]
-        });
-      }
-      if (printing.kind === "calendar") {
-        const ruleDates = calendarRuleDates(printing);
-        const horizon = addDays(baseToday, CALENDAR_LOOKAHEAD_DAYS - 1);
-        const upcoming = ruleDates.filter((date) => date >= baseToday && date <= horizon).slice(0, QUICK_UPCOMING_LIMIT);
-        if (upcoming.length > 0) {
-          quickChips.push({
-            key: "upcoming",
-            label: t("print.chipNextDays"),
-            icon: "arrowRight",
-            dates: upcoming
-          });
-        }
-        if (ruleDates.length > 0 && ruleDates.length <= ALL_DATES_LIMIT) {
-          quickChips.push({
-            key: "all",
-            label: t("print.chipAllDates", { n: ruleDates.length }),
-            icon: "filter",
-            dates: ruleDates
-          });
-        }
-      }
-      if (printing.kind === "once") {
-        quickChips.push({
-          key: "once",
-          label: t("print.chipRuleDate", {
-            date: dayLabel(printing.date, baseToday)
-          }),
-          icon: "calendarClock",
-          dates: [printing.date]
-        });
-      }
-    }
-    const shownRows = rows.slice(0, MAX_PREVIEW_ROWS);
-    const hiddenRows = rows.length - shownRows.length;
-    const hasSkipped = skippedPrinted.length > 0 || skippedNotInRule.length > 0;
-    const previewBlock = h(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 8 } },
-      h(SectionTitle, { icon: "eye", title: t("print.preview") }),
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 13,
-            fontWeight: 550,
-            color: taskCount > 0 ? "var(--tomato-ink)" : "var(--tomato-ink-3)",
-            fontVariantNumeric: "tabular-nums"
-          }
-        },
-        taskCount > 0 ? t("print.previewCount", { n: taskCount }) : t("print.previewNone")
-      ),
-      shownRows.length > 0 ? h(
-        "div",
-        {
-          className: "t-scroll",
-          style: { maxHeight: 240, overflowY: "auto" }
-        },
-        shownRows.map(
-          (row) => h(
-            "div",
-            {
-              key: row.date,
-              style: {
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                padding: "7px 0",
-                borderBottom: "1px solid var(--tomato-line)"
-              }
-            },
-            h(
-              "div",
-              { style: { flexShrink: 0, minWidth: 0 } },
-              h(
-                "div",
-                {
-                  style: {
-                    fontSize: 12.5,
-                    color: "var(--tomato-ink)",
-                    whiteSpace: "nowrap"
-                  }
-                },
-                dayLabel(row.date, baseToday)
-              ),
-              h(
-                "div",
-                {
-                  className: "t-mono",
-                  style: {
-                    fontSize: 11,
-                    color: "var(--tomato-ink-3)",
-                    marginTop: 1
-                  }
-                },
-                row.date
-              )
-            ),
-            h(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  flexWrap: "wrap",
-                  justifyContent: "flex-end",
-                  gap: 5,
-                  flex: 1,
-                  minWidth: 0
-                }
-              },
-              row.times.map(
-                (time, index) => h(
-                  Chip,
-                  {
-                    key: `${row.date}-${index}`,
-                    tone: time ? "brand" : "neutral",
-                    icon: time ? "clock" : "sparkle"
-                  },
-                  time || t("print.untimed")
-                )
-              )
-            )
-          )
-        ),
-        hiddenRows > 0 ? h(
-          "div",
-          {
-            style: {
-              fontSize: 11.5,
-              color: "var(--tomato-ink-3)",
-              paddingTop: 6,
-              fontVariantNumeric: "tabular-nums"
-            }
-          },
-          t("print.previewMore", { n: hiddenRows })
-        ) : null
-      ) : null,
-      hasSkipped ? h(
-        "div",
-        {
-          style: {
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            marginTop: 2
-          }
-        },
-        h(
-          "div",
-          {
-            style: {
-              fontSize: 11.5,
-              fontWeight: 550,
-              color: "var(--tomato-ink-3)"
-            }
-          },
-          t("print.skipped")
-        ),
-        h(
-          "div",
-          { style: { display: "flex", flexWrap: "wrap", gap: 5 } },
-          skippedPrinted.map(
-            (date) => h(
-              Chip,
-              { key: `printed-${date}`, tone: "neutral", icon: "check" },
-              t("print.skipPrinted", { date })
-            )
-          ),
-          skippedNotInRule.map(
-            (date) => h(
-              Chip,
-              { key: `outside-${date}`, tone: "danger", icon: "x" },
-              t("print.skipNotInRule", { date })
-            )
-          )
-        ),
-        skippedNotInRule.length > 0 ? h(
-          "div",
-          {
-            style: {
-              fontSize: 11,
-              lineHeight: 1.5,
-              color: "var(--tomato-ink-3)"
-            }
-          },
-          t("print.excludedHint")
-        ) : null
-      ) : null
-    );
-    let body;
-    if (list.length === 0) {
-      body = h(Empty, {
-        icon: "calendar",
-        title: t("print.emptyTitle"),
-        hint: t("print.emptyHint"),
-        style: { padding: "40px 16px" }
-      });
-    } else {
-      body = h(
-        "div",
-        { style: { display: "flex", flexDirection: "column", gap: 16 } },
-        h(
-          Field,
-          { label: t("print.template") },
-          h(Select, {
-            value: activeTemplateId,
-            options: list.map((item) => ({
-              value: item.id,
-              label: shapeTitle(item)
-            })),
-            onChange: chooseTemplate,
-            width: "100%"
-          })
-        ),
-        current4 ? h(
-          "div",
-          { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
-          h(
-            Chip,
-            {
-              tone: "neutral",
-              icon: "calendarClock",
-              style: { fontVariantNumeric: "tabular-nums" }
-            },
-            ruleSummary(current4, baseToday)
-          )
-        ) : null,
-        printing ? h(Toggle, {
-          checked: autoChecked,
-          onChange: toggleAutomatic,
-          label: t("print.autoLabel"),
-          hint: t("print.autoHint", { n: autoAhead })
-        }) : null,
-        printing ? h(Divider, null) : null,
-        printing ? h(
-          "div",
-          { style: { display: "flex", flexDirection: "column", gap: 10 } },
-          h(SectionTitle, { icon: "calendar", title: t("print.dates") }),
-          quickChips.length > 0 ? h(
-            "div",
-            { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
-            quickChips.map(
-              (chip) => h(
-                Chip,
-                {
-                  key: chip.key,
-                  tone: "neutral",
-                  icon: chip.icon,
-                  active: chip.dates.length > 0 && chip.dates.every(
-                    (date) => pickedSorted.includes(date)
-                  ),
-                  onClick: () => addDates(chip.dates),
-                  // 触摸区 ≥28px：Chip 默认 22px，这里按 sm 按钮抬高。
-                  style: {
-                    height: 28,
-                    padding: "0 10px",
-                    fontSize: 12,
-                    borderRadius: 9,
-                    fontVariantNumeric: "tabular-nums"
-                  }
-                },
-                chip.label
-              )
-            )
-          ) : null,
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                gap: 8,
-                alignItems: "flex-end",
-                flexWrap: "wrap"
-              }
-            },
-            h(
-              Field,
-              {
-                label: t("print.pickDate"),
-                style: { flex: "1 1 180px", minWidth: 160 }
-              },
-              h(Input, {
-                type: "date",
-                value: dateInput,
-                onChange: (value) => setDateInput(value),
-                onKeyDown: (event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addFromInput();
-                  }
-                }
-              })
-            ),
-            h(
-              Btn,
-              {
-                variant: "soft",
-                size: "md",
-                icon: "plus",
-                title: t("print.addDate"),
-                onClick: addFromInput
-              },
-              t("print.addDate")
-            )
-          ),
-          pickedSorted.length > 0 ? h(
-            "div",
-            { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
-            pickedSorted.map(
-              (date) => h(
-                Btn,
-                {
-                  key: date,
-                  variant: "soft",
-                  size: "sm",
-                  iconRight: "x",
-                  title: t("print.removeDate"),
-                  onClick: () => removeDate(date)
-                },
-                h("span", { key: "label" }, dayLabel(date, baseToday)),
-                h(
-                  "span",
-                  {
-                    key: "date",
-                    className: "t-mono",
-                    style: { fontSize: 11, color: "var(--tomato-ink-3)" }
-                  },
-                  date
-                )
-              )
-            )
-          ) : h(
-            "div",
-            { style: { fontSize: 12, color: "var(--tomato-ink-3)" } },
-            t("print.pickedEmpty")
-          )
-        ) : h(Empty, {
-          icon: "calendar",
-          title: t("print.noPrinting"),
-          hint: t("print.noPrintingHint"),
-          style: { padding: "28px 16px" }
-        }),
-        printing ? h(Divider, null) : null,
-        printing ? previewBlock : null,
-        error ? h(
-          "div",
-          {
-            style: {
-              padding: "9px 12px",
-              borderRadius: 10,
-              background: "var(--tomato-brand-soft)",
-              color: "var(--tomato-brand-deep)",
-              fontSize: 12.5
-            },
-            role: "alert"
-          },
-          error
-        ) : null
-      );
-    }
-    const footer = h(
-      "div",
-      { style: { display: "flex", alignItems: "center", gap: 9, width: "100%" } },
-      h("div", { style: { flex: 1 } }),
-      h(
-        Btn,
-        {
-          variant: "plain",
-          size: "sm",
-          onClick: onClose,
-          disabled: busy || autoBusy
-        },
-        t("common.cancel")
-      ),
-      h(
-        Btn,
-        {
-          variant: "primary",
-          size: "sm",
-          icon: "check",
-          onClick: submit,
-          disabled: busy || !printing || submitDates.length === 0,
-          title: !printing ? t("print.noPrinting") : submitDates.length === 0 ? t("print.pickDateFirst") : t("print.confirm")
-        },
-        t("print.confirm")
-      )
-    );
-    return h(
-      Modal,
-      {
-        open,
-        onClose: () => {
-          if (!busy && !autoBusy) onClose?.();
-        },
-        icon: "download",
-        title: t("print.title"),
-        subtitle: t("print.subtitle"),
-        width: 620,
-        footer
-      },
-      body
-    );
-  }
-
   // plugin/src/client/pages/tasks.js
   registerCopy("tasks", {
     zh: {
@@ -15735,7 +13668,6 @@ ${JSON.stringify(refs, null, 2)}`;
       tabActive: "待完成",
       tabCompleted: "已完成",
       tabAll: "全部",
-      tabTemplates: "模板",
       selectMode: "选择",
       selectDone: "完成选择",
       batchSelected: "已选 {n} 项",
@@ -15774,27 +13706,6 @@ ${JSON.stringify(refs, null, 2)}`;
       addSubmit: "添加",
       fullEdit: "完整编辑",
       added: "任务已添加",
-      templateUnnamed: "未命名模板",
-      printingOnce: "单次 · {date}{time}",
-      printingCalendar: "日历 · {n} 个时段",
-      printingWeekly: "每周 · {n} 个时段",
-      printingNone: "还没有印刷规则",
-      printingNoDate: "未定",
-      printingTimes: " · {times}",
-      autoPrint: "自动印刷",
-      manualPrint: "手动",
-      printAhead: "提前 {n} 天",
-      templateEstimate: "预计 {n} 个番茄",
-      templateFocus: "每次 {minutes}",
-      templateDefaultFocus: "每次 {minutes}（默认）",
-      templatesHint: "模板保留形状与印刷规则；印刷生成的实例之后与模板互不覆盖，需要时手动同步。",
-      templatesTitle: "模板与印刷",
-      newTemplate: "新建模板",
-      editTemplate: "编辑模板",
-      printTemplateAction: "印刷模板",
-      syncTemplate: "同步形状到未完成实例",
-      templateSynced: "模板形状已同步到未完成实例",
-      syncingTemplate: "同步中…",
       emptyActive: "还没有任务，先加一件吧",
       emptyActiveHint: "写下想做的事，把第一步留给现在。",
       emptyCompleted: "每一次完成，都值得被记录",
@@ -15802,9 +13713,7 @@ ${JSON.stringify(refs, null, 2)}`;
       emptyAll: "还没有任务",
       emptyAllHint: "写下想做的事，把第一步留给现在。",
       emptySearch: "没有找到匹配的任务",
-      emptySearchHint: "试试其他关键词，或清空筛选。",
-      emptyTemplates: "还没有模板",
-      emptyTemplatesHint: "模板保留形状，实例记录每一次执行。"
+      emptySearchHint: "试试其他关键词，或清空筛选。"
     },
     en: {
       eyebrow: "ALL TASKS",
@@ -15829,7 +13738,6 @@ ${JSON.stringify(refs, null, 2)}`;
       tabActive: "To do",
       tabCompleted: "Done",
       tabAll: "All",
-      tabTemplates: "Templates",
       selectMode: "Select",
       selectDone: "Done selecting",
       batchSelected: "{n} selected",
@@ -15868,27 +13776,6 @@ ${JSON.stringify(refs, null, 2)}`;
       addSubmit: "Add",
       fullEdit: "Full edit",
       added: "Task added",
-      templateUnnamed: "Untitled template",
-      printingOnce: "Once · {date}{time}",
-      printingCalendar: "Calendar · {n} slots",
-      printingWeekly: "Weekly · {n} slots",
-      printingNone: "No printing rule yet",
-      printingNoDate: "Unscheduled",
-      printingTimes: " · {times}",
-      autoPrint: "Auto print",
-      manualPrint: "Manual",
-      printAhead: "{n} days ahead",
-      templateEstimate: "{n} pomodoros planned",
-      templateFocus: "{minutes} per session",
-      templateDefaultFocus: "{minutes} per session (default)",
-      templatesHint: "Templates keep the shape and the printing rule; printed instances stay decoupled, sync them when needed.",
-      templatesTitle: "Templates & printing",
-      newTemplate: "New template",
-      editTemplate: "Edit template",
-      printTemplateAction: "Print template",
-      syncTemplate: "Sync shape to unfinished instances",
-      templateSynced: "Template shape synced to unfinished instances",
-      syncingTemplate: "Syncing…",
       emptyActive: "No tasks yet — add one",
       emptyActiveHint: "Write down one thing and start with the first step.",
       emptyCompleted: "Every finish is worth keeping",
@@ -15896,9 +13783,7 @@ ${JSON.stringify(refs, null, 2)}`;
       emptyAll: "No tasks yet",
       emptyAllHint: "Write down one thing and start with the first step.",
       emptySearch: "No matching tasks",
-      emptySearchHint: "Try another keyword, or clear the filters.",
-      emptyTemplates: "No templates yet",
-      emptyTemplatesHint: "Templates keep the shape; instances record each run."
+      emptySearchHint: "Try another keyword, or clear the filters."
     }
   });
   function priorityOf(task) {
@@ -15933,35 +13818,6 @@ ${JSON.stringify(refs, null, 2)}`;
     });
     return items;
   }
-  function printingSummary(template, today) {
-    const rule = template && template.printing;
-    if (!rule || !rule.kind) return t("tasks.printingNone");
-    if (rule.kind === "once") {
-      const date = rule.date ? dayLabel(rule.date, today) : "";
-      const time = rule.time ? ` ${rule.time}` : "";
-      return t("tasks.printingOnce", {
-        date: date || t("tasks.printingNoDate"),
-        time
-      });
-    }
-    if (rule.kind === "calendar") {
-      const slots = Array.isArray(rule.slots) ? rule.slots : [];
-      const n = slots.reduce(
-        (sum, slot) => sum + (Array.isArray(slot.dates) ? slot.dates.length : 0),
-        0
-      );
-      return t("tasks.printingCalendar", { n });
-    }
-    if (rule.kind === "weekly") {
-      const slots = Array.isArray(rule.slots) ? rule.slots : [];
-      const times = Array.from(
-        new Set(slots.map((slot) => slot.time).filter(Boolean))
-      );
-      const summary = t("tasks.printingWeekly", { n: slots.length });
-      return times.length > 0 ? `${summary}${t("tasks.printingTimes", { times: times.join(" / ") })}` : summary;
-    }
-    return t("tasks.printingNone");
-  }
   function taskDraft(task, patch) {
     return {
       id: task.id,
@@ -15972,6 +13828,7 @@ ${JSON.stringify(refs, null, 2)}`;
       reminderTime: task.reminderTime ?? null,
       focusMinutes: task.focusMinutes ?? null,
       scrapMinutes: Number(task.scrapMinutes) || 0,
+      expiryDays: Number(task.expiryDays) || 0,
       priority: priorityOf(task),
       estimate: Math.max(1, Number(task.estimate) || 1),
       tags: Array.isArray(task.tags) ? task.tags.slice() : [],
@@ -15981,7 +13838,8 @@ ${JSON.stringify(refs, null, 2)}`;
         done: !!sub.done
       })) : [],
       ...patch,
-      repeat: "none"
+      repeat: task.repeat || "none",
+      repeatDays: task.repeatDays || []
     };
   }
   function SummaryStrip({ counts }) {
@@ -16006,13 +13864,6 @@ ${JSON.stringify(refs, null, 2)}`;
         label: t("tasks.tabCompleted"),
         n: counts.completed,
         tone: "leaf"
-      },
-      {
-        key: "templates",
-        icon: "sparkle",
-        label: t("tasks.tabTemplates"),
-        n: counts.templates,
-        tone: "neutral"
       }
     ];
     return h(
@@ -16062,11 +13913,7 @@ ${JSON.stringify(refs, null, 2)}`;
         value: "completed",
         label: `${t("tasks.tabCompleted")} ${counts.completed}`
       },
-      { value: "all", label: `${t("tasks.tabAll")} ${counts.all}` },
-      {
-        value: "templates",
-        label: `${t("tasks.tabTemplates")} ${counts.templates}`
-      }
+      { value: "all", label: `${t("tasks.tabAll")} ${counts.all}` }
     ];
     const projectOptions = [
       { value: "all", label: t("tasks.allProjects") },
@@ -16478,242 +14325,6 @@ ${JSON.stringify(refs, null, 2)}`;
       trailing
     );
   }
-  function TemplateList({
-    templates,
-    today,
-    data,
-    defaultFocus,
-    onNew,
-    onEdit,
-    onPrint,
-    onSync,
-    syncingId
-  }) {
-    const hint = h(
-      "div",
-      {
-        style: {
-          padding: "10px 10px 2px",
-          fontSize: 11.5,
-          lineHeight: 1.6,
-          color: "var(--tomato-ink-3)"
-        }
-      },
-      t("tasks.templatesHint")
-    );
-    const header = h(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "2px 10px 10px",
-          flexWrap: "wrap"
-        }
-      },
-      h(Icon, {
-        name: "sparkle",
-        size: 16,
-        style: { color: "var(--tomato-brand-deep)" }
-      }),
-      h(
-        "div",
-        {
-          style: {
-            fontSize: 13,
-            fontWeight: 620,
-            color: "var(--tomato-ink)",
-            flex: 1,
-            minWidth: 0
-          }
-        },
-        t("tasks.templatesTitle")
-      ),
-      h(
-        Btn,
-        {
-          variant: "soft",
-          size: "sm",
-          icon: "plus",
-          onClick: onNew,
-          disabled: !onNew
-        },
-        t("tasks.newTemplate")
-      )
-    );
-    if (templates.length === 0) {
-      return h(
-        "div",
-        null,
-        h(Empty, {
-          icon: "calendar",
-          title: t("tasks.emptyTemplates"),
-          hint: t("tasks.emptyTemplatesHint"),
-          action: onNew ? h(
-            Btn,
-            { variant: "primary", size: "sm", icon: "plus", onClick: onNew },
-            t("tasks.newTemplate")
-          ) : null
-        }),
-        hint
-      );
-    }
-    return h(
-      "div",
-      null,
-      header,
-      h(
-        "div",
-        { style: { display: "flex", flexDirection: "column" } },
-        templates.map((template, index) => {
-          if (!template) return null;
-          const shape = template.shape || {};
-          const project = projectById(data, shape.projectId);
-          const estimate = Math.max(1, Number(shape.estimate) || 1);
-          const focus = shape.focusMinutes != null ? Number(shape.focusMinutes) : null;
-          const tags = Array.isArray(shape.tags) ? shape.tags.slice(0, 4) : [];
-          const ahead = Number(template.printAheadDays);
-          return h(
-            "div",
-            {
-              key: template.id,
-              className: "t-row",
-              style: {
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                padding: "12px 10px",
-                borderRadius: 12,
-                borderBottom: index === templates.length - 1 ? "none" : "1px solid var(--tomato-line)"
-              }
-            },
-            h(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: 8
-                }
-              },
-              h(
-                "span",
-                {
-                  style: {
-                    minWidth: 0,
-                    fontSize: 13.5,
-                    fontWeight: 560,
-                    color: "var(--tomato-ink)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap"
-                  }
-                },
-                shape.title || t("tasks.templateUnnamed")
-              ),
-              h(
-                Chip,
-                {
-                  tone: template.automatic ? "brand" : "neutral",
-                  icon: template.automatic ? "refresh" : "edit"
-                },
-                template.automatic ? t("tasks.autoPrint") : t("tasks.manualPrint")
-              ),
-              h("div", { style: { flex: 1 } }),
-              h(
-                "div",
-                { style: { display: "flex", alignItems: "center", gap: 2 } },
-                h(IconBtn, {
-                  name: "edit",
-                  size: 16,
-                  box: 30,
-                  title: t("tasks.editTemplate"),
-                  onClick: () => onEdit?.(template)
-                }),
-                h(IconBtn, {
-                  name: "play",
-                  size: 16,
-                  box: 30,
-                  title: t("tasks.printTemplateAction"),
-                  onClick: () => onPrint?.(template)
-                }),
-                h(IconBtn, {
-                  name: "refresh",
-                  size: 16,
-                  box: 30,
-                  title: syncingId === template.id ? t("tasks.syncingTemplate") : t("tasks.syncTemplate"),
-                  disabled: syncingId !== null,
-                  onClick: () => onSync?.(template)
-                })
-              )
-            ),
-            h(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: "4px 10px",
-                  fontSize: 11.5,
-                  lineHeight: 1.5,
-                  color: "var(--tomato-ink-3)"
-                }
-              },
-              project ? h(
-                "span",
-                { style: META_ITEM },
-                h(Dot, { color: projectColor(data, project.id), size: 6 }),
-                project.name
-              ) : h(
-                "span",
-                { style: META_ITEM },
-                h(Dot, { color: "var(--tomato-ink-3)", size: 6 }),
-                t("tasks.noProject")
-              ),
-              h(
-                "span",
-                { style: META_ITEM },
-                h(Icon, { name: "calendarClock", size: 12 }),
-                printingSummary(template, today)
-              ),
-              Number.isFinite(ahead) && ahead >= 0 ? h(
-                "span",
-                { style: META_ITEM },
-                t("tasks.printAhead", { n: ahead })
-              ) : null,
-              h(
-                "span",
-                { style: META_ITEM },
-                t("tasks.templateEstimate", { n: estimate })
-              ),
-              h(
-                "span",
-                { style: META_ITEM },
-                focus != null && focus > 0 ? t("tasks.templateFocus", { minutes: fmtMinutes(focus) }) : t("tasks.templateDefaultFocus", {
-                  minutes: fmtMinutes(defaultFocus)
-                })
-              ),
-              tags.map(
-                (tag, tagIndex) => h(
-                  Chip,
-                  {
-                    key: `tag-${tagIndex}`,
-                    tone: "neutral",
-                    style: { height: 19, fontSize: 11 }
-                  },
-                  `#${tag}`
-                )
-              )
-            )
-          );
-        })
-      ),
-      hint
-    );
-  }
   function AddBar({ value, onChange, onAdd, onFullEdit, busy }) {
     return h(
       Card,
@@ -16781,9 +14392,6 @@ ${JSON.stringify(refs, null, 2)}`;
     const [pendingDelete, setPendingDelete] = useState(null);
     const [moveOpen, setMoveOpen] = useState(false);
     const [moveDate, setMoveDate] = useState("");
-    const [templateEditor, setTemplateEditor] = useState(null);
-    const [printDialog, setPrintDialog] = useState(null);
-    const [syncingId, setSyncingId] = useState(null);
     useSearchHotkey(() => setSearchOpen(true));
     useEffect(() => {
       const apply2 = (value) => {
@@ -16795,9 +14403,8 @@ ${JSON.stringify(refs, null, 2)}`;
       return subscribeTasksFilter(apply2);
     }, []);
     const data = state && state.data || {};
-    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const tasks = listedTasks(data);
     const projects = Array.isArray(data.projects) ? data.projects : [];
-    const templates = Array.isArray(data.templates) ? data.templates : [];
     const settings = data.settings || {};
     const today = state && state.today || todayKey(state && state.serverTime);
     const viewData = { ...data, taskKinds: state && state.taskKinds || {} };
@@ -16806,8 +14413,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const counts = {
       all: tasks.length,
       active: tasks.filter((task) => !task.completed).length,
-      completed: tasks.filter((task) => task.completed).length,
-      templates: templates.length
+      completed: tasks.filter((task) => task.completed).length
     };
     const normalizedQuery = query.trim().toLowerCase();
     const knownProject = new Set(projects.map((project) => project.id));
@@ -16828,18 +14434,9 @@ ${JSON.stringify(refs, null, 2)}`;
     );
     const editingTask = editor && editor.id ? taskById(data, editor.id) : null;
     const dialogOpen2 = !!editor && (!editor.id || !!editingTask);
-    const editingTemplate = templateEditor && templateEditor.id ? templates.find(
-      (template) => template && template.id === templateEditor.id
-    ) || null : null;
-    const templateDialogOpen = !!templateEditor && (!templateEditor.id || !!editingTemplate);
-    const prints = Array.isArray(data.prints) ? data.prints : [];
     const showToastError = (error) => notify(error || t("common.writeFailed"), "danger");
     const changeTab = (next) => {
       setTab(next);
-      if (next === "templates") {
-        setPicked([]);
-        setSelecting(false);
-      }
     };
     const toggleSelecting = () => {
       if (selecting) {
@@ -16995,7 +14592,7 @@ ${JSON.stringify(refs, null, 2)}`;
           title,
           notes: "",
           projectId: null,
-          dueDate: today,
+          dueDate: null,
           reminderTime: null,
           focusMinutes: null,
           scrapMinutes: 0,
@@ -17013,25 +14610,6 @@ ${JSON.stringify(refs, null, 2)}`;
       }
       setDraftTitle("");
       notify(t("tasks.added"), "brand");
-    };
-    const openTemplate = (template) => {
-      setTemplateEditor(template && template.id ? { id: template.id } : {});
-    };
-    const openPrint = (template) => {
-      setPrintDialog({
-        templateId: template && template.id ? template.id : null
-      });
-    };
-    const runSyncTemplate = async (template) => {
-      if (!template || syncingId !== null) return;
-      setSyncingId(template.id);
-      const result = await tryDispatch({ type: "syncTemplate", id: template.id });
-      setSyncingId(null);
-      if (!result.ok) {
-        showToastError(result.error);
-        return;
-      }
-      notify(t("tasks.templateSynced"), "brand");
     };
     const header = h(PageHeader, {
       eyebrow: t("tasks.eyebrow"),
@@ -17147,21 +14725,7 @@ ${JSON.stringify(refs, null, 2)}`;
         onDelete: requestBatchDelete,
         onCancel: clearSelection
       }) : null,
-      tab === "templates" ? h(
-        Card,
-        { pad: 16 },
-        h(TemplateList, {
-          templates,
-          today,
-          data: viewData,
-          defaultFocus,
-          onNew: () => openTemplate(null),
-          onEdit: openTemplate,
-          onPrint: openPrint,
-          onSync: runSyncTemplate,
-          syncingId
-        })
-      ) : h(
+      h(
         Card,
         { pad: 12 },
         visible.length === 0 ? h(Empty, emptyProps) : h(
@@ -17177,7 +14741,7 @@ ${JSON.stringify(refs, null, 2)}`;
           )
         )
       ),
-      tab === "templates" ? null : h(AddBar, {
+      h(AddBar, {
         value: draftTitle,
         onChange: setDraftTitle,
         onAdd: addTask,
@@ -17192,22 +14756,6 @@ ${JSON.stringify(refs, null, 2)}`;
         settings,
         initialTitle: editor && editor.title ? editor.title : "",
         onClose: () => setEditor(null)
-      }),
-      h(TemplateDialog, {
-        open: templateDialogOpen,
-        template: editingTemplate,
-        today,
-        data: viewData,
-        settings,
-        onClose: () => setTemplateEditor(null)
-      }),
-      h(PrintDialog, {
-        open: printDialog !== null,
-        templates,
-        prints,
-        today,
-        initialTemplateId: printDialog ? printDialog.templateId : null,
-        onClose: () => setPrintDialog(null)
       }),
       h(SearchDialog, {
         open: searchOpen,
@@ -17318,7 +14866,7 @@ ${JSON.stringify(refs, null, 2)}`;
     badge: (snapshot2) => {
       const list = snapshot2 && snapshot2.data && Array.isArray(snapshot2.data.tasks) ? snapshot2.data.tasks : null;
       if (!list) return null;
-      return list.filter((task) => !task.completed).length;
+      return listedTasks({ tasks: list }).filter((task) => !task.completed).length;
     }
   });
 
@@ -18174,7 +15722,7 @@ ${JSON.stringify(refs, null, 2)}`;
   });
   var LIBRARY_PAGE = 30;
   var RESOURCE_PAGE = 30;
-  var KINDS2 = ["pdf", "image", "doc", "audio", "video", "other"];
+  var KINDS = ["pdf", "image", "doc", "audio", "video", "other"];
   function fmtSize(bytes) {
     const n = Number(bytes);
     if (!Number.isFinite(n) || n < 0) return "";
@@ -18911,7 +16459,7 @@ ${JSON.stringify(refs, null, 2)}`;
     }
     const kindOptions = [
       { value: "", label: t("project.libraryKindAll") },
-      ...KINDS2.map((value) => ({
+      ...KINDS.map((value) => ({
         value,
         label: indexKindLabel(value)
       }))
@@ -20736,7 +18284,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const data = state && state.data || {};
     const projects = Array.isArray(data.projects) ? data.projects : [];
     const project = projects.find((item) => item.id === currentId) || null;
-    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const tasks = listedTasks(data);
     const settings = data.settings || {};
     const today = state && state.today || todayKey(state && state.serverTime);
     const viewData = { ...data, taskKinds: state && state.taskKinds || {} };
@@ -21314,7 +18862,7 @@ ${JSON.stringify(refs, null, 2)}`;
       dotTitle: "{date} · {status}",
       newHabitTitle: "新建习惯",
       editHabitTitle: "编辑习惯",
-      habitDialogSubtitle: "时段决定它多久出现一次；专注时长留空就用默认值。",
+      habitDialogSubtitle: "时段可不填，默认每日循环；需要时再添加星期和精确提醒。",
       habitName: "习惯名称",
       habitNamePlaceholder: "例如：晨读 20 分钟",
       habitProject: "分组",
@@ -21357,7 +18905,7 @@ ${JSON.stringify(refs, null, 2)}`;
       subtitle: "Habits are repeated small acts; visions are the far direction.",
       tabHabits: "Habits",
       tabVisions: "Visions",
-      habitsHint: "Dots cover the last 7 days: filled done, outlined missed, grey nothing scheduled.",
+      habitsHint: "Dots cover the last 7 days: filled done, outlined pending, grey nothing scheduled.",
       visionsHint: "Pure direction markers: no completion state, no pressure.",
       newHabit: "New habit",
       newVision: "New vision",
@@ -21381,7 +18929,7 @@ ${JSON.stringify(refs, null, 2)}`;
       dotTitle: "{date} · {status}",
       newHabitTitle: "New habit",
       editHabitTitle: "Edit habit",
-      habitDialogSubtitle: "The schedule decides how often it appears; leave focus length empty for the default.",
+      habitDialogSubtitle: "Slots are optional; without a slot this repeats daily. Add weekdays and an exact reminder when needed.",
       habitName: "Habit name",
       habitNamePlaceholder: "e.g. Morning reading, 20 minutes",
       habitProject: "Group",
@@ -21421,7 +18969,6 @@ ${JSON.stringify(refs, null, 2)}`;
     }
   });
   var ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
-  var DEFAULT_TIME = "07:00";
   var STREAK_LOOKBACK = 120;
   var STATUS_COPY = {
     done: "habits.dotDone",
@@ -21453,24 +19000,30 @@ ${JSON.stringify(refs, null, 2)}`;
     placeItems: "center",
     flex: "none"
   };
-  function habitTemplate(templates, habitId) {
+  function habitSchedule(tasks, habitId) {
     if (!habitId) return null;
-    return templates.find(
-      (item) => item && item.shape && item.shape.habitId === habitId
-    ) || null;
-  }
-  function slotsOfTemplate(template) {
-    if (!template || !template.printing || template.printing.kind !== "weekly")
-      return [];
-    const slots = Array.isArray(template.printing.slots) ? template.printing.slots : [];
-    return slots.filter(
-      (slot) => slot && Array.isArray(slot.days) && slot.days.some((day) => day >= 1 && day <= 7) && typeof slot.time === "string" && slot.time.length > 0
+    const active2 = tasks.filter(
+      (task) => task && task.habitId === habitId && !task.completed && !task.nextTaskId && ["daily", "weekdays", "weekly"].includes(task.repeat)
     );
+    if (active2.length === 0) return null;
+    if (active2.length === 1 && active2[0].repeat === "daily" && !active2[0].reminderTime)
+      return { task: active2[0], slots: [] };
+    return {
+      task: active2[0],
+      slots: active2.map((task) => ({
+        days: task.repeatDays?.length ? task.repeatDays : ALL_DAYS,
+        time: task.reminderTime
+      }))
+    };
+  }
+  function slotsOfSchedule(schedule) {
+    return schedule?.slots || [];
   }
   function instancesOf(tasks, habitId) {
-    return tasks.filter(
-      (task) => task && task.habitId === habitId && typeof task.dueDate === "string" && task.dueDate.length > 0
-    );
+    return tasks.filter((task) => task && task.habitId === habitId).map((task) => ({
+      ...task,
+      dueDate: task.dueDate || todayKey(task.completedAt ?? task.createdAt)
+    }));
   }
   function groupByDate(instances) {
     const map = /* @__PURE__ */ new Map();
@@ -21481,19 +19034,10 @@ ${JSON.stringify(refs, null, 2)}`;
     }
     return map;
   }
-  function isPlanned(date, slots, hasTemplate) {
-    if (!hasTemplate) return false;
-    const weekday = weekdayIndex(date) + 1;
-    return slots.some((slot) => slot.days.includes(weekday));
-  }
-  function statusOfDay(date, grouped, slots, hasTemplate, today, firstDate) {
+  function statusOfDay(date, grouped, slots, hasSchedule, today, firstDate) {
     const entries = grouped.get(date) || [];
-    const planned = hasTemplate && (firstDate === null ? date === today : date >= firstDate) && isPlanned(date, slots, hasTemplate);
-    const scheduled = entries.length > 0 || planned;
-    if (!scheduled) return "idle";
     if (entries.some((task) => task.completed)) return "done";
-    if (date < today) return "missed";
-    if (date === today) return "pending";
+    if (entries.some((task) => !task.completed)) return "pending";
     return "idle";
   }
   function firstInstanceDate(instances) {
@@ -21503,7 +19047,7 @@ ${JSON.stringify(refs, null, 2)}`;
     }
     return first;
   }
-  function streakOf(grouped, slots, hasTemplate, today, firstDate) {
+  function streakOf(grouped, slots, hasSchedule, today, firstDate) {
     let streak = 0;
     let cursor = today;
     for (let i = 0; i < STREAK_LOOKBACK; i += 1) {
@@ -21511,7 +19055,7 @@ ${JSON.stringify(refs, null, 2)}`;
         cursor,
         grouped,
         slots,
-        hasTemplate,
+        hasSchedule,
         today,
         firstDate
       );
@@ -21525,7 +19069,8 @@ ${JSON.stringify(refs, null, 2)}`;
     let missed = 0;
     for (const task of instances) {
       if (task.completed) continue;
-      if (task.reminderExpired || task.dueDate < today) missed += 1;
+      if (task.reminderExpired && !task.recurring && task.repeat === "none")
+        missed += 1;
     }
     return missed;
   }
@@ -21553,11 +19098,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const labels = weekFullLabels();
     const everyDay = days.length === 7;
     const dayText = everyDay ? t("habits.everyDay") : days.map((day) => labels[day - 1] || String(day)).join(t("habits.daySeparator"));
-    return t("habits.slotText", { days: dayText, time: slot.time });
-  }
-  function normalizeTime(value) {
-    const seconds = parseHHMM(value);
-    return seconds === null ? DEFAULT_TIME : fmtHHMM(seconds);
+    return t("habits.slotText", { days: dayText, time: slot.time || "" });
   }
   function dotStyle(status) {
     if (status === "done") {
@@ -21592,10 +19133,10 @@ ${JSON.stringify(refs, null, 2)}`;
       border: "1px solid transparent"
     };
   }
-  function HabitCard({ habit, data, templates, tasks, today, onEdit, onDelete }) {
-    const template = habitTemplate(templates, habit.id);
-    const slots = slotsOfTemplate(template);
-    const shape = template && template.shape || {};
+  function HabitCard({ habit, data, tasks, today, onEdit, onDelete }) {
+    const schedule = habitSchedule(tasks, habit.id);
+    const slots = slotsOfSchedule(schedule);
+    const shape = schedule && schedule.task || {};
     const instanceList = instancesOf(tasks, habit.id);
     const grouped = groupByDate(instanceList);
     const firstDate = firstInstanceDate(instanceList);
@@ -21603,7 +19144,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const settingsFocus = Number((data.settings || {}).focusMinutes) || 0;
     const focus = Number(shape.focusMinutes) > 0 ? Number(shape.focusMinutes) : settingsFocus;
     const dates = recentDates(today, 7);
-    const streak = streakOf(grouped, slots, template !== null, today, firstDate);
+    const streak = streakOf(grouped, slots, schedule !== null, today, firstDate);
     const missed = missedOf(instanceList, today);
     const shortWeek = weekShortLabels();
     const meta = [];
@@ -21705,7 +19246,7 @@ ${JSON.stringify(refs, null, 2)}`;
             date,
             grouped,
             slots,
-            template !== null,
+            schedule !== null,
             today,
             firstDate
           );
@@ -21891,24 +19432,24 @@ ${JSON.stringify(refs, null, 2)}`;
   function HabitDialog({ mode, habitId, data, onClose, onRequestDelete }) {
     const editing = mode === "edit";
     const habits = Array.isArray(data.habits) ? data.habits : [];
-    const templates = Array.isArray(data.templates) ? data.templates : [];
+    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
     const projects = Array.isArray(data.projects) ? data.projects : [];
     const habit = editing ? habits.find((item) => item && item.id === habitId) || null : null;
-    const template = habitTemplate(templates, habitId);
-    const shape = template && template.shape || {};
-    const initialSlots = slotsOfTemplate(template);
-    const slotsFromTemplate = initialSlots.length > 0 ? initialSlots.map((slot) => ({
+    const schedule = habitSchedule(tasks, habitId);
+    const shape = schedule && schedule.task || {};
+    const initialSlots = slotsOfSchedule(schedule);
+    const slotsFromTasks = initialSlots.length > 0 ? initialSlots.map((slot) => ({
       days: Array.isArray(slot.days) && slot.days.length > 0 ? Array.from(
         new Set(slot.days.filter((day) => day >= 1 && day <= 7))
       ).sort((a, b) => a - b) : [...ALL_DAYS],
-      time: normalizeTime(slot.time)
-    })) : [{ days: [...ALL_DAYS], time: normalizeTime(null) }];
+      time: slot.time || ""
+    })) : [];
     const defaultFocus = Number((data.settings || {}).focusMinutes) || 45;
     const [name, setName] = useState(
       habit && typeof habit.name === "string" ? habit.name : ""
     );
     const [projectId, setProjectId] = useState(shape.projectId || "");
-    const [slots, setSlots] = useState(slotsFromTemplate);
+    const [slots, setSlots] = useState(slotsFromTasks);
     const [focus, setFocus] = useState(
       Number(shape.focusMinutes) >= 1 ? String(shape.focusMinutes) : ""
     );
@@ -21931,7 +19472,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const addSlot = () => {
       setSlots((previous) => {
         const last = previous[previous.length - 1];
-        const next = { days: [...last ? last.days : ALL_DAYS], time: "20:00" };
+        const next = { days: [...last ? last.days : ALL_DAYS], time: "" };
         return [...previous, next];
       });
     };
@@ -21945,10 +19486,6 @@ ${JSON.stringify(refs, null, 2)}`;
         setError(t("habits.nameError"));
         return;
       }
-      if (slots.length === 0) {
-        setError(t("habits.daysError"));
-        return;
-      }
       if (slots.length > 49) {
         setError(t("habits.slotsLimit"));
         return;
@@ -21959,12 +19496,12 @@ ${JSON.stringify(refs, null, 2)}`;
           setError(t("habits.daysError"));
           return;
         }
-        if (parseHHMM(slot.time) === null) {
+        if (slot.time && parseHHMM(slot.time) === null) {
           setError(t("habits.timeError"));
           return;
         }
         for (const day of slot.days) {
-          const key = `${day}|${fmtHHMM(parseHHMM(slot.time))}`;
+          const key = `${day}|${slot.time || ""}`;
           if (seen.has(key)) {
             setError(t("habits.slotDuplicate"));
             return;
@@ -21988,7 +19525,7 @@ ${JSON.stringify(refs, null, 2)}`;
         focusMinutes,
         slots: slots.map((slot) => ({
           days: slot.days,
-          time: fmtHHMM(parseHHMM(slot.time))
+          time: slot.time ? fmtHHMM(parseHHMM(slot.time)) : null
         }))
       });
       setBusy(false);
@@ -22093,7 +19630,7 @@ ${JSON.stringify(refs, null, 2)}`;
                 t("habits.slotTitle", { n: index + 1 })
               ),
               h("div", { style: { flex: 1 } }),
-              slots.length > 1 ? h(
+              h(
                 Btn,
                 {
                   variant: "plain",
@@ -22102,7 +19639,7 @@ ${JSON.stringify(refs, null, 2)}`;
                   onClick: () => removeSlot(index)
                 },
                 t("habits.removeSlot")
-              ) : null
+              )
             ),
             h(
               "div",
@@ -22356,10 +19893,9 @@ ${JSON.stringify(refs, null, 2)}`;
     const rawData = state && state.data || {};
     const habits = objectList(rawData.habits);
     const visions = objectList(rawData.visions);
-    const templates = objectList(rawData.templates);
     const tasks = objectList(rawData.tasks);
     const projects = objectList(rawData.projects);
-    const data = { ...rawData, habits, visions, templates, tasks, projects };
+    const data = { ...rawData, habits, visions, tasks, projects };
     const today = state && state.today || todayKey(state && state.serverTime);
     const header = h(PageHeader, {
       eyebrow: t("habits.eyebrow"),
@@ -22481,7 +20017,6 @@ ${JSON.stringify(refs, null, 2)}`;
           key: habit.id || `habit-${index}`,
           habit,
           data,
-          templates,
           tasks,
           today,
           onEdit: (id) => openHabit({ mode: "edit", habitId: id }),
@@ -25771,7 +23306,7 @@ ${JSON.stringify(refs, null, 2)}`;
     const attendedLessons = lessons.filter(
       (item) => item.attended === true || item.state === "ended"
     ).length;
-    const projectTasks = asArray2(data.tasks).filter(
+    const projectTasks = listedTasks(data).filter(
       (task) => task.projectId === projectId
     );
     const openTasks = projectTasks.filter((task) => task.completed !== true).sort((a, b) => strOr2(a.dueDate).localeCompare(strOr2(b.dueDate)));

@@ -59,7 +59,6 @@ function activeIdentities(data: AppData): Map<string, string> {
   for (const x of data.visions) add(x.id, "vision");
   for (const x of data.blocks) add(x.id, "block");
   for (const x of data.tasks) add(x.id, "task");
-  for (const x of data.templates) add(x.id, "template");
   for (const x of data.sessions) add(x.id, "session");
   for (const x of data.education.resources) add(x.id, "resource");
   for (const x of data.education.semesters) add(x.id, "semester");

@@ -1,10 +1,10 @@
-# 完整备份文件 v4
+# 完整备份文件 v5
 
 > 字段形状以 packages/core 的 TypeScript 实现为准：本文件记录字段语义与边界，JSON 字段名 camelCase，形状与校验随核心实现更新。
 
 入口：**偏好设置 → 数据与备份 → 导出备份 / 导入备份**。文件采用 UTF-8 JSON，建议文件名 `tomato-todo-backup.json`，上限 20 MiB。备份覆盖项目、任务完成进度、计时状态、专注历史、设置、课表阻塞时段和定时锁机规则。只交换待办安排时应使用 [学习计划文件](PLAN_FORMAT.md)，避免替换现有数据。
 
-机器定义见 [backup.schema.json](backup.schema.json)，通用示例见 [backup.example.json](backup.example.json)。Schema 校验结构，Rust 核心检查引用、日期、时间和跨字段约束。当前数据/备份版本为 `4`；外部旧版备份明确拒绝。本地 v3 数据库仅在首次打开时转换：删除目标、节点、配对与信号，保留任务、愿景、完成记录与专注历史；无日期旧任务取创建日，无日期单次模板取升级日；无日期印刷账本退役。任务撤销恢复记录同步转换，已删除目标归属的愿景成为总愿景。转换失败时原数据库不写入。
+机器定义见 [backup.schema.json](backup.schema.json)，通用示例见 [backup.example.json](backup.example.json)。Schema 校验结构，Rust 核心检查引用、日期、时间和跨字段约束。当前数据/备份版本为 `5`；外部旧版备份明确拒绝。本机旧 v3/v4 数据在打开时一次性转为 v5，保留任务与历史，移除模板与印刷账本，将后续每周循环移到任务。外部旧格式仍明确拒绝；离线迁移工具可转换旧备份，失败保留原文件。
 
 ## 顶层字段
 
@@ -13,10 +13,8 @@
 | `version`      | 数据版本                   | 固定 `4`                                                                                                                      |
 | `projects`     | 项目数组                   | 最多 500 项，`id/name/color/appWhitelist` 同计划格式；`appWhitelist` 可选；提供时专注该项目的任务用这份专属清单替代通用白名单 |
 | `identities`   | 永久 ID 登记               | 最多 1000000 项；`id/kind/retired/restoreTask`；历史 ID 不能用于新实体；进度和订正独立登记，完成任务快照复用原任务 ID |
-| `habits`       | 习惯组数组                 | 最多 500 项，只保存 `id/name`；形状和安排由模板管理                                                                           |
+| `habits`       | 习惯组数组                 | 最多 500 项，只保存 `id/name`；循环规则保存在关联任务上                                                                           |
 | `blocks`       | 课表阻塞时段               | 最多 60 项；`id/title/days/start/end/attention/notes`，每周重复的固定占用（课程、实验）；旧文件省略时为空                      |
-| `templates`    | 模板与印刷规则             | 最多 5000 项，结构同计划 v6；不含完成和统计                                                                                   |
-| `prints`       | 已印日期记录               | 最多 200000 项，删除实例后仍保留，恢复后防止重新生成                                                                          |
 | `visions`      | 愿景数组                   | 最多 500 项；含 `name`、可选 `notes`，可选 `projectId` 归属项目（为空即总愿景）；旧文件省略时为空      |
 | `tasks`        | 全部任务，包括已完成任务   | 最多 50,000 项                                                                                                                |
 | `settings`     | 番茄钟、主题与专注保护设置 | 必填                                                                                                                          |
@@ -30,21 +28,9 @@
 
 `education.focusTasks` 为可省略的教学待办关联数组（缺省为空），每项为 `{taskId, sourceId, kind}`，`kind` 为 `lesson` 或 `homework`。关联任务保存在同一备份的 `tasks` 中，来源必须存在、属于同一项目且一对一；不允许通过导入删除或改写已经建立的关联。已有安排在本机推进时自动生成缺少的待办，不为已过往日期的课程追造执行记录。生成待办不等于参与、专注或掌握。
 
-任务包含计划 v6 的实例字段，另有 `completed`、`completedAt`（Unix 秒/null）、`createdAt`（Unix 秒）、子任务 `done` 与提醒送达状态。`completed` 必须与 `completedAt` 是否存在一致。实例的日期、完成、步骤进度与专注历史均属于实例；`templateId` 只指向来源，修改模板不会改历史。`recurring` 是生成时冻结的重复属性，不能从当前模板反向计算。从习惯组移出或删除习惯组只清 `habitId`，不改写 `recurring`，因此历史缺勤与管辖分类不会随容器变化。实例不保存 `repeat/nextTaskId`。
+任务包含计划 v7 的配置，另有 `completed/completedAt/createdAt`、子任务 done、`nextTaskId` 与提醒送达状态。完成状态必须与完成时间一致；循环任务只有确认完成才生成下一次，`nextTaskId` 防止撤销重做、删除后继或重启后重复生成。模板与印刷字段已退役。
 
-任务必须有有效的 `dueDate`；提醒时刻可选，`habitId` 引用习惯组。定时且重复的实例按习惯统计，过期计缺勤、不重修。普通定时任务按计划块加 `scrapMinutes` 判断作废，仍在当天重修窗口内的任务进入待补队列。`reminderFired/reminderPending/reminderExpired` 保存本机送达状态，缺省 false。模板与印刷账本规则见 [计划 v6](PLAN_FORMAT.md)。
-
-永久 ID 记录随备份保存并与本机历史合并；不能用导入复用已经删除实体的 ID。撤销删除只恢复登记中的原任务。愿景是纯标记，可独立存在或属于项目，删除项目时其愿景一并删除。
-
-历史记录包含 `id`、`source`、`taskId`（可空）、`taskTitle`、`projectName`、`startedAt`、`endedAt`、`durationSecs`、`completed`。`source` 为 `timer`（实际计时，v4 文件省略时的默认值）或 `taskEstimate`（任务完成时按预计补足）。开始和结束均为 Unix 秒，结束不能早于开始，ID 在历史中唯一。已删除任务可保留历史，故历史任务 ID 不强制要求仍在当前列表里。睡眠/小憩锁机不生成专注记录。
-
-`timer` 记录的 `completed: true` 表示番茄到时完成或由用户「提前完成」，计入一次番茄；`durationSecs` 保存实际专注秒数（1—10800），提前完成番茄本身不会补足预计时长。重置、跳过和紧急退出记为 `completed: false`，只累计用时。番茄完成与任务勾选独立，自动到时和提前完成都不修改任务或步骤的完成状态。
-
-勾选完成任务时，累计投入取该任务预计用时与历史实际计时之中的较大值。预计用时为完成当时的 `estimate × (focusMinutes 或全局 focusMinutes) × 60`；只把不足部分保存为一条 `taskEstimate`，`durationSecs` 范围 1—1069200。该记录必须关联任务，`completed` 固定为 false，`startedAt` 与 `endedAt` 均为勾选时刻：它不代表已知的真实工作区间。补足计入完成日时长、项目分布和连续专注天数，不增加番茄数或休息周期，也不用于推断深夜工作。任务仍在专注计时或暂停时，先结清实际用时并解除该任务选择，再计算差额；其它任务的计时不受影响。
-
-撤销完成只移除该任务的补足记录，实际计时保留；再次完成重新计算，避免重复累计。完成后修改预计字段或全局设置不改写已有历史；删除任务保留两类历史。旧文件和旧已完成任务保持原记录，不在加载时自动补足。
-
-任务可带 `reminderTime`（HH:MM/null，非空需要日期）、`focusMinutes`（1—180/null）、`reminderFired` 和 `reminderPending`（布尔值，缺省 false）。旧备份缺失时间字段时默认不提醒、使用全局时长；任务仍为统一类型。提醒状态随备份保存；当天未处理提醒在空闲后显示，过期提醒在下次轮询清除。
+发生日期与精确提醒可选；未设置发生日期默认为每日循环。循环任务没有报废期限。非循环且无精确提醒的任务按 `expiryDays`（默认 0）在发生日及指定后续自然日结束后报废；非循环定时任务按计划块与当天重修窗口报废。有发生日期和精确提醒时间的未完成、未报废任务在计划块结束后进入待补，定时循环任务可跨日保留；无精确提醒不进入待补。所有任务均需用户明确确认完成，教学答卷提交不自动勾选。
 
 ## 设置与严格模式
 
@@ -53,7 +39,7 @@
 - `focusMinutes`：1—180；`shortBreakMinutes`：1—60；`longBreakMinutes`：1—120。
 - `longBreakEvery`：2—12；`dailyGoal`：1—30，以上均为整数。
 - `autoBreak`、`autoFocus`、`autoStartTasks`、`sound`、`notifications`、`alwaysOnTop`：布尔值。`autoFocus`仅控制休息后续当前任务剩余轮次；`autoStartTasks`独立控制任务提醒时刻到达后的自动开始。计时、暂停、锁机或考试中不抢占，超过任务时段不补开；恢复备份会关闭`autoStartTasks`。
-- `soundVolume`：整数 0—100，默认 100；v4 文件可省略。`sound` 控制所有关键节点音效，背景噪音单独调节。
+- `soundVolume`：整数 0—100，默认 100；v5 文件可省略。`sound` 控制所有关键节点音效，背景噪音单独调节。
 - `theme`：`light`、`dark`、`system`。
 - `personaBackdrop`：布尔值，缺省 `false`；在普通页面背景显示当前内置人格的完整立绘。沉浸与专注保护界面不显示，自定义人格没有内置立绘时隐藏。
 - `protection`：见下表；旧文件可省略，默认关闭。
@@ -111,7 +97,7 @@
 
 `timer` 包含 `mode`（`focus/shortBreak/longBreak`）、`running`、`taskId`、`durationSecs`、`remainingSecs`、`deadline`、`startedAt`、`cycle`、`cycleDate`、`completionSerial`、`lastFinishedMode`及`autoFocusBlocked`（缺省false；任务在休息阶段完成时，阻止本次休息结束后转为自由专注）。秒数非负，持续时间 1—10800，剩余不得超过持续时间；`running` 必须与 `deadline` 是否存在一致。可空的时间字段用 Unix 秒。`taskId` 非空时必须引用当前任务；最后完成的阶段可为 null。
 
-`cycle` 是 `cycleDate` 当天完整完成的番茄数，同一天跨任务累计；每累计 `longBreakEvery` 个安排长休息，其余安排短休息。`cycleDate` 是本机本地日期 `YYYY-MM-DD` 或 null，v4 文件可省略。首次读取缺失日期的计数，或本地日期变化时，按专注历史的完成日期重建当天计数，因此昨日进度不会带到今早。跨午夜的专注计入结束日；延迟到次日才处理的昨日完成仍归昨日。日期变化不打断正在进行或已暂停的计时；若新一天尚无完成记录，昨日尚未开始的休息回到专注待机。
+`cycle` 是 `cycleDate` 当天完整完成的番茄数，同一天跨任务累计；每累计 `longBreakEvery` 个安排长休息，其余安排短休息。`cycleDate` 是本机本地日期 `YYYY-MM-DD` 或 null，v5 文件可省略。首次读取缺失日期的计数，或本地日期变化时，按专注历史的完成日期重建当天计数，因此昨日进度不会带到今早。跨午夜的专注计入结束日；延迟到次日才处理的昨日完成仍归昨日。日期变化不打断正在进行或已暂停的计时；若新一天尚无完成记录，昨日尚未开始的休息回到专注待机。
 
 导入先完整校验，再一次性替换数据；当前处于保护状态时不能恢复备份。确认框会说明替换范围。导入后：
 
@@ -125,6 +111,6 @@
 
 ## 项目教学记录
 
-v4新增可选 `education`，缺省为空；保存项目目录绑定元数据、资源索引、学期计划与修订历史、45分钟课程、固定版本题目与评分标准、答卷、批改、错因复测、复盘、持久化教学事件、已完成学习任务快照、带来源的学情历史和逐题订正/检查结果。任务快照沿用任务ID，不重复登记永久ID；独立进度和订正记录各自登记。完整字段见 [应试教学](EDUCATION.md) 与 backup.schema.json 的 education 定义。
+v5新增可选 `education`，缺省为空；保存项目目录绑定元数据、资源索引、学期计划与修订历史、45分钟课程、固定版本题目与评分标准、答卷、批改、错因复测、复盘、持久化教学事件、已完成学习任务快照、带来源的学情历史和逐题订正/检查结果。任务快照沿用任务ID，不重复登记永久ID；独立进度和订正记录各自登记。完整字段见 [应试教学](EDUCATION.md) 与 backup.schema.json 的 education 定义。
 
-JSON备份不包含外部资料文件或本机 `project-grants.json` 授权；需另行备份项目目录。恢复后必须在项目页重新授权，导入路径不扩大沙箱权限。已发布题目/评分标准及提交/批改记录不可借导入修改；需要修订时保存新ID。计划v6不导出教学历史。
+JSON备份不包含外部资料文件或本机 `project-grants.json` 授权；需另行备份项目目录。恢复后必须在项目页重新授权，导入路径不扩大沙箱权限。已发布题目/评分标准及提交/批改记录不可借导入修改；需要修订时保存新ID。计划v7不导出教学历史。

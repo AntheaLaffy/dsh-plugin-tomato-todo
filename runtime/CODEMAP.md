@@ -20,7 +20,7 @@
 | tools.mjs | 工具契约 | 13 个 MCP 工具的 schema 与 `callTool` 分派；`scripts/build-host-tools.mjs` 以它为源生成插件 Host 工具 |
 | guard-client.ts | guard 客户端 | 按 API.md 向 127.0.0.1:43988 发 lock/unlock/notify/focus/fullscreen/status/apps；失败返回结构化结果，不抛异常 |
 | supervise.mjs | guard 监督 | 启动时拉起 guard、退出后退避重启；已有 guard 在跑时只旁观 |
-| data-files.mjs | 存储 | `plan.json` + `state.json` 的读写、默认值补齐与原子替换 |
+| data-files.mjs | 存储 | `plan.json`（计划 v7 + 任务进度）+ `state.json` 的读写、旧本机模型转换、默认值补齐与原子替换 |
 | types.ts | 契约类型 | runtime 对外 JSON 形状（camelCase、日期/时间/时间戳） |
 | version.mjs | 版本 | 从 `package.json` 读版本号，供 `/health` 与 MCP `serverInfo` 使用 |
 

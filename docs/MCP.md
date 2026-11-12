@@ -69,7 +69,7 @@ streamable HTTP：从连接文件读出 `mcpUrl` 与令牌后：
 | `create_task` / `update_task` / `move_tasks` / `complete_task` | 普通任务的增、改、移、完成 |
 | `dispatch` | 番茄、设置、愿景、课表等单项 Action |
 | `export_plan` / `export_backup` | 把计划/备份导出为文件，大批改动的起点 |
-| `apply_file` | 按 `fileHash` 应用导出的计划 v6 / 备份 v4，带来源与哈希校验 |
+| `apply_file` | 按 `fileHash` 应用导出的计划 v7 / 备份 v5，带来源与哈希校验 |
 
 接管顺序：先 `get_context`；普通任务用 create/update/move/complete；单项动作走 `dispatch`；大批改动走 `export_plan` / `export_backup` → 客户端自行编辑 → `apply_file`；教学先 `get_education` 再 `education` 写工具。文件读写、网页搜索、定时等能力由客户端（DSH）自带工具完成，runtime 不重复暴露；旧清单的 `get_control_status` / `set_external_control` / `review_file` / `read_file` / `patch_file` 已随旧助手一起移除。
 

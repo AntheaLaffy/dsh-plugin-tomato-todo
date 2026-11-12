@@ -131,11 +131,14 @@
 - `endsAt`: integer
 - `instructions`: string
 - `reviewEvidence`: string
+- `resourceIds`: string[]；本场试卷、空白答题卡和参考资料的已登记资源 ID，只能引用本项目资源；空列表时界面回退到项目资料。
 - `questions`: Question[]
 - `publishedAt`: integer
 - `printedAt`: integer | null
 - `startedAt`: integer | null
 - `stoppedAt`: integer | null
+
+完整提交答卷不会自动完成待办。课程、作业、考试均需用户单独确认任务完成；作业/考试须先有完整提交。
 
 ## Submission
 

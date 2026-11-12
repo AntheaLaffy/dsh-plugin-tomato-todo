@@ -8,12 +8,12 @@
 
 | 想了解 | 先读 | 再看 |
 | --- | --- | --- |
-| 数据模型与字段语义 | `model.ts`（Task/Project/Habit/Vision/Block/Template/Settings/Timer/Session/Lock/Stats） | `lib.ts` 的解析/序列化/校验 |
+| 数据模型与字段语义 | `model.ts`（Task/Project/Habit/Vision/Block/Settings/Timer/Session/Lock/Stats） | `lib.ts` 的解析/序列化/校验 |
 | 提交动作与不变量 | `engine.ts`（`Engine.open/fromData/dispatch/apply`、持久化与快照） | `lib.ts` 的 `Action` union 与 `AppData` 方法 |
 | 校验/保护规则 | `lib.ts`（`parseAppData`/`validate`/严格模式） | `errors.ts`、`guard.ts` |
 | 计时/提醒/自动开始 | `reminders.ts` | `engine.ts` 的 tick 调用方（runtime） |
-| 模板与印刷 | `templates.ts` | `plan.ts` |
-| 计划文件 v6 | `plan.ts` | `docs/PLAN_FORMAT.md` |
+| 任务循环与后继防重 | `recurrence.ts`（完成后生成下一次，循环无报废期限） | `reminders.ts`、`plan.ts` |
+| 计划文件 v7 | `plan.ts` | `docs/PLAN_FORMAT.md` |
 | 习惯/愿景/身份 | `habits.ts`、`identities.ts` | `lib.ts` 的 `reconcileIdentities` |
 | 课表/阻塞时段/并行判定 | `blocks.ts` | `diagnostics.ts`（冲突/容量信号） |
 | 定时锁机 | `lock.ts` | `guard.ts`（白名单匹配） |
@@ -26,7 +26,7 @@
 | 路径 | 内容 |
 | --- | --- |
 | `src/` | 21 个模块，`index.ts` 是唯一公开入口；模块间只允许单向依赖（index 汇总导出） |
-| `test/` | vitest：逐条移植 crates/core 的测试（core/education/templates/engine-store），`pnpm core:test` |
+| `test/` | vitest：逐条移植 crates/core 的测试（core/education/recurrence/engine-store），`pnpm core:test` |
 
 ## 约定
 

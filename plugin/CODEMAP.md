@@ -14,7 +14,7 @@ client 半由 esbuild 打成 `client.js`。契约见 [API.md](../API.md)「插�
 | link-skills.js | 技能分发 | 把 `skills/` 软链进已存在的 agent 技能根（优先 `~/.agents/skills`）；只操作符号链接，不删真实文件；挂载时调用 |
 | link-skills.mjs | 技能分发 CLI | 人工入口：`--dir`/`--all`/`--check`/`--remove`/`--force`/`--relative`/`--dry-run` |
 | cordis.patch.yml | 装载 | DSH 插件补丁：只插入 `tomato-dsh` 一行；`tomatoBin` 默认由插件按当前用户主目录推出，补丁不写死路径 |
-| package.json | 包契约 | 版本 0.14.1、exports、`files`（含技能、语言与市场展示图）、`dsh.bundle`/`dsh.client` |
+| package.json | 包契约 | 版本 0.15.0、exports、`files`（含技能、语言与市场展示图）、`dsh.bundle`/`dsh.client` |
 | client.js | 构建产物 | **生成物**（`pnpm build:client`）：client 半单文件 IIFE，不手改 |
 | icon.svg | 静态资源 | 插件图标（boundary） |
 | screenshots.json | 市场展示 | 官方插件市场的截图清单；相对路径指向本目录内的位图 |
@@ -43,14 +43,14 @@ client 半由 esbuild 打成 `client.js`。契约见 [API.md](../API.md)「插�
 
 | File | Skill | Function |
 | --- | --- | --- |
-| skills/exam-authoring/SKILL.md | exam-authoring | 命题入口：真题质量基准、资料贡献、蓝图、逐题取证、复解与固定评分 |
+| skills/exam-authoring/SKILL.md | exam-authoring | 命题入口：真题质量基准、资料贡献、蓝图、逐题取证、复解、固定评分与本次试卷/参考资料绑定 |
 | skills/exam-authoring/agents/openai.yaml | exam-authoring | Codex 显示名/简介/默认提示，声明 `tomato` MCP 依赖 |
 | skills/exam-authoring/references/material-roles.md | exam-authoring | 考纲/真题/教材/讲义/题册/笔记/错题等各类资料的命题价值与核对点 |
 | skills/exam-authoring/references/runtime.md | exam-authoring | 番茄 Todo 与独立 Codex 两种环境的取材、工具、保存位置与发布时序 |
 | skills/exam-authoring/references/subject-checks.md | exam-authoring | 数学与计算机 408 等分科审校清单 |
 | skills/exam-authoring/references/work-products.md | exam-authoring | 蓝图、逐题证据、答案/评分与发布前检查的记录格式 |
 | skills/exam-authoring/scripts/check_paper.py | exam-authoring | 结构检查器：题型/数量/总分/来源 ID/时间窗口，不判断答案正确性 |
-| skills/exam-teaching/SKILL.md | exam-teaching | 备课、讲解、正式课程与作业、批改、订正与复盘的教学流程 |
+| skills/exam-teaching/SKILL.md | exam-teaching | 备课、讲解、课程/作业/考试的资料绑定与完成确认、批改、订正与复盘 |
 | skills/exam-teaching/agents/openai.yaml | exam-teaching | Codex 显示名/简介，声明 `tomato` MCP 依赖 |
 | skills/study-diagnosis/SKILL.md | study-diagnosis | 用课程/作业/测验/订正/复测/用时证据诊断困难与超量，提出小步调整 |
 | skills/study-diagnosis/agents/openai.yaml | study-diagnosis | Codex 显示名/简介，声明 `tomato` MCP 依赖 |

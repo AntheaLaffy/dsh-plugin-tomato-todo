@@ -6,11 +6,19 @@ import { id } from "./ids";
 import type { AppData } from "./lib";
 import type { Settings, Task, Timer } from "./model";
 import { isHabit } from "./model";
-import { dateAt, minutesOf, secondsOfDay, validDate } from "./time";
+import {
+  addDays,
+  formatDate,
+  parseDate,
+  dateAt,
+  minutesOf,
+  secondsOfDay,
+  validDate,
+} from "./time";
 
 /** 任务日期必填、提醒需要有效 HH:MM、单次时长 1–180。 */
 export function validateReminderTask(task: Task): void {
-  if (task.dueDate === null || !validDate(task.dueDate)) {
+  if (task.dueDate !== null && !validDate(task.dueDate)) {
     throw new AppError("任务必须指定有效的计划日期");
   }
   if (
@@ -120,12 +128,17 @@ export function tickReminders(data: AppData, at: number): boolean {
   const settings = data.settings;
   let changed = false;
   for (const t of data.tasks) {
+    if (t.repeat !== "none" && t.reminderExpired) {
+      t.reminderExpired = false;
+      changed = true;
+    }
     const isToday = t.dueDate === today;
     const past = t.dueDate !== null && t.dueDate < today;
     const start = t.reminderTime !== null ? minutesOf(t.reminderTime) : null;
     // 定时任务在其日期过去后、或计划块结束后作废；此后既不提醒也不顺延。
     const expired =
       !t.completed &&
+      t.repeat === "none" &&
       (start !== null
         ? (() => {
             // 普通任务在计划块结束后的静态重修窗口内仍可补做；习惯窗口为 0。
@@ -135,7 +148,8 @@ export function tickReminders(data: AppData, at: number): boolean {
               (isHabit(t) ? 0 : t.scrapMinutes);
             return past || (isToday && nowSeconds >= spentAt * 60);
           })()
-        : false);
+        : t.dueDate !== null &&
+          today > formatDate(addDays(parseDate(t.dueDate)!, t.expiryDays)));
     if (expired && !t.reminderExpired) {
       t.reminderExpired = true;
       changed = true;

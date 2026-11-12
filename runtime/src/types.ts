@@ -31,7 +31,7 @@ export interface Habit {
 
 export interface HabitSlot {
   days: number[];
-  time: string;
+  time: string | null;
 }
 
 /** 计划之外的固定每周占用（课程、实验），仅描述性。 */
@@ -65,52 +65,19 @@ export interface Subtask {
   done: boolean;
 }
 
-export interface TemplateShape {
-  title: string;
-  notes: string;
-  projectId: string | null;
-  habitId: string | null;
-  focusMinutes: number | null;
-  scrapMinutes: number;
-  priority: number;
-  estimate: number;
-  tags: string[];
-  subtasks: { id: string; title: string }[];
-}
-
-export interface CalendarSlot {
-  dates: string[];
-  time: string | null;
-}
-
-export type Printing =
-  | { kind: "once"; date: string; time: string | null }
-  | { kind: "calendar"; slots: CalendarSlot[] }
-  | { kind: "weekly"; slots: { days: number[]; time: string | null }[] };
-
-export interface Template {
-  id: string;
-  shape: TemplateShape;
-  printing: Printing;
-  automatic: boolean;
-  printAheadDays: number;
-}
-
-export interface PrintRecord {
-  templateId: string;
-  date: string;
-}
-
 export interface Task {
   id: string;
-  templateId: string | null;
+  repeat: "none" | "daily" | "weekdays" | "weekly";
+  repeatDays: number[];
+  nextTaskId: string | null;
   recurring: boolean;
   scrapMinutes: number;
+  expiryDays: number;
   title: string;
   notes: string;
   projectId: string | null;
   habitId: string | null;
-  dueDate: string;
+  dueDate: string | null;
   reminderTime: string | null;
   focusMinutes: number | null;
   reminderFired: boolean;
@@ -216,7 +183,7 @@ export interface Education {
   focusTasks: {
     taskId: string;
     sourceId: string;
-    kind: "lesson" | "homework";
+    kind: "lesson" | "homework" | "exam";
   }[];
   projects: unknown[];
   progress: unknown[];
@@ -254,8 +221,6 @@ export interface AppData {
   version: number;
   tasks: Task[];
   blocks: Block[];
-  templates: Template[];
-  prints: PrintRecord[];
   projects: Project[];
   habits: Habit[];
   visions: Vision[];
@@ -265,33 +230,33 @@ export interface AppData {
   lock: LockState;
 }
 
-// 计划 v6（runtime 内部存储）：tasks 携带运行进度字段（completed/completedAt/
+// 计划 v7（runtime 内部存储）：tasks 携带运行进度字段（completed/completedAt/
 // reminder* 等），导出为交换格式时由 exportPlan() 剥离。语义见 docs/PLAN_FORMAT.md。
 export interface PlanFile {
   format: "tomato-todo-plan";
-  version: 6;
+  version: 7;
   pomodoroMinutes: number;
   projects: PlanProject[];
   tasks: Task[];
   blocks?: Block[];
-  templates?: Template[];
-  prints?: PrintRecord[];
   habits?: Habit[];
 }
 
-// 计划 v6 交换格式（exportPlan 产出）：只含未完成任务，剥离进度与提醒送达状态。
+// 计划 v7 交换格式（exportPlan 产出）：只含未完成任务，剥离进度与提醒送达状态。
 export interface PlanExportTask {
   id: string;
   title: string;
-  templateId?: string | null;
+  repeat?: "none" | "daily" | "weekdays" | "weekly";
+  repeatDays?: number[];
   habitId?: string | null;
   recurring?: boolean;
   notes?: string;
   projectId?: string | null;
-  dueDate: string;
+  dueDate?: string | null;
   reminderTime?: string | null;
   focusMinutes?: number | null;
   scrapMinutes?: number;
+  expiryDays?: number;
   priority?: number;
   estimate?: number;
   tags?: string[];
@@ -300,13 +265,11 @@ export interface PlanExportTask {
 
 export interface PlanExportFile {
   format: "tomato-todo-plan";
-  version: 6;
+  version: 7;
   pomodoroMinutes: number;
   projects: PlanProject[];
   tasks: PlanExportTask[];
   blocks?: Block[];
-  templates?: Template[];
-  prints?: PrintRecord[];
   habits?: Habit[];
 }
 
@@ -321,13 +284,7 @@ export interface RuntimeState {
   education: Education;
 }
 
-export interface BackupFile {
-  format: "tomato-todo-backup";
-  version: 4;
-  exportedAt: number;
-  plan: PlanFile;
-  state: RuntimeState;
-}
+export type BackupFile = AppData;
 
 export interface DayStats {
   date: string;
@@ -385,14 +342,17 @@ export interface ExportResult {
 }
 
 export interface TaskInput {
+  repeat?: "none" | "daily" | "weekdays" | "weekly";
+  repeatDays?: number[];
   title: string;
   notes?: string;
   projectId?: string | null;
   habitId?: string | null;
-  dueDate: string;
+  dueDate?: string | null;
   reminderTime?: string | null;
   focusMinutes?: number | null;
   scrapMinutes?: number;
+  expiryDays?: number;
   priority?: number;
   estimate?: number;
   tags?: string[];

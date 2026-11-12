@@ -41,8 +41,7 @@ registerCopy("assignment", {
   zh: {
     materialsHomework: "资料与试卷",
     materialsLesson: "课程资料",
-    materialsHint:
-      "这次作业/考试绑定的资料与试卷；预览在弹窗内打开，下载取原件。",
+    materialsHint: "本次任务指定的资料与试卷；未指定时显示项目资料。",
     materialsEmpty: "这次作业没有绑定资料",
     lessonMaterialsEmpty: "这节课没有绑定资料",
     related: "相关资料",
@@ -88,7 +87,9 @@ registerCopy("assignment", {
     submitHomework: "提交作业",
     submitExam: "提交试卷",
     submitting: "提交中…",
-    submitDone: "已提交",
+    submitDone: "已提交，请确认任务是否完成",
+    confirmComplete: "确认任务完成",
+    taskCompleted: "任务已完成",
     examStart: "开始考试",
     examStop: "停笔",
     examTitle: "考试",
@@ -120,7 +121,7 @@ registerCopy("assignment", {
     materialsHomework: "Materials & papers",
     materialsLesson: "Lesson materials",
     materialsHint:
-      "Files bound to this assignment; preview opens in a dialog, download saves the original.",
+      "Materials selected for this task; shows project materials when none are specified.",
     materialsEmpty: "No materials are bound to this assignment",
     lessonMaterialsEmpty: "No materials are bound to this lesson",
     related: "Related materials",
@@ -171,7 +172,9 @@ registerCopy("assignment", {
     submitHomework: "Submit homework",
     submitExam: "Submit exam",
     submitting: "Submitting…",
-    submitDone: "Submitted",
+    submitDone: "Submitted; confirm whether the task is complete",
+    confirmComplete: "Confirm task complete",
+    taskCompleted: "Task complete",
     examStart: "Start exam",
     examStop: "Stop writing",
     examTitle: "Exam",
@@ -259,7 +262,9 @@ registerCopy("assignment", {
     submitHomework: "宿題を提出",
     submitExam: "答案を提出",
     submitting: "提出中…",
-    submitDone: "提出しました",
+    submitDone: "提出済み。タスクの完了を確認してください",
+    confirmComplete: "タスク完了を確認",
+    taskCompleted: "タスク完了",
     examStart: "試験を開始",
     examStop: "筆記終了",
     examTitle: "試験",
@@ -617,6 +622,18 @@ export function gradingRequest(assessment, submission) {
   };
 }
 
+/** 显式的任务资料优先；旧任务未指定时仍可从项目资料中查找。 */
+export function teachingMaterialIds(subject, resources = []) {
+  if (!subject) return [];
+  const specified = unique(asArray(subject.resourceIds));
+  if (specified.length > 0) return specified;
+  return unique(
+    asArray(resources)
+      .filter((r) => r && r.projectId === subject.projectId)
+      .map((r) => r.id),
+  );
+}
+
 export function AssignmentDialog({
   open = false,
   onClose,
@@ -637,13 +654,14 @@ export function AssignmentDialog({
     ? lessons.find((item) => item && item.id === lessonId) || null
     : null;
   const subject = assessment || lesson;
+  const linkedId = asArray(education.focusTasks).find(
+    (link) => link.sourceId === subject?.id,
+  )?.taskId;
+  const linkedTask =
+    asArray(data?.tasks).find((task) => task.id === linkedId) || null;
   const projectId =
     subject && typeof subject.projectId === "string" ? subject.projectId : "";
   const project = projectOf(data, projectId);
-  const projectStudy =
-    asArray(education.projects).find(
-      (item) => item && item.projectId === projectId,
-    ) || null;
   const isExam = assessment !== null && assessment.kind !== "homework";
   const at =
     Number.isFinite(Number(now)) && Number(now) > 0
@@ -655,29 +673,19 @@ export function AssignmentDialog({
     : null;
   const grade = submission ? latestGradeOf(education, submission.id) : null;
 
-  const materialIds = assessment
-    ? unique(
-        asArray(assessment.questions).flatMap((question) =>
-          asArray(question && question.sourceIds),
-        ),
-      )
-    : unique(asArray(lesson && lesson.resourceIds));
-  const relatedIds = projectStudy
-    ? unique([
-        projectStudy.syllabusId,
-        ...asArray(projectStudy.pastPaperIds),
-        ...asArray(projectStudy.mockPaperIds),
-      ])
-    : [];
+  const [fetchedCatalog, setFetchedCatalog] = useState([]);
+  const materialIds = teachingMaterialIds(subject, [
+    ...asArray(education.resources),
+    ...fetchedCatalog,
+  ]);
   const submissionIds = submission
     ? unique(asArray(submission.resourceIds))
     : [];
-  const infoIds = unique([...materialIds, ...relatedIds]);
+  const infoIds = unique([...materialIds, ...submissionIds]);
   const infoKey = infoIds.join("|");
 
   const [access, setAccess] = useState("");
   const [tokenError, setTokenError] = useState(null);
-  const [fetchedCatalog, setFetchedCatalog] = useState([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [catalogError, setCatalogError] = useState(null);
   const [fileInfo, setFileInfo] = useState({});
@@ -686,6 +694,7 @@ export function AssignmentDialog({
   const [pickedSheets, setPickedSheets] = useState([]);
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [pendingId, setPendingId] = useState(null);
   const [examBusy, setExamBusy] = useState(false);
   const [examError, setExamError] = useState(null);
@@ -862,14 +871,14 @@ export function AssignmentDialog({
         item &&
         item.projectId === projectId &&
         item.kind === "answerSheet" &&
+        (materialIds.includes(item.id) ||
+          submissionIds.includes(item.id) ||
+          pickedSheets.includes(item.id)) &&
         typeof item.id === "string",
     )
     .sort((a, b) => strOr(a.title).localeCompare(strOr(b.title)));
 
   const materialRows = materialIds.map(resourceOf);
-  const relatedRows = relatedIds
-    .filter((id) => !materialIds.includes(id))
-    .map(resourceOf);
   const attachmentRows = submissionIds.map(resourceOf);
 
   const lessonWindowOpen =
@@ -1292,20 +1301,6 @@ export function AssignmentDialog({
       : null,
   );
 
-  const relatedSection =
-    relatedRows.length === 0
-      ? null
-      : h(
-          "div",
-          { style: { display: "flex", flexDirection: "column", gap: 4 } },
-          h(SectionTitle, {
-            icon: "tag",
-            title: t("assignment.related"),
-            hint: t("assignment.relatedHint"),
-          }),
-          h("div", null, relatedRows.map(resourceRow)),
-        );
-
   const tokenNote = tokenError
     ? errorBlock(t("assignment.fileTokenFailed", { error: tokenError }))
     : null;
@@ -1698,6 +1693,32 @@ export function AssignmentDialog({
       { style: { flex: 1, fontSize: 11.5, color: "var(--tomato-ink-3)" } },
       isExam && !examStopped ? t("assignment.examRunning") : "",
     ),
+    linkedTask
+      ? h(
+          Btn,
+          {
+            variant: linkedTask.completed ? "soft" : "primary",
+            size: "sm",
+            icon: "check",
+            disabled:
+              completing ||
+              linkedTask.completed ||
+              (assessment && (!submission || submission.unfinished)),
+            onClick: async () => {
+              setCompleting(true);
+              const result = await tryDispatch({
+                type: "toggleTask",
+                id: linkedTask.id,
+              });
+              setCompleting(false);
+              if (!result.ok) notify(result.error, "danger");
+            },
+          },
+          linkedTask.completed
+            ? t("assignment.taskCompleted")
+            : t("assignment.confirmComplete"),
+        )
+      : null,
     h(
       Btn,
       {
@@ -1752,7 +1773,6 @@ export function AssignmentDialog({
         { style: { display: "flex", flexDirection: "column", gap: 16 } },
         header,
         materialsSection,
-        relatedSection,
         tokenNote,
         examSection ? h(Divider, null) : null,
         examSection,

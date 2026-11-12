@@ -64,7 +64,7 @@ UI 不再按页面堆端点，而是「取一份全量状态 + 提交 Action」�
     "today": "2026-11-07",
     "taskKinds": { "<taskId>": "plain" },   // plain | habit | class | exam | reserved | teaching
     "remainingSecs": 2700,             // 当前计时器剩余秒（不依赖 data.timer 的 deadline）
-    "data": { /* AppData：version identities tasks blocks templates prints projects
+    "data": { /* AppData：version identities tasks blocks projects
                  habits visions settings timer sessions lock education */ },
     "stats": { /* Stats：todaySeconds/…/days[] */ },
     "guard": { "available": true, "backend": "niri / Wayland", "locked": false,
@@ -94,9 +94,9 @@ UI 不再按页面堆端点，而是「取一份全量状态 + 提交 Action」�
 
 **导出端点（偏好设置页用）**：
 
-- `GET /api/export/plan` — `application/json`，body 为计划 v6（与 MCP `export_plan` 同内容），
+- `GET /api/export/plan` — `application/json`，body 为计划 v7（与 MCP `export_plan` 同内容），
   带 `Content-Disposition: attachment; filename="tomato-plan-<today>.json"`；浏览器直接下载。
-- `GET /api/export/backup` — `application/json`，body 为完整备份 v4（`docs/BACKUP_FORMAT.md`，
+- `GET /api/export/backup` — `application/json`，body 为完整备份 v5（`docs/BACKUP_FORMAT.md`，
   顶层就是数据、无 `format` 标记，与 MCP `export_backup` 同内容），
   带 `Content-Disposition: attachment; filename="tomato-backup-<today>.json"`。
 - 导入不需要新端点：UI 直接 dispatch `{type:"importPlan", plan}`（计划）或
@@ -166,7 +166,7 @@ MCP 端点：`/mcp` streamable HTTP，Bearer token（数据目录 `agent/connect
 
 ## 数据形状
 
-- 计划/任务/习惯/模板/阻塞时段：语义以 docs/PLAN_FORMAT.md、docs/BACKUP_FORMAT.md 与
+- 计划/任务/习惯/循环/阻塞时段：语义以 docs/PLAN_FORMAT.md、docs/BACKUP_FORMAT.md 与
   docs/HANDBOOK/ 为准；JSON 字段名 camelCase，`@tomato/core`
   （`packages/core/src/index.ts`）是唯一权威实现。
 - 日期 `YYYY-MM-DD`、时间 `HH:MM`、时间戳 Unix 秒。

@@ -149,26 +149,45 @@ export function taskKind(state, taskId) {
   return map[taskId] || "plain";
 }
 
+/** 报废任务保留在原始快照供统计，任务清单统一隐藏。 */
+export function listedTasks(data) {
+  return ((data && data.tasks) || []).filter(
+    (task) =>
+      task &&
+      (task.completed ||
+        !task.reminderExpired ||
+        (task.repeat && task.repeat !== "none")),
+  );
+}
+
 /** 任务是否到期日 ≤ 今天且未完成（今日待办 / 逾期）。 */
 export function isDueByToday(task, today) {
-  if (!task || task.completed) return false;
+  if (
+    !task ||
+    task.completed ||
+    (task.reminderExpired && (!task.repeat || task.repeat === "none"))
+  )
+    return false;
   const due = task.dueDate || null;
-  return due !== null && due <= today;
+  return due === null || due <= today;
 }
 
 /**
- * 今日计划任务：到期日就是今天、未完成。
- * 「今日专注」只认这一组——逾期任务是另一件事，放在全部任务的逾期视图里，
- * 绝不混进今天的时间线（否则今天会被历史债务压满）。
+ * 今日待办包括仍有效的历史待办和不设日期的每日循环任务。
  */
 export function todayTasks(data, today) {
   const tasks = (data && data.tasks) || [];
-  return tasks.filter((task) => !task.completed && task.dueDate === today);
+  return tasks.filter(
+    (task) =>
+      !task.completed &&
+      (task.dueDate == null || task.dueDate <= today) &&
+      (!task.reminderExpired || (task.repeat && task.repeat !== "none")),
+  );
 }
 
 /** 逾期任务：到期日早于今天、未完成。 */
 export function overdueTasks(data, today) {
-  const tasks = (data && data.tasks) || [];
+  const tasks = listedTasks(data);
   return tasks.filter(
     (task) =>
       !task.completed &&
@@ -330,32 +349,31 @@ export function windowMinutes(task, settings) {
 }
 
 /**
- * 待补判定：普通任务、未完成、未作废、到期=今天，且现在已过
- * `提醒时刻 + 计划块时长`、仍在 `+ scrapMinutes` 重修窗口内。
- * （作废/过期由 core 的 reminderExpired 标记，这里只做展示筛选。）
+ * 有提醒日期和时间、超过计划块且未作废的任务进入待补，循环任务也适用。
  */
 export function isCatchUp(input, task, today) {
-  // 页面既可能传 data 也可能传整个 state；taskKinds 在 state 顶层。
   const data = input && input.data ? input.data : input;
-  const taskKinds =
-    (input && input.data ? input.taskKinds : input && input.taskKinds) || {};
   if (!data || !task) return false;
-  const nowKey = dayKey(Date.now() / 1000);
-  if (nowKey !== today) return false;
-  if (task.completed || task.reminderExpired) return false;
-  if (task.dueDate !== today || task.reminderTime === null) return false;
-  const kind = taskKinds[task.id];
-  if (kind === "habit" || task.habitId !== null || task.recurring) return false;
+  if (
+    task.completed ||
+    (task.reminderExpired && (!task.repeat || task.repeat === "none"))
+  )
+    return false;
+  if (!task.dueDate || !task.reminderTime || task.dueDate > today) return false;
   const start = parseHHMM(task.reminderTime);
   if (start === null) return false;
-  if (task.scrapMinutes <= 0) return false;
-  const elapsed = new Date();
-  const nowSecs =
-    elapsed.getHours() * 3600 +
-    elapsed.getMinutes() * 60 +
-    elapsed.getSeconds();
-  const end = start + windowMinutes(task, data.settings) * 60;
-  return nowSecs > end && nowSecs < end + task.scrapMinutes * 60;
+  const [year, month, day] = task.dueDate.split("-").map(Number);
+  const end =
+    new Date(
+      year,
+      month - 1,
+      day,
+      0,
+      0,
+      start + windowMinutes(task, data.settings) * 60,
+    ).getTime() / 1000;
+  const now = input?.serverTime ?? Date.now() / 1000;
+  return now >= end;
 }
 
 /** 当前处于待补窗口的任务（按提醒时刻升序）。 */
@@ -364,8 +382,10 @@ export function catchUpTasks(input, today) {
   const tasks = (data && data.tasks) || [];
   return tasks
     .filter((task) => isCatchUp(input, task, today))
-    .sort((a, b) =>
-      String(a.reminderTime).localeCompare(String(b.reminderTime)),
+    .sort(
+      (a, b) =>
+        String(a.dueDate).localeCompare(String(b.dueDate)) ||
+        String(a.reminderTime).localeCompare(String(b.reminderTime)),
     );
 }
 

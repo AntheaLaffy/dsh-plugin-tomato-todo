@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Tomato Todo Backup v4",
+  "title": "Tomato Todo Backup v5",
   "type": "object",
   "properties": {
     "version": {
-      "const": 4
+      "const": 5
     },
     "projects": {
       "type": "array",
@@ -57,20 +57,6 @@
     "lock": {
       "$ref": "#/$defs/lock"
     },
-    "templates": {
-      "type": "array",
-      "maxItems": 5000,
-      "items": {
-        "$ref": "#/$defs/template"
-      }
-    },
-    "prints": {
-      "type": "array",
-      "maxItems": 200000,
-      "items": {
-        "$ref": "#/$defs/print"
-      }
-    },
     "identities": {
       "type": "array",
       "maxItems": 1000000,
@@ -83,21 +69,11 @@
       "$ref": "#/$defs/educationEducation"
     }
   },
-  "required": [
-    "version",
-    "projects",
-    "tasks",
-    "settings",
-    "timer",
-    "sessions"
-  ],
+  "required": ["version", "projects", "tasks", "settings", "timer", "sessions"],
   "$defs": {
     "vision": {
       "type": "object",
-      "required": [
-        "id",
-        "name"
-      ],
+      "required": ["id", "name"],
       "properties": {
         "id": {
           "type": "string",
@@ -128,10 +104,7 @@
     "habit": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name"
-      ],
+      "required": ["id", "name"],
       "properties": {
         "id": {
           "type": "string",
@@ -148,13 +121,7 @@
     "block": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "days",
-        "start",
-        "end"
-      ],
+      "required": ["id", "title", "days", "start", "end"],
       "properties": {
         "id": {
           "type": "string",
@@ -186,10 +153,7 @@
           "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         },
         "attention": {
-          "enum": [
-            "required",
-            "light"
-          ],
+          "enum": ["required", "light"],
           "default": "required"
         },
         "notes": {
@@ -200,11 +164,7 @@
     },
     "project": {
       "type": "object",
-      "required": [
-        "id",
-        "name",
-        "color"
-      ],
+      "required": ["id", "name", "color"],
       "properties": {
         "id": {
           "type": "string",
@@ -243,8 +203,7 @@
         "completed",
         "createdAt",
         "tags",
-        "subtasks",
-        "dueDate"
+        "subtasks"
       ],
       "properties": {
         "id": {
@@ -274,16 +233,12 @@
           ]
         },
         "habitId": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "minLength": 1
         },
         "dueDate": {
-          "type": "string",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-          "format": "date"
+          "type": ["string", "null"],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
         },
         "priority": {
           "type": "integer",
@@ -333,18 +288,12 @@
           "maximum": 9223372036854775807
         },
         "reminderTime": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
           "default": null
         },
         "focusMinutes": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "minimum": 1,
           "maximum": 180,
           "default": null
@@ -357,13 +306,6 @@
           "type": "boolean",
           "default": false
         },
-        "templateId": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "minLength": 1
-        },
         "recurring": {
           "type": "boolean",
           "default": false
@@ -373,42 +315,37 @@
           "minimum": 0,
           "maximum": 10080,
           "default": 0
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "required": [
-              "reminderTime"
-            ],
-            "properties": {
-              "reminderTime": {
-                "type": "string"
-              }
-            }
+        },
+        "repeat": {
+          "type": "string",
+          "enum": ["none", "daily", "weekdays", "weekly"],
+          "default": "none"
+        },
+        "repeatDays": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
           },
-          "then": {
-            "required": [
-              "dueDate"
-            ],
-            "properties": {
-              "dueDate": {
-                "type": "string",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "format": "date"
-              }
-            }
-          }
+          "maxItems": 7,
+          "uniqueItems": true,
+          "default": []
+        },
+        "nextTaskId": {
+          "type": ["string", "null"]
+        },
+        "expiryDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 36500,
+          "default": 0
         }
-      ]
+      }
     },
     "subtask": {
       "type": "object",
-      "required": [
-        "id",
-        "title",
-        "done"
-      ],
+      "required": ["id", "title", "done"],
       "properties": {
         "id": {
           "type": "string",
@@ -469,11 +406,7 @@
           "type": "boolean"
         },
         "theme": {
-          "enum": [
-            "light",
-            "dark",
-            "system"
-          ]
+          "enum": ["light", "dark", "system"]
         },
         "personaBackdrop": {
           "type": "boolean",
@@ -512,11 +445,7 @@
       "type": "object",
       "properties": {
         "mode": {
-          "enum": [
-            "off",
-            "lock",
-            "whitelist"
-          ]
+          "enum": ["off", "lock", "whitelist"]
         },
         "whitelist": {
           "type": "array",
@@ -537,11 +466,7 @@
       "type": "object",
       "properties": {
         "mode": {
-          "enum": [
-            "focus",
-            "shortBreak",
-            "longBreak"
-          ]
+          "enum": ["focus", "shortBreak", "longBreak"]
         },
         "running": {
           "type": "boolean"
@@ -615,11 +540,7 @@
         "lastFinishedMode": {
           "anyOf": [
             {
-              "enum": [
-                "focus",
-                "shortBreak",
-                "longBreak"
-              ]
+              "enum": ["focus", "shortBreak", "longBreak"]
             },
             {
               "type": "null"
@@ -687,10 +608,7 @@
           "description": "番茄到时或用户提前完成为 true；不表示任务已完成"
         },
         "source": {
-          "enum": [
-            "timer",
-            "taskEstimate"
-          ],
+          "enum": ["timer", "taskEstimate"],
           "default": "timer",
           "description": "timer 为实际计时；taskEstimate 为完成任务时按预计用时补足的差额，缺省 timer"
         }
@@ -707,9 +625,7 @@
       "allOf": [
         {
           "if": {
-            "required": [
-              "source"
-            ],
+            "required": ["source"],
             "properties": {
               "source": {
                 "const": "taskEstimate"
@@ -717,9 +633,7 @@
             }
           },
           "then": {
-            "required": [
-              "taskId"
-            ],
+            "required": ["taskId"],
             "properties": {
               "taskId": {
                 "type": "string",
@@ -807,14 +721,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "id",
-        "name",
-        "start",
-        "end",
-        "days",
-        "enabled"
-      ],
+      "required": ["id", "name", "start", "end", "days", "enabled"],
       "additionalProperties": false
     },
     "activeLock": {
@@ -840,222 +747,12 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "name",
-        "startedAt",
-        "endsAt",
-        "strict"
-      ]
-    },
-    "shape": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "title"
-      ],
-      "properties": {
-        "title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200,
-          "pattern": "\\S"
-        },
-        "notes": {
-          "type": "string",
-          "maxLength": 50000,
-          "description": "Rust additionally limits UTF-8 bytes to 50000."
-        },
-        "projectId": {
-          "anyOf": [
-            {
-              "type": "string",
-              "minLength": 1
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "priority": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 3,
-          "default": 0
-        },
-        "estimate": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 99,
-          "default": 1
-        },
-        "tags": {
-          "type": "array",
-          "maxItems": 20,
-          "items": {
-            "type": "string",
-            "maxLength": 40
-          }
-        },
-        "subtasks": {
-          "type": "array",
-          "maxItems": 200,
-          "items": {
-            "$ref": "#/$defs/templateSubtask"
-          }
-        },
-        "focusMinutes": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1,
-          "maximum": 180,
-          "default": null
-        },
-        "habitId": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "minLength": 1
-        },
-        "scrapMinutes": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 10080,
-          "default": 0
-        }
-      }
-    },
-    "printing": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "date"
-          ],
-          "properties": {
-            "kind": {
-              "const": "once"
-            },
-            "date": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-              "format": "date"
-            },
-            "time": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-              "default": null
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "slots"
-          ],
-          "properties": {
-            "kind": {
-              "const": "calendar"
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 49,
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "dates"
-                ],
-                "properties": {
-                  "dates": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": 366,
-                    "uniqueItems": true,
-                    "items": {
-                      "type": "string",
-                      "format": "date",
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                    }
-                  },
-                  "time": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                    "default": null
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "slots"
-          ],
-          "properties": {
-            "kind": {
-              "const": "weekly"
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 49,
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "days"
-                ],
-                "properties": {
-                  "days": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": 7,
-                    "uniqueItems": true,
-                    "items": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 7
-                    }
-                  },
-                  "time": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                    "default": null
-                  }
-                }
-              }
-            }
-          }
-        }
-      ]
+      "required": ["name", "startedAt", "endsAt", "strict"]
     },
     "print": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "templateId",
-        "date"
-      ],
+      "required": ["templateId", "date"],
       "properties": {
         "templateId": {
           "type": "string",
@@ -1068,65 +765,10 @@
         }
       }
     },
-    "template": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "shape",
-        "printing"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "shape": {
-          "$ref": "#/$defs/shape"
-        },
-        "printing": {
-          "$ref": "#/$defs/printing"
-        },
-        "automatic": {
-          "type": "boolean",
-          "default": false
-        },
-        "printAheadDays": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 90,
-          "default": 7
-        }
-      }
-    },
-    "templateSubtask": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "title"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200,
-          "pattern": "\\S"
-        }
-      }
-    },
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "retired"
-      ],
+      "required": ["id", "kind", "retired"],
       "properties": {
         "id": {
           "type": "string",
@@ -1157,10 +799,7 @@
           "type": "boolean"
         },
         "restoreTask": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "default": null
         }
       }
@@ -1266,17 +905,10 @@
                 "minLength": 1
               },
               "kind": {
-                "enum": [
-                  "lesson",
-                  "homework"
-                ]
+                "enum": ["lesson", "homework", "exam"]
               }
             },
-            "required": [
-              "taskId",
-              "sourceId",
-              "kind"
-            ]
+            "required": ["taskId", "sourceId", "kind"]
           }
         }
       },
@@ -1434,13 +1066,7 @@
           "minimum": 0
         }
       },
-      "required": [
-        "week",
-        "topics",
-        "resourceIds",
-        "objective",
-        "lessonCount"
-      ]
+      "required": ["week", "topics", "resourceIds", "objective", "lessonCount"]
     },
     "educationSemester": {
       "type": "object",
@@ -1579,11 +1205,7 @@
           "minimum": 0
         }
       },
-      "required": [
-        "id",
-        "description",
-        "points"
-      ]
+      "required": ["id", "description", "points"]
     },
     "educationQuestion": {
       "type": "object",
@@ -1728,18 +1350,21 @@
           ]
         },
         "taskId": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "default": null
         },
         "retestOfGradeId": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "default": null
+        },
+        "resourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 500,
+          "uniqueItems": true,
+          "default": []
         }
       },
       "required": [
@@ -1815,10 +1440,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "questionId",
-        "localTime"
-      ]
+      "required": ["questionId", "localTime"]
     },
     "educationPointAward": {
       "type": "object",
@@ -1838,12 +1460,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "questionId",
-        "pointId",
-        "awarded",
-        "evidence"
-      ]
+      "required": ["questionId", "pointId", "awarded", "evidence"]
     },
     "educationErrorAnalysis": {
       "type": "object",
@@ -1957,14 +1574,7 @@
           }
         }
       },
-      "required": [
-        "id",
-        "date",
-        "projectId",
-        "gradeIds",
-        "findings",
-        "actions"
-      ]
+      "required": ["id", "date", "projectId", "gradeIds", "findings", "actions"]
     },
     "educationTeachingEvent": {
       "type": "object",
@@ -1996,14 +1606,7 @@
           "type": "integer"
         }
       },
-      "required": [
-        "id",
-        "projectId",
-        "kind",
-        "sourceId",
-        "state",
-        "createdAt"
-      ]
+      "required": ["id", "projectId", "kind", "sourceId", "state", "createdAt"]
     },
     "educationResourceKind": {
       "type": "string",
@@ -2020,21 +1623,11 @@
     },
     "educationLessonState": {
       "type": "string",
-      "enum": [
-        "planned",
-        "active",
-        "ended",
-        "missed"
-      ]
+      "enum": ["planned", "active", "ended", "missed"]
     },
     "educationAssessmentKind": {
       "type": "string",
-      "enum": [
-        "homework",
-        "weeklyExam",
-        "mockExam",
-        "retest"
-      ]
+      "enum": ["homework", "weeklyExam", "mockExam", "retest"]
     },
     "educationCompletedStudyTask": {
       "type": "object",
@@ -2064,14 +1657,7 @@
           "type": "integer"
         }
       },
-      "required": [
-        "id",
-        "projectId",
-        "title",
-        "notes",
-        "topics",
-        "completedAt"
-      ]
+      "required": ["id", "projectId", "title", "notes", "topics", "completedAt"]
     },
     "educationProgressRecord": {
       "type": "object",
@@ -2094,11 +1680,7 @@
           "maxLength": 2000
         },
         "state": {
-          "enum": [
-            "studied",
-            "practicing",
-            "needsReview"
-          ]
+          "enum": ["studied", "practicing", "needsReview"]
         },
         "evidence": {
           "type": "string",
@@ -2110,10 +1692,7 @@
           "maxLength": 2000
         },
         "source": {
-          "enum": [
-            "user",
-            "assistant"
-          ]
+          "enum": ["user", "assistant"]
         },
         "confirmed": {
           "type": "boolean"
@@ -2162,19 +1741,13 @@
           "type": "integer"
         },
         "accepted": {
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "feedback": {
           "type": "string"
         },
         "reviewedAt": {
-          "type": [
-            "integer",
-            "null"
-          ]
+          "type": ["integer", "null"]
         }
       },
       "required": [

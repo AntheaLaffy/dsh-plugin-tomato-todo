@@ -65,13 +65,6 @@ export type {
   LockState,
   Attention,
   Block,
-  TemplateSubtask,
-  Shape,
-  PrintSlot,
-  CalendarSlot,
-  Printing,
-  Template,
-  PrintRecord,
   Identity,
   PlanProject,
   PlanSubtask,
@@ -144,7 +137,7 @@ export * from "./habits";
 export * from "./identities";
 export * from "./migration";
 export * from "./plan";
-export * from "./templates";
+export * from "./recurrence";
 export * from "./reminders";
 export * from "./teaching_tasks";
 export * from "./education";

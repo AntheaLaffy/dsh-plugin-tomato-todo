@@ -7,7 +7,12 @@ import { t, useLocale } from "../shared/copy.js";
 import { Icon } from "../shared/icons.js";
 import { Bar, Dot, IconBtn, Ring, ToastHost } from "../shared/ui.js";
 import { useSnapshot, refresh as refreshStore } from "../shared/store.js";
-import { todayKey, timerView, greeting } from "../shared/derive.js";
+import {
+  todayKey,
+  timerView,
+  greeting,
+  listedTasks,
+} from "../shared/derive.js";
 import { pageList } from "./registry.js";
 import {
   getActivePageId,
@@ -406,7 +411,7 @@ function NavColumn({
 }) {
   const data = (state && state.data) || {};
   const projects = Array.isArray(data.projects) ? data.projects : [];
-  const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const tasks = listedTasks(data);
   const counts = new Map();
   for (const task of tasks) {
     if (!task || task.completed || !task.projectId) continue;
