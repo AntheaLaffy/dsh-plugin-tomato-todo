@@ -9,6 +9,7 @@ generated_at: 2026-10-10
 
 | File | Domain | Function |
 | --- | --- | --- |
+| btw_overlay.rs | Linux 桌面 | niri 侧边笔、键盘速记层与快捷键配置 |
 | main.rs | 构建 | 桌面二进制薄入口，调用 tomato_todo_lib::run |
 | lib.rs | 原生入口 | Tauri 库/Android JNI 入口、平台标识与共享 Engine 状态/保护预检，按目标选择桌面或 Android 宿主；Linux 默认启用 WebKit GStreamer 音频混音器避免蓝牙输出静音 |
 | desktop_app.rs | 桌面 | 命令桥接、通知、单实例、任务提醒唤回、计时阶段结束唤回窗口、高亮、定时唤回锁机、严格保护与故障释放；驱动专注提示音抑制；学习助手 IPC 与 agent-wake 事件，应用待审阅文件前校验来源指纹 |

@@ -671,11 +671,11 @@ fn multiple_shapes_share_a_habit_group_without_splitting_one_shape_per_time() {
 }
 
 #[test]
-fn printing_requires_dates_and_weekdays_independently_of_time() {
+fn printing_allows_undated_once_but_requires_dates_for_timed_automatic_and_weekly() {
     let mut e = engine();
     let at = at(12, 8, 0);
-    let before = e.export(at).unwrap();
     let mut t = template();
+    t.automatic = true;
     t.printing = Printing::Once {
         date: None,
         time: None,
@@ -689,26 +689,59 @@ fn printing_requires_dates_and_weekdays_independently_of_time() {
             at
         )
         .is_err());
+    t.automatic = false;
+    let s = e
+        .dispatch(
+            Action::SaveTemplate {
+                template: t.clone(),
+                print_dates: vec![None],
+            },
+            at,
+        )
+        .unwrap();
+    assert_eq!(s.data.tasks.len(), 1);
+    assert_eq!(s.data.tasks[0].due_date, None);
+    assert_eq!(s.data.prints.len(), 1);
+    assert_eq!(s.data.prints[0].date, None);
+    let s = e
+        .dispatch(
+            Action::PrintInstances {
+                shape: t.shape.clone(),
+                printing: Printing::Once {
+                    date: None,
+                    time: None,
+                },
+            },
+            at,
+        )
+        .unwrap();
+    assert_eq!(s.data.tasks.len(), 2);
+    assert_eq!(s.data.tasks[1].due_date, None);
     assert!(e
         .dispatch(
             Action::PrintInstances {
                 shape: t.shape.clone(),
-                printing: t.printing
+                printing: Printing::Once {
+                    date: None,
+                    time: Some("09:00".into()),
+                },
             },
             at
         )
         .is_err());
-    assert_eq!(e.export(at).unwrap(), before);
-    t.printing = Printing::Weekly {
+    let mut e = engine();
+    let mut weekly = template();
+    weekly.id = "weekly-undated-check".into();
+    weekly.printing = Printing::Weekly {
         slots: vec![PrintSlot {
             days: vec![1, 3],
             time: None,
         }],
     };
-    let id = t.id.clone();
+    let id = weekly.id.clone();
     e.dispatch(
         Action::SaveTemplate {
-            template: t,
+            template: weekly,
             print_dates: vec![],
         },
         at,

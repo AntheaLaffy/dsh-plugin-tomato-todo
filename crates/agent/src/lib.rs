@@ -1810,7 +1810,7 @@ impl Agent {
                         let skills = self.available_skills();
                         let inner = self.inner.lock().map_err(|e| e.to_string())?;
                         Ok(
-                            json!({"today":s.today,"asOf":s.server_time,"studyProgress":s.study_progress,"stats":s.stats,"projects":s.data.projects,"visions":s.data.visions,"blocks":s.data.blocks,"todayBlocks":tomato_core::blocks::on_date(&s.data.blocks,&s.today),"anomalies":diagnose(&s,inner.store.preferences.daily_capacity_minutes),"memories":inner.store.memories,"recentTasks":s.data.tasks.iter().filter(|t|t.due_date.as_deref().is_some_and(|d|d>=s.today.as_str())).take(50).collect::<Vec<_>>(),"taskCount":s.data.tasks.len(),"skills":skills,"permission":"用户主动发起时可直接执行允许的操作；自动唤醒仅分析、提问与准备文件。保护规则不可绕开。"}),
+                            json!({"today":s.today,"asOf":s.server_time,"studyProgress":s.study_progress,"stats":s.stats,"projects":s.data.projects,"visions":s.data.visions,"blocks":s.data.blocks,"todayBlocks":tomato_core::blocks::on_date(&s.data.blocks,&s.today),"anomalies":diagnose(&s,inner.store.preferences.daily_capacity_minutes),"memories":inner.store.memories,"recentTasks":s.data.tasks.iter().filter(|t|(!t.completed && t.due_date.is_none()) || t.due_date.as_deref().is_some_and(|d|d>=s.today.as_str())).take(50).collect::<Vec<_>>(),"taskCount":s.data.tasks.len(),"skills":skills,"permission":"用户主动发起时可直接执行允许的操作；自动唤醒仅分析、提问与准备文件。保护规则不可绕开。"}),
                         )
                     }
                     _ => Err("未知工具".into()),

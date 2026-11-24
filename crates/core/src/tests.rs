@@ -75,6 +75,13 @@ fn documented_backup_example_loads_and_round_trips_new_lock_fields() {
     let exported: AppData = serde_json::from_str(&e.export(1000).unwrap()).unwrap();
     assert_eq!(exported.lock.schedules[0].start, "23:00");
     assert!(!exported.settings.protection.strict);
+    assert_eq!(exported.settings.accent_color, AccentColor::Sage);
+    let mut legacy = serde_json::to_value(exported).unwrap();
+    legacy["settings"].as_object_mut().unwrap().remove("accentColor");
+    legacy["settings"]["theme"] = "system".into();
+    let restored: AppData = serde_json::from_value(legacy).unwrap();
+    assert_eq!(restored.settings.accent_color, AccentColor::Tomato);
+    assert_eq!(restored.settings.theme, "system");
 }
 
 fn friday(hour: u32, minute: u32) -> i64 {
@@ -162,9 +169,19 @@ fn scheduled_sleep_crosses_midnight_and_does_not_count_as_focus() {
     assert_eq!(s.data.sessions[0].duration_secs, 120);
     assert!(!s.data.sessions[0].completed);
     assert!(e.dispatch(Action::EmergencyUnlock, at + 3600).is_err());
+    assert!(e.dispatch(Action::UnlockToFocus, at + 3600).is_err());
     assert!(e.snapshot(at + 7 * 3600).unwrap().data.protected());
-    assert!(!e.snapshot(at + 8 * 3600).unwrap().data.protected());
+    let ended = e.snapshot(at + 8 * 3600).unwrap();
+    assert!(ended.data.protected());
+    assert!(!ended.data.strict_protected());
+    assert!(ended.data.lock.active.as_ref().unwrap().awaiting_unlock);
+    let started = e.dispatch(Action::UnlockToFocus, at + 8 * 3600).unwrap();
+    assert!(started.data.lock.active.is_none());
+    assert!(started.data.timer.running);
+    assert_eq!(started.data.timer.mode, Mode::Focus);
+    assert_eq!(started.data.timer.task_id, None);
     assert_eq!(e.data.sessions.len(), 1);
+    e.dispatch(Action::ResetTimer, at + 8 * 3600).unwrap();
     assert!(!e.snapshot(at + 86400).unwrap().data.protected()); // Saturday is not selected.
 }
 
@@ -195,7 +212,14 @@ fn ordinary_lock_can_end_once_strict_quick_lock_survives_restart() {
     let mut e = Engine::open(&path).unwrap();
     assert!(e.snapshot(friday(23, 4)).unwrap().data.strict_protected());
     assert!(e.dispatch(Action::EmergencyUnlock, friday(23, 4)).is_err());
-    assert!(!e.snapshot(friday(23, 5)).unwrap().data.protected());
+    let awaiting = e.snapshot(friday(23, 5)).unwrap();
+    assert!(awaiting.data.protected());
+    assert!(!awaiting.data.strict_protected());
+    assert!(awaiting.data.lock.active.as_ref().unwrap().awaiting_unlock);
+    let unlocked = e.dispatch(Action::UnlockToFocus, friday(23, 5)).unwrap();
+    assert!(unlocked.data.lock.active.is_none());
+    assert!(unlocked.data.timer.running);
+    assert_eq!(unlocked.data.timer.mode, Mode::Focus);
     assert!(e.data.sessions.is_empty());
 }
 
@@ -285,6 +309,57 @@ fn ending_a_quick_break_does_not_cancel_the_upcoming_sleep_window() {
     e.dispatch(Action::EmergencyUnlock, friday(22, 59) + 10)
         .unwrap();
     assert!(e.snapshot(friday(23, 0)).unwrap().data.strict_protected());
+}
+
+#[test]
+fn reenabling_or_editing_schedule_clears_prior_suppression_without_affecting_unrelated_windows() {
+    let mut e = engine();
+    let nap = lock::LockSchedule {
+        id: "nap".into(),
+        name: "午休".into(),
+        start: "13:00".into(),
+        end: "14:00".into(),
+        days: vec![5],
+        enabled: true,
+        strict: false,
+    };
+    e.dispatch(
+        Action::SaveLockSchedule {
+            schedule: nap.clone(),
+        },
+        friday(12, 50),
+    )
+    .unwrap();
+    assert!(e.snapshot(friday(13, 0)).unwrap().data.protected());
+    // Dismissing the ordinary lock suppresses the remainder of the 13:00-14:00 window.
+    e.dispatch(Action::EmergencyUnlock, friday(13, 1)).unwrap();
+    assert!(!e.snapshot(friday(13, 2)).unwrap().data.protected());
+
+    // Editing an unrelated schedule must not re-arm the dismissed nap window.
+    e.dispatch(
+        Action::SaveLockSchedule {
+            schedule: sleep_schedule(false),
+        },
+        friday(13, 2),
+    )
+    .unwrap();
+    assert!(!e.snapshot(friday(13, 3)).unwrap().data.protected());
+
+    // Disabling and re-enabling the nap schedule clears suppression and re-arms immediately.
+    let mut disabled = nap.clone();
+    disabled.enabled = false;
+    e.dispatch(Action::SaveLockSchedule { schedule: disabled }, friday(13, 4))
+        .unwrap();
+    assert!(!e.snapshot(friday(13, 4)).unwrap().data.protected());
+
+    let mut edited = nap;
+    edited.start = "13:05".into();
+    edited.end = "15:00".into();
+    edited.strict = true;
+    e.dispatch(Action::SaveLockSchedule { schedule: edited }, friday(13, 4))
+        .unwrap();
+    assert!(!e.snapshot(friday(13, 4)).unwrap().data.protected());
+    assert!(e.snapshot(friday(13, 5)).unwrap().data.strict_protected());
 }
 
 #[test]
@@ -1646,6 +1721,18 @@ fn break_cycle_rollover_preserves_running_and_paused_breaks() {
     for mode in [Mode::ShortBreak, Mode::LongBreak] {
         for paused in [false, true] {
             let mut e = engine();
+            if paused {
+                e.dispatch(
+                    Action::SaveSettings {
+                        settings: Settings {
+                            force_break: false,
+                            ..Settings::default()
+                        },
+                    },
+                    friday(8, 0),
+                )
+                .unwrap();
+            }
             complete_focus_sessions(&mut e, friday(9, 0), 3);
             let start = friday(23, 59);
             e.dispatch(Action::SetMode { mode }, start).unwrap();
@@ -2021,6 +2108,10 @@ fn reminder_validation_and_lock_deferral() {
         .data
         .pending_reminder()
         .is_none());
+    let awaiting = e.snapshot(friday(9, 1)).unwrap();
+    assert!(awaiting.data.lock.active.as_ref().unwrap().awaiting_unlock);
+    assert!(awaiting.data.pending_reminder().is_none());
+    e.dispatch(Action::EmergencyUnlock, friday(9, 1)).unwrap();
     assert!(e
         .snapshot(friday(9, 1))
         .unwrap()
@@ -2203,20 +2294,27 @@ fn course_blocks_round_trip_through_plan_v6() {
 }
 
 #[test]
-fn every_task_entry_point_requires_a_date_but_not_a_reminder() {
+fn every_task_entry_point_rejects_invalid_dates_and_undated_reminders() {
     let mut e = engine();
     let at = friday(8, 0);
     let before = e.export(at).unwrap();
-    for date in [None, Some("".into()), Some("2026-02-30".into())] {
+    for (date, reminder) in [
+        (Some("".into()), None),
+        (Some("2026-02-30".into()), None),
+        (None, Some("09:00".into())),
+    ] {
         let mut task = draft();
         task.due_date = date.clone();
+        task.reminder_time = reminder.clone();
         assert!(e.dispatch(Action::SaveTask { task }, at).is_err());
         let mut plan = example_plan();
         plan.tasks[0].due_date = date.clone();
+        plan.tasks[0].reminder_time = reminder.clone();
         assert!(e.dispatch(Action::ImportPlan { plan }, at).is_err());
         let mut backup = AppData::default();
         let mut task = draft();
         task.due_date = date;
+        task.reminder_time = reminder;
         // Construct through the public DTO to exercise backup validation as well.
         let mut raw = serde_json::to_value(task).unwrap();
         raw["id"] = "invalid-task".into();
@@ -2240,9 +2338,11 @@ fn every_task_entry_point_requires_a_date_but_not_a_reminder() {
             .is_err());
         assert_eq!(e.export(at).unwrap(), before);
     }
-    let s = e.dispatch(Action::SaveTask { task: draft() }, at).unwrap();
+    let mut undated = draft();
+    undated.due_date = None;
+    let s = e.dispatch(Action::SaveTask { task: undated }, at).unwrap();
     assert!(s.data.tasks[0].reminder_time.is_none());
-    assert!(s.data.tasks[0].due_date.is_some());
+    assert!(s.data.tasks[0].due_date.is_none());
     let mut plan = serde_json::to_value(example_plan()).unwrap();
     plan["goals"] = serde_json::json!([]);
     assert!(serde_json::from_value::<plan::PlanFile>(plan).is_err());
@@ -2506,6 +2606,7 @@ fn completing_task_during_rest_blocks_free_focus_continuation_after_restart() {
                 short_break_minutes: 1,
                 auto_focus: true,
                 auto_break: true,
+                force_break: false,
                 ..Settings::default()
             },
         },
@@ -2638,4 +2739,192 @@ fn scheduled_task_takes_priority_over_rest_continuation_and_import_disarms_it() 
             .settings
             .auto_start_tasks
     );
+}
+
+#[test]
+fn undated_tasks_save_edit_and_round_trip_while_reminders_still_require_a_date() {
+    let mut e = engine();
+    let mut task = draft();
+    task.due_date = None;
+    task.reminder_time = Some("09:00".into());
+    assert!(e.dispatch(Action::SaveTask { task }, friday(8, 0)).is_err());
+
+    let mut task = draft();
+    task.due_date = None;
+    task.reminder_time = None;
+    let s = e.dispatch(Action::SaveTask { task }, friday(8, 0)).unwrap();
+    assert_eq!(s.data.tasks.len(), 1);
+    assert_eq!(s.data.tasks[0].due_date, None);
+    let id = s.data.tasks[0].id.clone();
+
+    let plan = s.data.export_plan();
+    assert_eq!(plan.tasks[0].due_date, None);
+    let mut imported = engine();
+    let s2 = imported
+        .dispatch(Action::ImportPlan { plan }, friday(8, 5))
+        .unwrap();
+    assert_eq!(s2.data.tasks[0].id, id);
+    assert_eq!(s2.data.tasks[0].due_date, None);
+
+    let backup: AppData = serde_json::from_str(&e.export(friday(8, 5)).unwrap()).unwrap();
+    let mut restored = engine();
+    let s3 = restored
+        .dispatch(
+            Action::Import {
+                data: Box::new(backup),
+            },
+            friday(8, 5),
+        )
+        .unwrap();
+    assert_eq!(s3.data.tasks[0].due_date, None);
+}
+
+#[test]
+fn force_break_defaults_to_screen_lock_during_breaks_and_can_be_toggled() {
+    let mut e = engine();
+    assert!(e.data.settings.force_break);
+    assert_eq!(e.data.settings.protection.mode, GuardMode::Off);
+
+    // Focus with GuardMode::Off is not protected, but running a break is protected by default.
+    for mode in [Mode::ShortBreak, Mode::LongBreak] {
+        e.dispatch(Action::SetMode { mode }, 1000).unwrap();
+        assert!(!e.data.protected());
+        let s = e.dispatch(Action::StartTimer, 1000).unwrap();
+        assert!(s.data.break_protected());
+        assert!(s.data.protected());
+        assert!(!s.data.strict_protected());
+        // Modifications and early focus completion are rejected during forced break.
+        assert!(e.dispatch(Action::PauseTimer, 1010).is_err());
+        assert!(e.dispatch(Action::CompleteFocus, 1010).is_err());
+        // Emergency unlock releases forced break and returns to idle Focus without recording a session.
+        let unlocked = e.dispatch(Action::EmergencyUnlock, 1020).unwrap();
+        assert!(!unlocked.data.protected());
+        assert_eq!(unlocked.data.timer.mode, Mode::Focus);
+        assert!(!unlocked.data.timer.running);
+        assert!(unlocked.data.sessions.is_empty());
+    }
+
+    // Enabling strict mode also makes forced break strict until break ends.
+    e.dispatch(
+        Action::SaveSettings {
+            settings: Settings {
+                short_break_minutes: 1,
+                protection: Protection {
+                    mode: GuardMode::Off,
+                    whitelist: vec![],
+                    strict: true,
+                },
+                ..Settings::default()
+            },
+        },
+        2000,
+    )
+    .unwrap();
+    e.dispatch(
+        Action::SetMode {
+            mode: Mode::ShortBreak,
+        },
+        2000,
+    )
+    .unwrap();
+    let s = e.dispatch(Action::StartTimer, 2000).unwrap();
+    assert!(s.data.break_protected());
+    assert!(s.data.strict_protected());
+    assert!(e.dispatch(Action::EmergencyUnlock, 2030).is_err());
+    let done = e.snapshot(2060).unwrap();
+    assert!(!done.data.protected());
+    assert_eq!(done.data.timer.mode, Mode::Focus);
+
+    // Turning force_break off restores normal unprotected breaks.
+    e.dispatch(
+        Action::SaveSettings {
+            settings: Settings {
+                force_break: false,
+                ..Settings::default()
+            },
+        },
+        3000,
+    )
+    .unwrap();
+    e.dispatch(
+        Action::SetMode {
+            mode: Mode::ShortBreak,
+        },
+        3000,
+    )
+    .unwrap();
+    let s = e.dispatch(Action::StartTimer, 3000).unwrap();
+    assert!(!s.data.break_protected());
+    assert!(!s.data.protected());
+    let paused = e.dispatch(Action::PauseTimer, 3010).unwrap();
+    assert!(!paused.data.timer.running);
+
+    // Backups omitting forceBreak default to true.
+    let mut json: serde_json::Value = serde_json::from_str(&e.export(3010).unwrap()).unwrap();
+    json["settings"]
+        .as_object_mut()
+        .unwrap()
+        .remove("forceBreak");
+    let decoded: AppData = serde_json::from_value(json).unwrap();
+    assert!(decoded.settings.force_break);
+}
+
+#[test]
+fn lock_whitelist_validates_blocks_changes_while_locked_and_round_trips() {
+    let mut e = engine();
+    assert!(e.data.lock.whitelist.is_empty());
+
+    // Reject blank or control characters in lock whitelist.
+    assert!(e
+        .dispatch(
+            Action::SetLockWhitelist {
+                whitelist: vec!["   ".into()],
+            },
+            1000,
+        )
+        .is_err());
+
+    let s = e
+        .dispatch(
+            Action::SetLockWhitelist {
+                whitelist: vec!["md.obsidian.Obsidian".into(), "spotify".into()],
+            },
+            1000,
+        )
+        .unwrap();
+    assert_eq!(
+        s.data.lock.whitelist,
+        vec!["md.obsidian.Obsidian", "spotify"]
+    );
+
+    // Cannot alter lock whitelist while a lock is active.
+    e.dispatch(
+        Action::StartQuickLock {
+            minutes: 10,
+            strict: false,
+        },
+        1000,
+    )
+    .unwrap();
+    assert!(e
+        .dispatch(
+            Action::SetLockWhitelist {
+                whitelist: vec!["code".into()],
+            },
+            1010,
+        )
+        .is_err());
+    e.dispatch(Action::EmergencyUnlock, 1020).unwrap();
+
+    // Backup round-trips whitelist, and older backups omitting whitelist default to empty.
+    let backup_str = e.export(1020).unwrap();
+    let backup: AppData = serde_json::from_str(&backup_str).unwrap();
+    assert_eq!(
+        backup.lock.whitelist,
+        vec!["md.obsidian.Obsidian", "spotify"]
+    );
+    let mut json: serde_json::Value = serde_json::from_str(&backup_str).unwrap();
+    json["lock"].as_object_mut().unwrap().remove("whitelist");
+    let legacy: AppData = serde_json::from_value(json).unwrap();
+    assert!(legacy.lock.whitelist.is_empty());
 }

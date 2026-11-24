@@ -84,10 +84,11 @@ fn apply_preview(
             .map_err(|e| e.to_string())?,
         now(),
     )?;
-    if current.protected()
+    if !matches!(action, Action::AddBtwNote { .. } | Action::SetBtwStatus { .. }) && (current.protected()
         || current.lock.schedules.iter().any(|s| s.enabled)
         || (current.settings.protection.mode != GuardMode::Off
             && (current.settings.auto_focus || current.settings.auto_start_tasks))
+        || (current.settings.force_break && current.settings.auto_break))
     {
         return Err("浏览器预览不能控制桌面应用，请在桌面版使用专注保护".into());
     }

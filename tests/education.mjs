@@ -607,6 +607,13 @@ test(
       const restOrdinaryId = restOrdinary.data.tasks.find(
         (task) => task.title === "休息期间的普通任务",
       ).id;
+      const currentSettings = (
+        await (await fetch(base + "/api/snapshot")).json()
+      ).data.settings;
+      await action({
+        type: "saveSettings",
+        settings: { ...currentSettings, forceBreak: false },
+      });
       await action({ type: "setMode", mode: "shortBreak" });
       const resting = await action({ type: "startTimer" });
       assert.equal(resting.data.timer.running, true);

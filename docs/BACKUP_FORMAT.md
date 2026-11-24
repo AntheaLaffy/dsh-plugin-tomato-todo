@@ -17,12 +17,15 @@
 | `prints`       | 已印日期记录               | 最多 200000 项，删除实例后仍保留，恢复后防止重新生成                                                                          |
 | `visions`      | 愿景数组                   | 最多 500 项；含 `name`、可选 `notes`，可选 `projectId` 归属项目（为空即总愿景）；旧文件省略时为空      |
 | `tasks`        | 全部任务，包括已完成任务   | 最多 50,000 项                                                                                                                |
+| `btwNotes` | BTW 随手笔记 | 旧 v4 文件省略时为空。每条保存唯一 `id`、纯文本 `text`、Unix 秒 `createdAt` 和状态 `note`（普通）、`later`（稍后做）或 `done`（已完成）。 |
 | `settings`     | 番茄钟、主题与专注保护设置 | 必填                                                                                                                          |
 | `timer`        | 当前计时器                 | 必填                                                                                                                          |
 | `sessions`     | 专注历史数组               | 最多 200,000 项                                                                                                               |
 | `lock`         | 定时锁机规则和当前状态     | 旧文件省略时默认无规则、未锁机                                                                                                |
 
 完整备份没有 `format: "tomato-todo-plan"` 标记。两个文件各有独立的导入入口，不能只改后缀互换。
+
+`settings.theme` 保存浅色、深色或跟随系统（`light`、`dark`、`system`）。`settings.accentColor` 独立保存番茄红（`tomato`）、鼠尾草绿（`sage`）或雾蓝（`mistBlue`）。读取缺少强调色的 v4 备份时使用番茄红。
 
 ## 任务与历史
 
@@ -50,7 +53,7 @@
 
 - `focusMinutes`：1—180；`shortBreakMinutes`：1—60；`longBreakMinutes`：1—120。
 - `longBreakEvery`：2—12；`dailyGoal`：1—30，以上均为整数。
-- `autoBreak`、`autoFocus`、`autoStartTasks`、`sound`、`notifications`、`alwaysOnTop`：布尔值。`autoFocus`仅控制休息后续当前任务剩余轮次；`autoStartTasks`独立控制任务提醒时刻到达后的自动开始。计时、暂停、锁机或考试中不抢占，超过任务时段不补开；恢复备份会关闭`autoStartTasks`。
+- `autoBreak`、`forceBreak`、`autoFocus`、`autoStartTasks`、`sound`、`notifications`、`alwaysOnTop`：布尔值。`forceBreak`（缺省 `true`，v4 旧文件可省略）控制休息计时期间是否默认启用界面锁定（全屏并拦截其他应用，遵循 `protection.strict`）；`autoFocus` 仅控制休息后续当前任务剩余轮次；`autoStartTasks` 独立控制任务提醒时刻到达后的自动开始。计时、暂停、锁机或考试中不抢占，超过任务时段不补开；恢复备份会关闭 `autoStartTasks`。
 - `soundVolume`：整数 0—100，默认 100；v4 文件可省略。`sound` 控制所有关键节点音效，背景噪音单独调节。
 - `theme`：`light`、`dark`、`system`。
 - `personaBackdrop`：布尔值，缺省 `false`；在普通页面背景显示当前内置人格的完整立绘。沉浸与专注保护界面不显示，自定义人格没有内置立绘时隐藏。
@@ -101,7 +104,7 @@
 
 结束早于开始时跨午夜。星期归属**开始日期**，例如只选周五的 23:00—07:00，持续到周六早上。启用的规则不能重叠，跨周日/周一的重叠也会被拒绝。规则使用接收电脑的本地时区，不把导出机器的时区固定在文件内；夏令时重复的起点取较早时刻、终点取较晚时刻，不存在的本地时刻跳过当次。
 
-`active` 是当前执行状态：null 或 `{ "name", "startedAt", "endsAt", "strict" }`；时间为 Unix 秒，结束必须晚于开始。`suppressedUntil` 是普通模式提前结束后避免本轮再次触发的 Unix 秒，默认为 0。这两项用于本机持续运行和重启恢复，**不是计划模板**。
+`active` 是当前执行状态：null 或 `{ "name", "startedAt", "endsAt", "strict", "awaitingUnlock" }`；时间为 Unix 秒，结束必须晚于开始，`awaitingUnlock`（缺省 false）表示锁机已到结束时刻，正在全屏等待用户手动点击「开始专注」解开并进入自由专注。`suppressedUntil` 是普通模式提前结束后避免本轮再次触发的 Unix 秒，默认为 0。这两项用于本机持续运行和重启恢复，**不是计划模板**。`whitelist` 是锁机期间允许使用的应用 ID 列表（精确匹配，最多 100 项，每项最多 32768 字符，缺省为空）；留空时全屏锁定，非空时放行清单内的非工作应用（如日记、音乐播放器）并拉回其他应用；到时进入 `awaitingUnlock` 后统一全屏锁定并忽略白名单。
 
 快速锁机接受 1—720 分钟，执行时也写入 `active`，不新增重复规则。如果已有定时规则在小憩期间开始，按定时规则继续锁机，结束取较晚时间；任一严格模式生效则本轮严格执行。
 

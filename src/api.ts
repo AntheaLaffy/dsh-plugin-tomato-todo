@@ -37,6 +37,9 @@ export const dispatch = (action: Record<string, unknown>) =>
     : request<Snapshot>("action", action);
 export const getGuard = () =>
   native ? invoke<GuardInfo>("guard_info") : request<GuardInfo>("guard");
+export const openBtwOverlay = () => desktop && invoke<boolean>("open_btw_overlay");
+export const takeBtwRequest = () => invoke<boolean>("take_btw_request");
+export const enableBtwShortcut = () => invoke<void>("enable_btw_shortcut");
 export const getDesktopStatus = () => invoke<DesktopStatus>("desktop_status");
 export const saveDesktopSettings = (autostart: boolean, closeToTray: boolean) =>
   invoke<DesktopStatus>("save_desktop_settings", { autostart, closeToTray });

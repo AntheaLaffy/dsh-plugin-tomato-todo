@@ -108,7 +108,7 @@ impl Template {
         matches!(self.printing, Printing::Weekly { .. })
     }
     fn times(&self, date: &Option<String>) -> AppResult<Vec<Option<String>>> {
-        if date.as_ref().is_none_or(|d| !valid_date(d)) {
+        if date.as_ref().is_some_and(|d| !valid_date(d)) {
             return Err("无效的印刷日期".into());
         }
         match &self.printing {
@@ -249,10 +249,13 @@ pub fn validate(data: &AppData) -> AppResult<()> {
         }
         match &t.printing {
             Printing::Once { date, time } => {
-                if date.as_ref().is_none_or(|d| !valid_date(d))
+                if date.as_ref().is_some_and(|d| !valid_date(d))
                     || time.as_ref().is_some_and(|time| !valid_time(time))
                 {
                     return Err("无效的一次印刷日期或时间".into());
+                }
+                if t.automatic && date.is_none() {
+                    return Err("自动一次印刷需要指定日期".into());
                 }
                 if s.habit_id.is_some() {
                     return Err("习惯模板必须重复印刷".into());
@@ -309,7 +312,7 @@ pub fn validate(data: &AppData) -> AppResult<()> {
     let mut prints = HashSet::new();
     for p in &data.prints {
         if !ids.contains(&p.template_id)
-            || p.date.as_ref().is_none_or(|d| !valid_date(d))
+            || p.date.as_ref().is_some_and(|d| !valid_date(d))
             || !prints.insert((&p.template_id, &p.date))
         {
             return Err("无效或重复的印刷记录".into());

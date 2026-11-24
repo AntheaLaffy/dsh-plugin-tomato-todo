@@ -5,6 +5,8 @@ use tomato_core::{guard, now, Action, AppData, AppResult, Engine, GuardMode};
 pub(crate) type Shared = Arc<Mutex<Engine>>;
 #[cfg(not(target_os = "android"))]
 mod desktop;
+#[cfg(target_os = "linux")]
+mod btw_overlay;
 #[cfg(not(target_os = "android"))]
 mod desktop_app;
 mod files;
@@ -22,13 +24,18 @@ fn preflight_action(current: &AppData, action: &Action) -> AppResult<()> {
             .map_err(|e| e.to_string())?,
         now(),
     )?;
-    if !matches!(action, Action::EmergencyUnlock | Action::CompleteFocus)
-        && (proposed.protected()
-            || proposed.lock.schedules.iter().any(|s| s.enabled)
-            || (proposed.settings.protection.mode != GuardMode::Off
-                && (current.settings.protection.mode != proposed.settings.protection.mode
-                    || (!current.settings.auto_focus && proposed.settings.auto_focus)
-                    || (!current.settings.auto_start_tasks && proposed.settings.auto_start_tasks))))
+    if !matches!(action, Action::AddBtwNote { .. } | Action::SetBtwStatus { .. }) && !matches!(
+        action,
+        Action::EmergencyUnlock | Action::CompleteFocus | Action::UnlockToFocus
+    ) && (proposed.protected()
+        || proposed.lock.schedules.iter().any(|s| s.enabled)
+        || (proposed.settings.protection.mode != GuardMode::Off
+            && (current.settings.protection.mode != proposed.settings.protection.mode
+                || (!current.settings.auto_focus && proposed.settings.auto_focus)
+                || (!current.settings.auto_start_tasks && proposed.settings.auto_start_tasks)))
+        || (proposed.settings.force_break
+            && ((!current.settings.force_break && proposed.settings.force_break)
+                || (!current.settings.auto_break && proposed.settings.auto_break))))
     {
         guard::preflight(std::process::id())?;
     }

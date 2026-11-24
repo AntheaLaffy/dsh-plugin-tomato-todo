@@ -171,6 +171,9 @@ test("persona artwork: default off, settings, agent control and current characte
     );
     await page.locator('[data-page="focus"]').first().click();
     await page.locator('[data-action="theme"]').click();
+    await page.getByRole("radio", { name: "深色" }).check();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.keyboard.press("Escape");
     await page.screenshot({
       path: "artifacts/persona-backdrop-dark.png",
       fullPage: true,

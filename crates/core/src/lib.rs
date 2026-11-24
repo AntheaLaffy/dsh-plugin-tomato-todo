@@ -8,6 +8,7 @@ use std::{
 };
 use uuid::Uuid;
 pub mod blocks;
+pub mod btw;
 pub mod diagnostics;
 pub mod education;
 pub mod guard;
@@ -202,7 +203,7 @@ fn default_estimate() -> u32 {
 
 /// Windows executable paths can exceed short app IDs. Share the same bounded,
 /// non-blank, control-free validation between global and project lists.
-fn valid_app_ids(list: &[String]) -> bool {
+pub(crate) fn valid_app_ids(list: &[String]) -> bool {
     list.len() <= 100
         && list.iter().all(|a| {
             !a.trim().is_empty() && a.chars().count() <= 32768 && !a.chars().any(char::is_control)
@@ -218,6 +219,8 @@ pub struct Settings {
     pub long_break_every: u32,
     pub daily_goal: u32,
     pub auto_break: bool,
+    #[serde(default = "default_force_break")]
+    pub force_break: bool,
     pub auto_focus: bool,
     #[serde(default)]
     pub auto_start_tasks: bool,
@@ -227,6 +230,8 @@ pub struct Settings {
     pub notifications: bool,
     pub always_on_top: bool,
     pub theme: String,
+    #[serde(default)]
+    pub accent_color: AccentColor,
     #[serde(default)]
     pub persona_backdrop: bool,
     #[serde(default)]
@@ -242,6 +247,16 @@ pub struct Protection {
     #[serde(default)]
     pub strict: bool,
 }
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AccentColor {
+    #[default]
+    Tomato,
+    Sage,
+    MistBlue,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum GuardMode {
@@ -253,6 +268,9 @@ pub enum GuardMode {
 fn default_sound_volume() -> u8 {
     100
 }
+fn default_force_break() -> bool {
+    true
+}
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -262,6 +280,7 @@ impl Default for Settings {
             long_break_every: 4,
             daily_goal: 8,
             auto_break: false,
+            force_break: default_force_break(),
             auto_focus: false,
             auto_start_tasks: false,
             sound: true,
@@ -269,6 +288,7 @@ impl Default for Settings {
             notifications: true,
             always_on_top: false,
             theme: "light".into(),
+            accent_color: AccentColor::default(),
             persona_backdrop: false,
             protection: Protection::default(),
         }
@@ -355,6 +375,8 @@ pub struct Session {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppData {
     #[serde(default)]
+    pub btw_notes: Vec<btw::Note>,
+    #[serde(default)]
     pub education: education::Education,
     pub version: u32,
     #[serde(default)]
@@ -383,6 +405,7 @@ impl Default for AppData {
     fn default() -> Self {
         Self {
             version: 4,
+            btw_notes: Vec::new(),
             education: education::Education::default(),
             identities: vec![],
             tasks: vec![],
@@ -435,6 +458,8 @@ pub enum DetachTarget {
     deny_unknown_fields
 )]
 pub enum Action {
+    AddBtwNote { text: String },
+    SetBtwStatus { id: String, status: btw::Status },
     Education {
         command: education::Command,
     },
@@ -576,6 +601,10 @@ pub enum Action {
         minutes: u32,
         strict: bool,
     },
+    SetLockWhitelist {
+        whitelist: Vec<String>,
+    },
+    UnlockToFocus,
 }
 
 #[derive(Debug, Serialize)]
@@ -618,8 +647,12 @@ pub struct Snapshot {
 }
 
 impl AppData {
+    pub fn break_protected(&self) -> bool {
+        self.timer.running && self.timer.mode != Mode::Focus && self.settings.force_break
+    }
     pub fn protected(&self) -> bool {
         self.lock.active.is_some()
+            || self.break_protected()
             || (self.timer.running
                 && self.timer.mode == Mode::Focus
                 && self.settings.protection.mode != GuardMode::Off)
@@ -643,10 +676,14 @@ impl AppData {
         !task.completed && task.reminder_time.is_some() && task.reminder_expired
     }
     pub fn strict_protected(&self) -> bool {
-        self.lock.active.as_ref().is_some_and(|a| a.strict)
-            || (self.timer.running
-                && self.timer.mode == Mode::Focus
-                && self.settings.protection.mode != GuardMode::Off
+        self.lock
+            .active
+            .as_ref()
+            .is_some_and(|a| a.strict && !a.awaiting_unlock)
+            || ((self.break_protected()
+                || (self.timer.running
+                    && self.timer.mode == Mode::Focus
+                    && self.settings.protection.mode != GuardMode::Off))
                 && self.settings.protection.strict)
     }
     fn duration(&self, mode: Mode) -> u32 {
@@ -765,14 +802,18 @@ impl AppData {
     }
     fn tick_with_lock(&mut self, at: i64) -> bool {
         let previous = serde_json::to_value(&self.lock).ok();
-        if self.lock.active.as_ref().is_some_and(|a| at >= a.ends_at) {
-            self.lock.active = None;
+        if let Some(active) = &mut self.lock.active {
+            if at >= active.ends_at {
+                active.awaiting_unlock = true;
+            }
         }
         if let Some(mut scheduled) = self.lock.scheduled_at(at) {
             if let Some(active) = &self.lock.active {
-                scheduled.started_at = active.started_at.min(scheduled.started_at);
-                scheduled.ends_at = active.ends_at.max(scheduled.ends_at);
-                scheduled.strict |= active.strict;
+                if !active.awaiting_unlock {
+                    scheduled.started_at = active.started_at.min(scheduled.started_at);
+                    scheduled.ends_at = active.ends_at.max(scheduled.ends_at);
+                    scheduled.strict |= active.strict;
+                }
             }
             self.lock.active = Some(scheduled);
         }
@@ -844,13 +885,31 @@ impl AppData {
     }
     pub fn apply(&mut self, action: Action, at: i64) -> AppResult<()> {
         self.tick(at);
-        if self.strict_protected() {
+        let btw_permitted = action.allowed_during_btw_protection(self);
+        if matches!(action, Action::UnlockToFocus) {
+            if !self.lock.active.as_ref().is_some_and(|a| a.awaiting_unlock) {
+                return Err("当前没有等待解锁的锁机".into());
+            }
+        } else if self.strict_protected() && !btw_permitted {
             return Err("严格模式生效中，不能提前结束或修改；到时自动解除".into());
-        }
-        if self.protected() && !matches!(action, Action::EmergencyUnlock | Action::CompleteFocus) {
-            return Err("专注保护中，结束前不能修改任务或计时；可提前完成番茄或紧急退出".into());
+        } else if self.protected() && !btw_permitted
+            && !matches!(action, Action::EmergencyUnlock | Action::CompleteFocus)
+        {
+            return Err(if self.break_protected() {
+                "强制休息中，结束前不能修改任务或计时；有急事可提前结束"
+            } else {
+                "专注保护中，结束前不能修改任务或计时；可提前完成番茄或紧急退出"
+            }
+            .into());
         }
         match action {
+            Action::AddBtwNote { text } => {
+                self.btw_notes.push(btw::Note::new(text, at)?);
+            }
+            Action::SetBtwStatus { id, status } => {
+                self.btw_notes.iter_mut().find(|note| note.id == id)
+                    .ok_or("找不到这条 BTW 笔记")?.status = status;
+            }
             Action::Education { command } => {
                 if matches!(command, education::Command::StartExam { .. })
                     && (!self.reminder_idle()
@@ -911,15 +970,27 @@ impl AppData {
                 self.finish_timer(at, at);
             }
             Action::SaveLockSchedule { schedule } => {
-                if let Some(index) = self.lock.schedules.iter().position(|s| s.id == schedule.id) {
+                let id = schedule.id.clone();
+                let enabled = schedule.enabled;
+                if let Some(index) = self.lock.schedules.iter().position(|s| s.id == id) {
                     self.lock.schedules[index] = schedule;
                 } else {
                     self.lock.schedules.push(schedule);
                 }
                 self.lock.validate()?;
+                // Re-enabling or editing a schedule is an explicit user intent to arm it again,
+                // so clear a stale early-exit suppression unless another active window is being suppressed.
+                if enabled && !self.lock.has_other_schedule_at(at, &id) {
+                    self.lock.suppressed_until = 0;
+                }
                 self.tick(at);
             }
-            Action::DeleteLockSchedule { id } => self.lock.schedules.retain(|s| s.id != id),
+            Action::DeleteLockSchedule { id } => {
+                self.lock.schedules.retain(|s| s.id != id);
+                if !self.lock.has_other_schedule_at(at, "") {
+                    self.lock.suppressed_until = 0;
+                }
+            }
             Action::StartQuickLock { minutes, strict } => {
                 if !(1..=720).contains(&minutes) {
                     return Err("快速锁机时长需为 1–720 分钟".into());
@@ -931,7 +1002,20 @@ impl AppData {
                     started_at: at,
                     ends_at: at + i64::from(minutes) * 60,
                     strict,
+                    awaiting_unlock: false,
                 });
+            }
+            Action::SetLockWhitelist { whitelist } => {
+                if !valid_app_ids(&whitelist) {
+                    return Err("无效的锁机应用白名单".into());
+                }
+                self.lock.whitelist = whitelist;
+            }
+            Action::UnlockToFocus => {
+                self.lock.active = None;
+                self.timer.task_id = None;
+                self.reset_to(Mode::Focus);
+                self.start(at);
             }
             Action::SaveTask { task: d } => {
                 if d.id
@@ -1510,6 +1594,7 @@ impl AppData {
     }
 
     pub fn validate(&self) -> AppResult<()> {
+        btw::validate(&self.btw_notes)?;
         education::validate(self)?;
         teaching_tasks::validate(self)?;
         self.lock.validate()?;

@@ -41,7 +41,12 @@ export function soundForTransition(
   const before = previous.data;
   const after = next.data;
   if (!before.lock.active && after.lock.active) return "lockStart";
-  if (before.lock.active && !after.lock.active) return "lockEnd";
+  if (
+    before.lock.active &&
+    !before.lock.active.awaitingUnlock &&
+    (!after.lock.active || after.lock.active.awaitingUnlock)
+  )
+    return "lockEnd";
   if (after.timer.completionSerial > before.timer.completionSerial)
     return after.timer.lastFinishedMode === "focus" ? "focusEnd" : "breakEnd";
   const reminder = reminderKey(next);

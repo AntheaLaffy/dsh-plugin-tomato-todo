@@ -2,6 +2,8 @@
 
 感谢你愿意一起做番茄 Todo。这份文档写给要改代码、跑测试、提 PR 的人；使用与安装见 [README](README.md)，产品设计取舍见 [docs/DESIGN.md](docs/DESIGN.md)。
 
+Linux 构建使用 GTK Layer Shell 提供 niri 速记悬浮层。Debian/Ubuntu 安装 `libgtk-layer-shell-dev`，Arch 安装 `gtk-layer-shell`。
+
 ## 开发环境
 
 需要 Rust stable、Node.js 22.12+、pnpm、系统 GTK 3 / WebKitGTK 4.1 开发库、C 编译工具链和 pkg-config。

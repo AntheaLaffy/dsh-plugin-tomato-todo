@@ -1,4 +1,5 @@
 import "./style.css";
+import { noteGroups } from "./btw";
 import {
   educationCard,
   educationDashboard,
@@ -26,6 +27,7 @@ import {
   type IconNode,
   Sun,
   Moon,
+  Palette,
   Timer,
   Inbox,
   CalendarDays,
@@ -95,6 +97,9 @@ import {
   native,
   mobile,
   initPlatform,
+  openBtwOverlay,
+  takeBtwRequest,
+  enableBtwShortcut,
   dispatch,
   agentCall,
   exportData,
@@ -146,6 +151,7 @@ import type {
 const iconSet = {
   Sun,
   Moon,
+  Palette,
   Timer,
   Inbox,
   CalendarDays,
@@ -273,6 +279,7 @@ let serial = -1;
 let snapshotRevision = 0;
 let dataSignature = "";
 let disconnected = false;
+let appearanceWrites = Promise.resolve();
 let settingsDirty = false;
 let settingsRevision = 0;
 let settingsSave: Promise<boolean> | null = null;
@@ -340,14 +347,19 @@ const modeLabels: Record<Mode, string> = {
   shortBreak: "短休息",
   longBreak: "长休息",
 };
+const breakProtectedNow = () =>
+  state.data.timer.running &&
+  state.data.timer.mode !== "focus" &&
+  state.data.settings.forceBreak;
 const protectedNow = () =>
   !!state.data.lock.active ||
+  breakProtectedNow() ||
   (state.data.timer.running &&
     state.data.timer.mode === "focus" &&
     state.data.settings.protection.mode !== "off");
 const strictNow = () =>
   state.data.lock.active
-    ? state.data.lock.active.strict
+    ? state.data.lock.active.strict && !state.data.lock.active.awaitingUnlock
     : protectedNow() && state.data.settings.protection.strict;
 // Rendering a task list asks the same questions once per row ("which project?",
 // "how many pomodoros?"). Those linear scans turned a page with
@@ -477,6 +489,18 @@ function accept(next: Snapshot, action?: Record<string, unknown>) {
   const signature = JSON.stringify(next.data);
   const changed =
     !state || state.today !== next.today || signature !== dataSignature;
+  const { theme, accentColor } = next.data.settings;
+  const appearanceChanged =
+    !state ||
+    theme !== state.data.settings.theme ||
+    accentColor !== state.data.settings.accentColor;
+  // A pure palette change can recolor the open document in place, including a draft or dialog.
+  const appearanceOnly =
+    appearanceChanged && state && state.today === next.today &&
+    signature === JSON.stringify({
+      ...state.data,
+      settings: { ...state.data.settings, theme, accentColor },
+    });
   state = next;
   dataSignature = signature;
   if (!state.data.settings.sound || state.data.settings.soundVolume === 0)
@@ -504,8 +528,12 @@ function accept(next: Snapshot, action?: Record<string, unknown>) {
     immersive = false;
   }
   serial = state.data.timer.completionSerial;
-  applyTheme();
-  if (changed && (protectedNow() || !(page === "settings" && settingsDirty)))
+  const notesList = document.getElementById("btw-notes");
+  if (notesList && !btwCanReview()) closeModal();
+  else if (notesList && changed) showBtwNotes(notesList.dataset.later === "true");
+  if (document.getElementById("btw-text") && (state.data.lock.active || breakProtectedNow())) closeModal();
+  if (appearanceChanged) applyTheme();
+  if (changed && !appearanceOnly && (protectedNow() || !(page === "settings" && settingsDirty)))
     render();
   if (reveal) {
     toast(`到时间了：${reminder!.title}`);
@@ -521,15 +549,75 @@ function accept(next: Snapshot, action?: Record<string, unknown>) {
     toast(`考试结束，请立即停笔：${stopped.title}。拍照上传答题卡。`);
   }
 }
+const systemAppearance = matchMedia("(prefers-color-scheme: dark)");
+const themeModes = [
+  ["light", "浅色", "sun"],
+  ["dark", "深色", "moon"],
+  ["system", "跟随系统", "monitor"],
+] as const;
+const accents = [
+  ["tomato", "番茄红"],
+  ["sage", "鼠尾草绿"],
+  ["mistBlue", "雾蓝"],
+] as const;
+function appearanceControls() {
+  const { theme, accentColor } = state.data.settings;
+  function option(
+    key: "theme" | "accentColor",
+    value: string,
+    label: string,
+    preview: string,
+    checked: boolean,
+  ) {
+    return `<label class="appearance-choice"><input type="radio" name="${key}" data-appearance="${key}" value="${value}" ${checked ? "checked" : ""}><span>${preview}<b>${label}</b>${icon("check", "choice-check")}</span></label>`;
+  }
+  return `<div class="appearance-controls"><fieldset><legend>明暗模式</legend><div class="appearance-options">${themeModes.map(([v, name, symbol]) => option("theme", v, name, icon(symbol), theme === v)).join("")}</div></fieldset>
+    <fieldset><legend>强调色</legend><div class="appearance-options">${accents.map(([v, name]) => option("accentColor", v, name, `<i class="ink-sample" data-ink="${v}"></i>`, accentColor === v)).join("")}</div></fieldset></div>`;
+}
 function applyTheme() {
-  const theme = state.data.settings.theme;
-  document.documentElement.dataset.theme =
-    theme === "system"
-      ? matchMedia("(prefers-color-scheme: dark)").matches
+  const settings = state.data.settings;
+  const root = document.documentElement;
+  root.dataset.theme =
+    settings.theme === "system"
+      ? systemAppearance.matches
         ? "dark"
         : "light"
-      : theme;
+      : settings.theme;
+  root.dataset.accent = settings.accentColor;
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute(
+      "content",
+      getComputedStyle(root).getPropertyValue("--bg").trim(),
+    );
+  document
+    .querySelectorAll<HTMLInputElement>("input[data-appearance]")
+    .forEach((input) => {
+      input.checked =
+        input.value === settings[input.name as "theme" | "accentColor"];
+    });
 }
+document.addEventListener("change", (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !input.dataset.appearance) return;
+  const { name, value } = input;
+  const priorPreferences = settingsSave;
+  appearanceWrites = appearanceWrites.then(async () => {
+    await priorPreferences;
+    if (pending) {
+      toast("其他操作进行中，请稍后再切换外观");
+      applyTheme();
+    } else if (
+      !(await act({
+        type: "saveSettings",
+        settings: { ...state.data.settings, [name]: value },
+      }))
+    ) {
+      applyTheme();
+    }
+  });
+});
+
 async function navigate(next: string) {
   if (protectedNow()) return toast("专注保护中，先把眼前这件事做好。");
   if (page === "settings" && next === page) return;
@@ -610,7 +698,7 @@ function render() {
     <div class="sidebar-bottom"><div class="daily-goal"><div><span>${icon("leaf")} 每日小目标</span><b>${s.todayPomodoros}<small> / ${d.settings.dailyGoal}</small></b></div><div class="progress-track"><i style="width:${Math.min(100, (s.todayPomodoros / d.settings.dailyGoal) * 100)}%"></i></div><p data-explanation>${s.todayPomodoros >= d.settings.dailyGoal ? "目标达成！今天的你很棒。" : "不必急，每一份专注都有意义。"}</p></div>
     <button class="nav-item ${page === "settings" ? "active" : ""}" data-page="settings">${icon("settings-2")}<span>偏好设置</span></button><div class="local-status"><span class="status-dot"></span>本地存储 · 安心专注 <span>v0.11.0</span></div></div>
   </aside>
-  <div class="workspace"><header class="topbar">${mobile ? `<button class="icon-btn mobile-menu" data-action="toggle-navigation" aria-label="打开导航" aria-expanded="${mobileNavOpen}">${icon("menu")}</button>` : ""}<div class="breadcrumb">我的空间 ${icon("chevron-right")} <span>${escape(pageTitle())}</span></div><div class="top-actions"><button class="search-trigger" data-action="search">${icon("search")}<span>搜索任务</span><kbd>Ctrl K</kbd></button><span class="separator"></span><button class="icon-btn" data-action="theme" aria-label="切换明暗主题">${icon(document.documentElement.dataset.theme === "dark" ? "sun" : "moon")}</button><button class="icon-btn" data-action="ponder-list" aria-label="概念讲解">${icon("lightbulb")}</button><button class="icon-btn" data-action="help" aria-label="快捷键帮助">${icon("circle-help")}</button><div class="avatar">我</div></div></header>
+  <div class="workspace"><header class="topbar">${mobile ? `<button class="icon-btn mobile-menu" data-action="toggle-navigation" aria-label="打开导航" aria-expanded="${mobileNavOpen}">${icon("menu")}</button>` : ""}<div class="breadcrumb">我的空间 ${icon("chevron-right")} <span>${escape(pageTitle())}</span></div><div class="top-actions"><button class="search-trigger" data-action="search">${icon("search")}<span>搜索任务</span><kbd>Ctrl K</kbd></button><span class="separator"></span><button class="appearance-trigger" data-action="theme" aria-label="外观" aria-haspopup="dialog">${icon("palette")}<span>外观</span></button><button class="icon-btn" data-action="ponder-list" aria-label="概念讲解">${icon("lightbulb")}</button><button class="icon-btn" data-action="help" aria-label="快捷键帮助">${icon("circle-help")}</button><div class="avatar">我</div></div></header>
   <main data-ponder="${page.startsWith("project:") ? "project" : page}">${reminderBanner()}${educationBanner(state)}${page === "agent" ? agentPage() : page === "education" ? educationDashboard(state) : page === "focus" ? focusPage() : page === "collections" ? collectionsPage() : page === "stats" ? statsPage() : page === "schedule" ? schedulePage() : page === "settings" ? settingsPage() : page === "guard" ? guardPage() : page === "lock" ? lockPage() : tasksPage()}</main><footer class="workspace-footer"><span data-explanation>${icon("leaf")} 把时间留给真正重要的事。</span><span id="connection">${disconnected ? "连接中断，正在重试…" : "所有更改已保存到本机"}</span></footer></div>`;
   setMobileNav(mobileNavOpen);
   bindForms();
@@ -706,30 +794,125 @@ try {
 function backgroundSoundButton() {
   return `<button class="sound-button ${noiseKind !== "off" || bgmPlaying ? "on" : ""}" data-action="sound">${icon("headphones")}<span>${bgmPlaying ? "写作业 BGM · 正在播放" : noiseKind === "off" ? "选择背景音" : noiseKind === "rain" ? "雨声 · 正在播放" : "棕噪音 · 正在播放"}</span>${icon("chevron-right")}</button>`;
 }
+function btwCanReview() {
+  return (
+    !!state.data.lock.active ||
+    (!protectedNow() &&
+      !(state.data.timer.running && state.data.timer.mode === "focus"))
+  );
+}
+function btwButton(review: boolean) {
+  if (review && !btwCanReview()) return "";
+  const count = review
+    ? state.data.btwNotes.filter((note) => note.status === "later").length
+    : 0;
+  return `<button type="button" class="text-button btw-entry" data-action="${review ? "btw-review" : "btw-write"}">${icon(review ? "inbox" : "pencil")}${review ? "BTW 笔记" : "记个 BTW"}${count ? ` <span class="count-label" aria-label="${count} 条稍后做">${count}</span>` : ""}</button>`;
+}
+let btwDraft = "";
+async function writeBtw() {
+  if (state.data.lock.active || breakProtectedNow()) return;
+  if (await openBtwOverlay()) return;
+  if (document.querySelector("#btw-text")) {
+    $("#btw-text").focus();
+    return;
+  }
+  modal(
+    `${modalHeader("记个 BTW")}<form id="btw-form"><textarea id="btw-text" aria-label="想法" placeholder="刚才想到什么？" rows="3"></textarea><div class="modal-actions"><span class="subtle small">Enter 保存 · Shift+Enter 换行</span><button class="button primary">保存</button></div></form>`,
+  );
+  const input = $<HTMLTextAreaElement>("#btw-text");
+  input.value = btwDraft;
+  requestAnimationFrame(() => input.focus());
+  input.oninput = () => {
+    btwDraft = input.value;
+  };
+  const form = $<HTMLFormElement>("#btw-form");
+  input.onkeydown = (event) => {
+    if (event.isComposing || event.keyCode === 229) {
+      event.stopPropagation();
+      return;
+    }
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  };
+  form.onsubmit = async (event) => {
+    event.preventDefault();
+    if (input.readOnly || !input.value.trim()) return;
+    input.readOnly = true;
+    if (await act({ type: "addBtwNote", text: input.value })) {
+      btwDraft = "";
+      if (form.isConnected) closeModal();
+    } else {
+      input.readOnly = false;
+      input.focus();
+    }
+  };
+}
+function reviewBtw(later = false) {
+  if (!btwCanReview()) return;
+  modal(
+    `${modalHeader("BTW 笔记")}<div class="list-tabs"><button data-action="btw-all">全部笔记</button><button data-action="btw-later">稍后做</button></div><div id="btw-notes"></div>`,
+    true,
+  );
+  if (state.data.lock.active) $(".modal").classList.add("sleep-preview");
+  showBtwNotes(later);
+}
+function showBtwNotes(later: boolean) {
+  const list = $("#btw-notes");
+  list.dataset.later = String(later);
+  for (const [key, selected] of [
+    ["btw-all", !later],
+    ["btw-later", later],
+  ] as const) {
+    const button = $(`[data-action="${key}"]`);
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  }
+  list.innerHTML = noteGroups(state.data.btwNotes, later, escape);
+  list.onchange = async (event) => {
+    const box = event.target;
+    if (!(box instanceof HTMLInputElement)) return;
+    if (
+      !(await act({
+        type: "setBtwStatus",
+        id: box.dataset.btwId,
+        status: box.checked ? "done" : "later",
+      }))
+    )
+      box.checked = !box.checked;
+  };
+}
 function focusPage() {
   const s = state.stats;
-  const weekday = new Date(`${state.today}T12:00:00`).toLocaleDateString(
-    "zh-CN",
-    { month: "long", day: "numeric", weekday: "long" },
-  );
+  const today = new Date(`${state.today}T12:00:00`);
+  const date = today.toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+  const weekday = today.toLocaleDateString("zh-CN", { weekday: "long" });
   const todayTasks = state.data.tasks.filter(
-    (t) => !t.completed && t.dueDate && t.dueDate <= state.today && !isVoid(t),
+    (t) =>
+      !t.completed && (!t.dueDate || t.dueDate <= state.today) && !isVoid(t),
   );
-  const todayPendingCount = todayTasks.length;
+  const todayPendingCount = todayTasks.filter((t) => t.dueDate).length;
   const catchUpTasks = todayTasks.filter(isCatchUp);
   const regularTasks = todayTasks.filter((t) => !isCatchUp(t));
   const timedTasks = regularTasks.filter((t) => t.dueDate && t.reminderTime);
   const untimedTasks = regularTasks.filter((t) => t.dueDate && !t.reminderTime);
+  const undatedTasks = regularTasks.filter((t) => !t.dueDate);
   const activeList = todayTasks.length
     ? todayTaskGroup("今日定时", timedTasks, "time") +
       todayTaskGroup("待补队列", catchUpTasks, "time", "catch-up") +
-      todayTaskGroup("今日未定时", untimedTasks, "priority")
+      todayTaskGroup("今日未定时", untimedTasks, "priority") +
+      todayTaskGroup("无日期任务", undatedTasks, "priority", "undated")
     : taskList([], true);
-  return `${heading("今天，也要慢慢向前。", `${weekday} <span data-explanation><span class="dot-separator">·</span> 专注当下，让每一小步都有回响。</span>`)}
-    ${welcomeCard()}
-    <div class="metrics">${metric("timer", "今日专注", Math.floor(s.todaySeconds / 60), "分钟", "给重要的事留一点时间", "coral")}${metric("check-check", "完成任务", s.todayCompleted, "项", `${todayPendingCount} 项待办<span data-explanation>，按自己的节奏来</span>`, "sage")}${metric("flame", "连续专注", s.streak, "天", "小小坚持，慢慢积累", "amber")}</div>
+  const summary = [
+    ["今日专注", Math.floor(s.todaySeconds / 60), "分钟"],
+    ["完成任务", s.todayCompleted, "项"],
+    ["连续专注", s.streak, "天"],
+  ];
+  return `<div class="page-heading journal-heading"><div><h1><time datetime="${state.today}">${date} <small>${weekday}</small></time></h1>${ponderChip()}</div><button class="button secondary" data-action="new-task">${icon("plus")} 新建任务 <kbd>N</kbd></button></div>
+    <div class="btw-journal"><dl class="journal-summary">${summary.map(([label, value, unit]) => `<div><dt>${label}</dt><dd>${value}<small>${unit}</small></dd></div>`).join("")}</dl>${btwButton(true)}</div>
     <div class="focus-grid"><section class="card focus-card"><div class="card-heading"><h2>${icon("timer")} 我的番茄钟</h2><button class="icon-btn" data-action="immersive" aria-label="进入沉浸模式">${icon("maximize-2")}</button></div>${timerContent()}
-    <div class="sound-bar">${backgroundSoundButton()}<button class="icon-btn" data-action="toggle-chime" aria-label="${state.data.settings.sound ? "关闭" : "开启"}关键节点音效">${icon(state.data.settings.sound ? "volume-2" : "volume-x")}</button></div></section>
+    <div class="sound-bar">${btwButton(false)}${backgroundSoundButton()}<button class="icon-btn" data-action="toggle-chime" aria-label="${state.data.settings.sound ? "关闭" : "开启"}关键节点音效">${icon(state.data.settings.sound ? "volume-2" : "volume-x")}</button></div></section>
     <section class="card today-card"><div class="card-heading"><h2>今日待办 <span class="count-label">${todayPendingCount}</span></h2><button class="text-button" data-page="tasks">全部任务 ${icon("arrow-up-right")}</button></div><div class="list-tabs"><button class="${filter === "active" ? "active" : ""}" data-filter="active">待完成 <span>${todayPendingCount}</span></button><button class="${filter === "completed" ? "active" : ""}" data-filter="completed">已完成 <span>${s.todayCompleted}</span></button><span class="list-tabs-line"></span><span class="subtle small" data-explanation>一步一步，来就好</span></div>
     <div class="today-list" data-keep-scroll="today-list">${
       filter === "completed"
@@ -747,13 +930,13 @@ function focusPage() {
         : activeList
     }</div>
     <button class="quick-add" data-action="new-task">${icon("plus")} 添加一个想完成的任务 <kbd>N</kbd></button><div class="list-footnote" data-explanation>${icon("sparkles")} 开始之前，先选一件最重要的事。</div></section></div>
-    ${educationFocusExams(state)}<div class="bottom-grid"><section class="card week-card"><div class="card-heading"><h2>这一周的专注节奏</h2><button class="text-button" data-page="stats">查看统计 ${icon("arrow-up-right")}</button></div>${weekChart(false)}</section><section class="quote-card" data-explanation><div class="quote-leaf">${icon("leaf")}</div><span class="eyebrow">ONE THING AT A TIME</span><h3>不求每一天都满分，<br>只求每一刻都投入。</h3><p>一个番茄，一点进步。</p><div class="quote-dots"><i></i><i></i><i></i></div></section></div>`;
+    ${welcomeCard()}${educationFocusExams(state)}<div class="bottom-grid"><section class="card week-card"><div class="card-heading"><h2>这一周的专注节奏</h2><button class="text-button" data-page="stats">查看统计 ${icon("arrow-up-right")}</button></div>${weekChart(false)}</section><section class="quote-card" data-explanation><div class="quote-leaf">${icon("leaf")}</div><span class="eyebrow">ONE THING AT A TIME</span><h3>不求每一天都满分，<br>只求每一刻都投入。</h3><p>一个番茄，一点进步。</p><div class="quote-dots"><i></i><i></i><i></i></div></section></div>`;
 }
 function todayTaskGroup(
   title: string,
   tasks: Task[],
   order: "time" | "priority",
-  kind?: "catch-up",
+  kind?: "catch-up" | "undated",
 ) {
   if (!tasks.length) return "";
   return `<section class="today-task-group"><div class="today-group-heading"><h3 class="group-title" ${kind === "catch-up" ? 'data-ponder="catch-up"' : ""}>${title}<span>${tasks.length}</span></h3></div><div ${kind ? `id="today-${kind}-tasks"` : ""}>${taskList(tasks, true, order)}</div></section>`;
@@ -763,9 +946,9 @@ function timerContent() {
     selected = state.data.tasks.find((task) => task.id === t.taskId);
   const started = t.remainingSecs !== t.durationSecs || t.running;
   return `<div class="mode-tabs" role="group" aria-label="计时模式">${(Object.keys(modeLabels) as Mode[]).map((mode) => `<button class="${mode === t.mode ? "active" : ""}" data-mode="${mode}">${modeLabels[mode]}</button>`).join("")}</div>
-    <div class="timer-ring ${t.mode !== "focus" ? "break" : ""}"><svg viewBox="0 0 300 300" aria-hidden="true"><circle class="ring-track" cx="150" cy="150" r="134"/><circle class="ring-progress" cx="150" cy="150" r="134"/><circle class="ring-inner" cx="150" cy="150" r="121"/></svg><div class="timer-center"><span class="timer-eyebrow"${!t.running && !started ? " data-explanation" : ""}>${t.mode === "focus" ? (t.running ? "专注正在发生" : started ? "暂停一下，随时继续" : "准备好，进入心流") : "好好休息，也很重要"}</span><div class="clock" aria-live="off">${time(state.remainingSecs)}</div><div class="cycle-dots">${Array.from({ length: state.data.settings.longBreakEvery }, (_, i) => `<span class="${i < t.cycle % state.data.settings.longBreakEvery ? "filled" : ""}">${logo}</span>`).join("")}</div><span class="timer-cycle">第 ${(t.cycle % state.data.settings.longBreakEvery) + 1} / ${state.data.settings.longBreakEvery} 个番茄</span></div></div>
+    <div class="timer-ring ${t.mode !== "focus" ? "break" : ""}"><svg viewBox="0 0 300 300" aria-hidden="true"><circle class="ring-track" cx="150" cy="150" r="134"/><circle class="ring-progress" cx="150" cy="150" r="134"/><circle class="ring-inner" cx="150" cy="150" r="122" pathLength="60"/></svg><div class="timer-center"><span class="timer-eyebrow"${!t.running && !started ? " data-explanation" : ""}>${t.mode === "focus" ? (t.running ? "专注正在发生" : started ? "暂停一下，随时继续" : "准备好，进入心流") : "好好休息，也很重要"}</span><div class="clock" aria-live="off">${time(state.remainingSecs)}</div><div class="cycle-dots">${Array.from({ length: state.data.settings.longBreakEvery }, (_, i) => `<span class="${i < t.cycle % state.data.settings.longBreakEvery ? "filled" : ""}">${logo}</span>`).join("")}</div><span class="timer-cycle">第 ${(t.cycle % state.data.settings.longBreakEvery) + 1} / ${state.data.settings.longBreakEvery} 个番茄</span></div></div>
     <button class="current-task" data-action="select-task">${icon(t.mode === "focus" ? "target" : "coffee")}<span>${selected ? escape(selected.title) : "自由专注 · 选择一个任务"}</span>${icon("chevron-down")}</button>
-    <div class="timer-controls"><button class="icon-btn control-secondary" data-action="reset" aria-label="重置计时">${icon("rotate-ccw")}</button><button class="button primary start-button" data-action="toggle-timer">${icon(t.running ? "pause" : "play")} ${t.running ? "暂停专注" : started ? "继续计时" : t.mode === "focus" ? "开始专注" : "开始休息"}</button><button class="icon-btn control-secondary" data-action="skip" aria-label="跳过当前阶段">${icon("skip-forward")}</button></div><div class="timer-hint"${state.data.settings.protection.mode === "off" ? " data-explanation" : ""}><span data-explanation><kbd>Space</kbd> ${t.running ? "暂停" : "开始"} · </span> ${state.data.settings.protection.mode === "off" ? "给自己一段不被打扰的时间" : `${state.data.settings.protection.mode === "lock" ? "界面锁定" : "白名单"}保护已配置`}</div>`;
+    <div class="timer-controls"><button class="icon-btn control-secondary" data-action="reset" aria-label="重置计时">${icon("rotate-ccw")}</button><button class="button primary start-button" data-action="toggle-timer">${icon(t.running ? "pause" : "play")} ${t.running ? "暂停专注" : started ? "继续计时" : t.mode === "focus" ? "开始专注" : "开始休息"}</button><button class="icon-btn control-secondary" data-action="skip" aria-label="跳过当前阶段">${icon("skip-forward")}</button></div><div class="timer-hint"${t.mode === "focus" && state.data.settings.protection.mode === "off" ? " data-explanation" : t.mode !== "focus" && !state.data.settings.forceBreak ? " data-explanation" : ""}><span data-explanation><kbd>Space</kbd> ${t.running ? "暂停" : "开始"} · </span> ${t.mode !== "focus" ? (state.data.settings.forceBreak ? "强制休息已开启（界面锁定）" : "给自己一段放松的时间") : state.data.settings.protection.mode === "off" ? "给自己一段不被打扰的时间" : `${state.data.settings.protection.mode === "lock" ? "界面锁定" : "白名单"}保护已配置`}</div>`;
 }
 function isCatchUp(task: Task) {
   if (task.completed || isVoid(task) || isHabit(task)) return false;
@@ -1258,7 +1441,7 @@ function statsPage() {
           .sort((a, b) => b[1] - a[1])
           .map(
             ([name, secs], i) =>
-              `<div class="distribution-row"><div><span>${escape(name)}</span><b>${duration(secs)}</b></div><div class="progress-track"><i style="width:${(secs / s.totalSeconds) * 100}%;background:${["#d87662", "#8b9d7e", "#d1b072", "#a295b9"][i % 4]}"></i></div></div>`,
+              `<div class="distribution-row"><div><span>${escape(name)}</span><b>${duration(secs)}</b></div><div class="progress-track"><i style="width:${(secs / s.totalSeconds) * 100}%;background:${["var(--accent)", "var(--sage)", "var(--amber)", "var(--violet)"][i % 4]}"></i></div></div>`,
           )
           .join("")
       : '<div class="small-empty">暂无专注记录。<span data-explanation>完成第一段专注，<br>看看时间去了哪里。</span></div>'
@@ -1309,6 +1492,7 @@ async function savePreferences(): Promise<boolean> {
   // Manual save and page navigation can arrive together. Share one save, and
   // never replace the form while an input has focus or a newer edit is pending.
   settingsSave = (async () => {
+    await appearanceWrites;
     if (pending) {
       preferencesStatus("其他操作进行中，设置尚未保存");
       return false;
@@ -1327,6 +1511,7 @@ async function savePreferences(): Promise<boolean> {
       settings[key] = Number(f.get(key));
     for (const key of [
       "autoBreak",
+      "forceBreak",
       "autoFocus",
       "autoStartTasks",
       "sound",
@@ -1335,7 +1520,6 @@ async function savePreferences(): Promise<boolean> {
     ] as const)
       settings[key] = f.has(key);
     if (desktop) settings.alwaysOnTop = f.has("alwaysOnTop");
-    settings.theme = f.get("theme") as Settings["theme"];
     preferencesStatus("正在保存…");
     if (f.has("networkProxy")) {
       try {
@@ -1398,8 +1582,7 @@ function soundPreviewControls() {
   return `<label class="setting-row"><span><strong>试听类型</strong><small>使用当前填写的音量，离开时自动保存</small></span><select id="sound-preview" aria-label="试听类型">${options.map(([cue, label]) => `<option value="${cue}" ${cue === "focusEnd" ? "selected" : ""}>${label}</option>`).join("")}</select></label><button type="button" class="text-button" data-action="test-sound">${icon("volume-2")} 试听音效</button>`;
 }
 function settingsPage() {
-  const s = state.data.settings;
-  return `${heading("找到适合你的节奏。", "好的工具，应该顺着你的习惯。", "MAKE IT YOURS", false)}<form id="settings-form"><div class="settings-grid"><div><section class="card settings-card"><h2>${icon("timer")} 专注与休息</h2>${settingNumber("focusMinutes", "专注时长", "每个番茄的持续时间", 1, 180, "分钟")}${settingNumber("shortBreakMinutes", "短休息", "让大脑喘口气", 1, 60, "分钟")}${settingNumber("longBreakMinutes", "长休息", "完成一轮后，好好放松", 1, 120, "分钟")}${settingNumber("longBreakEvery", "长休息间隔", "当天每完成多少个番茄后长休息", 2, 12, "个")}${settingNumber("dailyGoal", "每日目标", "给自己一个可实现的小目标", 1, 30, "个")}${settingSwitch("autoBreak", "自动开始休息", "专注结束后直接进入休息")}${settingSwitch("autoFocus", "自动开始下一轮", "休息后继续当前任务，达到预设轮数或任务完成后停止；自由专注不限制轮数")}${settingSwitch("autoStartTasks", "到时间自动开始", "按任务的计划日期和时刻开始专注，沿用专注保护；正在计时、暂停或锁机时延后，过期不补开")}</section><section class="card settings-card data-settings" data-ponder="plan-file"><h2>${icon("list-todo")} 学习计划</h2><p>导出全部未完成任务、步骤与课表阻塞时段<span data-explanation>，方便编辑或分享</span>。导入时合并新任务，同 ID 的已有任务保留进度。计划文件不含计时记录和设置。</p><div class="button-row"><button type="button" class="button secondary" data-action="export-plan">${icon("download")} 导出计划</button><button type="button" class="button secondary" data-action="import-plan">${icon("upload")} 导入计划</button></div><div class="note">新导入的任务和步骤从未完成开始；完整进度请使用数据与备份。</div></section><section class="settings-tip" data-explanation>${icon("leaf")}<p>25 分钟只是起点。<br>最好的节奏，是你能坚持的节奏。</p></section></div><div><section class="card settings-card"><h2>${icon("settings-2")} 体验与提醒</h2><label class="setting-row"><span><strong>简洁模式</strong><small data-explanation>隐藏解释性小字；立即生效，仅保存在本机</small></span><input class="switch" id="compact-mode" type="checkbox" ${compactModeEnabled() ? "checked" : ""}></label><label class="setting-row"><span><strong>外观主题</strong><small data-explanation>给专注一个舒服的底色</small></span><select name="theme"><option value="light" ${s.theme === "light" ? "selected" : ""}>奶油白</option><option value="dark" ${s.theme === "dark" ? "selected" : ""}>夜间深色</option><option value="system" ${s.theme === "system" ? "selected" : ""}>跟随系统</option></select></label>${settingSwitch("personaBackdrop", "角色背景板", "在页面背景显示当前人格的完整立绘；也可以让助手帮你开关")}${settingSwitch("sound", "关键节点音效", "开始、暂停、完成与提醒时轻声反馈；专注期间不循环播放")}${settingNumber("soundVolume", "音效音量", "0 为静音，背景音在专注页单独调节", 0, 100, "%")}${settingSwitch("notifications", "桌面通知", "在桌面版中提醒专注与休息结束")}${desktop ? settingSwitch("alwaysOnTop", "窗口置顶", "由桌面窗口管理器决定是否支持") : ""}${soundPreviewControls()}</section>${desktopSettingsCard()}${!mobile ? networkSettingsCard() : ""}<section class="card settings-card data-settings" data-ponder="backup"><h2>${icon("download")} 数据与备份</h2><p data-explanation>任务、设置和专注记录保存在本机。换电脑前，可以导出一份完整备份。</p><div class="button-row"><button type="button" class="button secondary" data-action="export">${icon("download")} 导出备份</button><button type="button" class="button secondary" data-action="import">${icon("upload")} 导入备份</button></div><div class="note" data-explanation>${icon("lock-keyhole")} 无需账号，离线也能使用。</div></section></div></div><div class="settings-save"><span id="settings-status" role="status" aria-live="polite">离开偏好页时自动保存</span><button type="submit" class="button primary">${icon("check")} 保存配置</button></div></form>`;
+  return `${heading("找到适合你的节奏。", "好的工具，应该顺着你的习惯。", "MAKE IT YOURS", false)}<form id="settings-form"><div class="settings-grid"><div><section class="card settings-card"><h2>${icon("timer")} 专注与休息</h2>${settingNumber("focusMinutes", "专注时长", "每个番茄的持续时间", 1, 180, "分钟")}${settingNumber("shortBreakMinutes", "短休息", "让大脑喘口气", 1, 60, "分钟")}${settingNumber("longBreakMinutes", "长休息", "完成一轮后，好好放松", 1, 120, "分钟")}${settingNumber("longBreakEvery", "长休息间隔", "当天每完成多少个番茄后长休息", 2, 12, "个")}${settingNumber("dailyGoal", "每日目标", "给自己一个可实现的小目标", 1, 30, "个")}${settingSwitch("autoBreak", "自动开始休息", "专注结束后直接进入休息")}${settingSwitch("forceBreak", "强制休息", "休息计时期间默认使用界面锁定，全屏并暂时远离其他应用；关闭后为普通休息")}${settingSwitch("autoFocus", "自动开始下一轮", "休息后继续当前任务，达到预设轮数或任务完成后停止；自由专注不限制轮数")}${settingSwitch("autoStartTasks", "到时间自动开始", "按任务的计划日期和时刻开始专注，沿用专注保护；正在计时、暂停或锁机时延后，过期不补开")}</section><section class="card settings-card data-settings" data-ponder="plan-file"><h2>${icon("list-todo")} 学习计划</h2><p>导出全部未完成任务、步骤与课表阻塞时段<span data-explanation>，方便编辑或分享</span>。导入时合并新任务，同 ID 的已有任务保留进度。计划文件不含计时记录和设置。</p><div class="button-row"><button type="button" class="button secondary" data-action="export-plan">${icon("download")} 导出计划</button><button type="button" class="button secondary" data-action="import-plan">${icon("upload")} 导入计划</button></div><div class="note">新导入的任务和步骤从未完成开始；完整进度请使用数据与备份。</div></section><section class="settings-tip" data-explanation>${icon("leaf")}<p>25 分钟只是起点。<br>最好的节奏，是你能坚持的节奏。</p></section></div><div><section class="card settings-card appearance-card"><h2>${icon("palette")} 外观</h2>${appearanceControls()}</section><section class="card settings-card"><h2>${icon("settings-2")} 体验与提醒</h2><label class="setting-row"><span><strong>简洁模式</strong><small data-explanation>隐藏解释性小字；立即生效，仅保存在本机</small></span><input class="switch" id="compact-mode" type="checkbox" ${compactModeEnabled() ? "checked" : ""}></label>${settingSwitch("personaBackdrop", "角色背景板", "在页面背景显示当前人格的完整立绘；也可以让助手帮你开关")}${settingSwitch("sound", "关键节点音效", "开始、暂停、完成与提醒时轻声反馈；专注期间不循环播放")}${settingNumber("soundVolume", "音效音量", "0 为静音，背景音在专注页单独调节", 0, 100, "%")}${settingSwitch("notifications", "桌面通知", "在桌面版中提醒专注与休息结束")}${desktop ? settingSwitch("alwaysOnTop", "窗口置顶", "由桌面窗口管理器决定是否支持") : ""}${soundPreviewControls()}</section>${desktopSettingsCard()}${!mobile ? networkSettingsCard() : ""}<section class="card settings-card data-settings" data-ponder="backup"><h2>${icon("download")} 数据与备份</h2><p data-explanation>任务、设置和专注记录保存在本机。换电脑前，可以导出一份完整备份。</p><div class="button-row"><button type="button" class="button secondary" data-action="export">${icon("download")} 导出备份</button><button type="button" class="button secondary" data-action="import">${icon("upload")} 导入备份</button></div><div class="note" data-explanation>${icon("lock-keyhole")} 无需账号，离线也能使用。</div></section></div></div><div class="settings-save"><span id="settings-status" role="status" aria-live="polite">离开偏好页时自动保存</span><button type="submit" class="button primary">${icon("check")} 保存配置</button></div></form>`;
 }
 function desktopSettingsCard() {
   if (!desktop || !nativeStatus) return "";
@@ -1409,7 +1592,7 @@ function desktopSettingsCard() {
     hint: string,
   ) =>
     `<label class="setting-row"><span><strong>${label}</strong><small>${hint}</small></span><input class="switch" name="${name}" type="checkbox" ${nativeStatus![name] ? "checked" : ""}></label>`;
-  return `<section class="card settings-card"><h2>${icon("monitor")} 桌面集成</h2>${toggle("autostart", "登录后自动启动", "后台启动到托盘，点击图标打开窗口")}${toggle("closeToTray", "关闭窗口后留在托盘", "继续计时和提醒；从托盘菜单可以完全退出")}<p class="subtle small">${nativeStatus.trayAvailable ? "托盘已连接。收起窗口后，专注仍会继续。" : "当前未检测到托盘，关闭时会正常退出，后台启动时会显示窗口。"}</p><div class="button-row"><button type="button" class="button secondary" data-action="hide-tray" ${nativeStatus.trayAvailable ? "" : "disabled"}>${icon("minimize-2")} 收起到托盘</button><button type="button" class="text-button" data-action="quit-app">退出应用</button></div></section>`;
+  return `<section class="card settings-card"><h2>${icon("monitor")} 桌面集成</h2>${nativeStatus.btwShortcutAvailable ? '<button type="button" class="button secondary" data-action="btw-shortcut">启用 BTW 快捷键 Ctrl+Alt+B</button>' : ""}${toggle("autostart", "登录后自动启动", "后台启动到托盘，点击图标打开窗口")}${toggle("closeToTray", "关闭窗口后留在托盘", "继续计时和提醒；从托盘菜单可以完全退出")}<p class="subtle small">${nativeStatus.trayAvailable ? "托盘已连接。收起窗口后，专注仍会继续。" : "当前未检测到托盘，关闭时会正常退出，后台启动时会显示窗口。"}</p><div class="button-row"><button type="button" class="button secondary" data-action="hide-tray" ${nativeStatus.trayAvailable ? "" : "disabled"}>${icon("minimize-2")} 收起到托盘</button><button type="button" class="text-button" data-action="quit-app">退出应用</button></div></section>`;
 }
 function projectWhitelistCard(project: Project) {
   if (!guardInfo) void refreshGuard();
@@ -1455,7 +1638,7 @@ function guardPage() {
   const p = state.data.settings.protection;
   if (!guardInfo) void refreshGuard();
   return `${heading("让分心，暂时留在外面。", "为重要的事，留出一段有边界的时间。", "A QUIETER SPACE FOR YOUR MIND", false)}
-  <div class="guard-intro"><div class="guard-emblem">${icon("shield-check")}</div><div><h2>专注保护</h2><p>只在专注计时期间生效，休息时自动解除。保护中无法暂停、修改设置或关闭应用；开启严格模式后，必须等到计时结束。</p></div><span class="badge ${guardInfo?.available ? "success" : ""}">${escape(guardInfo?.backend || "正在检测桌面…")}</span></div>
+  <div class="guard-intro"><div class="guard-emblem">${icon("shield-check")}</div><div><h2>专注保护</h2><p>专注模式只在专注计时期间生效；休息期间默认启用界面锁定，可在偏好设置中调整「强制休息」。保护中无法暂停、修改设置或关闭应用；开启严格模式后，必须等到计时结束。</p></div><span class="badge ${guardInfo?.available ? "success" : ""}">${escape(guardInfo?.backend || "正在检测桌面…")}</span></div>
   <section class="card guard-card"><div class="card-heading"><h2>选择你的专注方式</h2></div><div class="guard-modes">${[
     ["off", "shield-off", "自由专注", "按自己的节奏，随时暂停。"],
     [
@@ -1494,10 +1677,19 @@ function lockPage() {
   if (!guardInfo) void refreshGuard();
   const available = !!guardInfo?.available;
   const days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const lockWhitelist = state.data.lock.whitelist ?? [];
+  const availableApps = [
+    ...new Map(
+      (guardInfo?.windows || [])
+        .filter((w) => w.app_id)
+        .map((w) => [w.app_id!, w]),
+    ).values(),
+  ];
   return `${heading("按时放下，也是一种进步。", "给睡眠和休息留一个固定的位置。", "TIME TO REST", false)}
-    <section class="card lock-intro"><span class="metric-icon sage">${icon("moon")}</span><div><h2>小憩与定时锁机</h2><p>到点进入全屏休息空间，暂时拦住其他应用。锁机不计入专注时长，结束后自动解除。</p></div></section>
+    <section class="card lock-intro"><span class="metric-icon sage">${icon("moon")}</span><div><h2>小憩与定时锁机</h2><p>到点离开工作，暂时拦住其他应用；可在下方添加允许使用的放松应用（如日记、音乐）。锁机不计入专注时长，结束后自动解除。</p></div></section>
     <div class="lock-grid"><section class="card settings-card"><h2>现在休息一会儿</h2><form id="quick-lock-form"><div class="button-row lock-presets">${[2, 5, 10, 25, 60].map((n) => `<button type="button" class="button secondary" data-lock-minutes="${n}">${n} 分钟</button>`).join("")}</div><label class="form-field"><span>自定义时长（分钟）</span><input name="minutes" type="number" min="1" max="720" value="25" required></label><label class="setting-row"><span><strong>严格模式</strong><small>期间不能提前结束，到时自动解除</small></span><input class="switch" name="strict" type="checkbox"></label><button class="button primary" type="submit" ${available ? "" : "disabled"}>${icon("lock-keyhole")} 开始快速锁机</button></form></section>
     <section class="card settings-card"><div class="card-heading"><h2>固定休息时段</h2><button class="button secondary" data-action="new-lock" ${available ? "" : "disabled"}>${icon("plus")} 添加时段</button></div><p class="subtle small">每个时段都可独立开启严格模式。支持跨午夜，例如 23:00 至次日 07:00；星期按开始日期计算，启用的时段不能重叠。</p><div class="lock-schedules">${state.data.lock.schedules.map((s) => `<article class="lock-schedule" data-lock-schedule="${escape(s.id)}"><div><strong>${escape(s.name)}</strong><span class="badge">${s.strict ? "严格模式" : "可提前结束"}</span><h3>${s.start} — ${s.end <= s.start ? "次日 " : ""}${s.end}</h3><p class="subtle small">${s.days.map((d) => days[d - 1]).join(" · ")}</p></div><label class="setting-row lock-strict-setting"><span><strong>严格模式</strong><small>此时段生效期间不能提前结束或修改规则，到时自动解除。</small></span><input class="switch" type="checkbox" data-strict-lock="${escape(s.id)}" aria-label="${escape(s.name)} 严格模式" ${s.strict ? "checked" : ""} ${!available && s.enabled ? "disabled" : ""}></label><div class="button-row"><button class="button secondary small-button" data-toggle-lock="${escape(s.id)}" ${available || s.enabled ? "" : "disabled"}>${s.enabled ? "停用" : "启用"}</button><button class="icon-btn" data-edit-lock="${escape(s.id)}" aria-label="编辑 ${escape(s.name)}">${icon("pencil")}</button><button class="icon-btn" data-delete-lock="${escape(s.id)}" aria-label="删除 ${escape(s.name)}">${icon("trash-2")}</button></div></article>`).join("") || '<p class="small-empty">还没有安排锁机时段。<span data-explanation>先给今晚的睡眠留出时间吧。</span></p>'}</div></section></div>
+    <section class="card whitelist-card"><div class="card-heading"><div><h2>锁机期间允许的应用 <span class="count-label">${lockWhitelist.length}</span></h2><p class="subtle small">定时锁机是为了防止过度工作，不阻止写日记、听音乐等放松应用。留空时全屏锁定；添加应用后，锁机期间放行清单内的应用，其他应用会被切回。</p></div><button class="button secondary small-button" data-action="refresh-apps">${icon("refresh-cw")} 刷新应用</button></div><div class="whitelist-tags">${lockWhitelist.map((app) => `<span class="app-tag">${icon("monitor")} ${escape(app)}<button class="icon-btn tiny" data-remove-lock-app="${escape(app)}" aria-label="移除 ${escape(app)}">${icon("x")}</button></span>`).join("") || '<p class="subtle small">当前留空，锁机时将全屏锁定，只保留番茄 Todo。<span data-explanation>可从下方添加日记、音乐等非工作应用。</span></p>'}</div><div class="available-apps">${availableApps.map((w) => `<button class="available-app" data-add-lock-app="${escape(w.app_id)}" ${lockWhitelist.includes(w.app_id!) ? "disabled" : ""}>${icon("monitor")}<span><strong>${escape(w.app_id)}</strong><small>${escape(w.title)}</small></span>${icon(lockWhitelist.includes(w.app_id!) ? "check" : "plus")}</button>`).join("")}</div><form id="lock-whitelist-form" class="manual-app"><input name="appId" maxlength="32768" placeholder="手动输入应用 ID，例如 md.obsidian.Obsidian" aria-label="锁机允许的应用 ID" required><button class="button secondary" type="submit">${icon("plus")} 添加</button></form></section>
     <div class="guard-capability ${available ? "available" : ""}">${icon(available ? "check-circle-2" : "alert-circle")}<span>${escape(guardInfo?.message || "正在检查桌面…")}</span></div>
     <p class="subtle small">应用需要保持运行，可收起到托盘并开启登录自启动。电脑休眠期间不唤醒，恢复或重新打开时若仍在时段内会继续锁机。严格模式限制应用内退出；系统快捷键和外部结束进程仍由操作系统控制。</p>`;
 }
@@ -1595,12 +1787,14 @@ function focusScheduleDialog() {
 function renderImmersive() {
   const locked = protectedNow(),
     p = state.data.settings.protection,
-    rest = state.data.lock.active;
+    rest = state.data.lock.active,
+    awaitingUnlock = !!rest?.awaitingUnlock,
+    breakLock = !rest && breakProtectedNow();
   const remaining = rest
     ? Math.max(0, rest.endsAt - state.serverTime)
     : state.remainingSecs;
   $("#app").innerHTML =
-    `<div class="immersive ${locked ? "protected" : ""} ${rest ? "sleep-space" : ""}"><header><span class="brand"><span class="brand-mark">${logo}</span>番茄 Todo</span><span class="badge">${icon(rest ? "moon" : locked ? "shield-check" : "leaf")} ${rest ? "休息锁机中" : locked ? (p.mode === "lock" ? "界面锁定中" : "应用白名单保护中") : "沉浸专注"}</span>${!locked ? `<button class="icon-btn" data-action="immersive" aria-label="退出沉浸模式">${icon("minimize-2")}</button>` : "<span></span>"}</header><section><div class="eyebrow" data-explanation>${rest ? "REST IS PART OF THE PLAN" : "JUST YOU AND THIS MOMENT"}</div><h1>${rest ? "今天的努力，值得一场好眠。" : locked ? "此刻，只做这一件事。" : "让世界安静一会儿。"}</h1>${locked ? `<div class="protected-clock clock">${time(remaining)}</div><p>${escape(rest?.name || state.data.tasks.find((t) => t.id === state.data.timer.taskId)?.title || "自由专注")}</p><div class="protected-note">${icon("shield-check")} ${rest ? `预计 ${new Date(rest.endsAt * 1000).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 自动解除 · 不计入专注时长` : p.mode === "lock" ? "其他应用会被自动切回这个专注空间" : `允许使用 ${p.whitelist.length} 个应用，其他应用会被切回`}</div><div class="subtle small" id="blocked-count"${blockedCount ? "" : " data-explanation"}>${blockedCount ? `已为你挡住 ${blockedCount} 次分心` : rest ? "放下屏幕，让眼睛和思绪一起休息。" : "你只需要照顾好眼前这一小段时间。"}</div><button class="text-button tomorrow-entry" data-action="focus-schedule">${icon("calendar-days")} 查看${focusSchedule().day}日程</button>${strictNow() ? '<p class="strict-status">严格执行中 · 到时自动解除</p>' : '<button class="text-button emergency" data-action="emergency">有急事，提前结束</button>'}` : timerContent()}${!rest ? `<div class="immersive-sound">${backgroundSoundButton()}</div>` : ""}</section><footer data-explanation>${rest ? "晚安，明天再慢慢向前。" : "呼吸，放松肩膀。你正在向前走。"}</footer></div>`;
+    `<div class="immersive ${locked ? "protected" : ""} ${rest || breakLock ? "sleep-space" : ""}"><header><span class="brand"><span class="brand-mark">${logo}</span>番茄 Todo</span><span class="badge">${icon(awaitingUnlock ? "play" : rest ? "moon" : breakLock ? "coffee" : locked ? "shield-check" : "leaf")} ${awaitingUnlock ? "锁机已结束 · 等待开启专注" : rest ? "休息锁机中" : breakLock ? "强制休息中" : locked ? (p.mode === "lock" ? "界面锁定中" : "应用白名单保护中") : "沉浸专注"}</span>${!locked ? `<button class="icon-btn" data-action="immersive" aria-label="退出沉浸模式">${icon("minimize-2")}</button>` : "<span></span>"}</header><section><div class="eyebrow" data-explanation>${awaitingUnlock ? "TIME TO BEGIN" : rest || breakLock ? "REST IS PART OF THE PLAN" : "JUST YOU AND THIS MOMENT"}</div><h1>${awaitingUnlock ? "休息结束，开始第一段自由专注吧。" : rest ? "今天的努力，值得一场好眠。" : breakLock ? "暂停一下，让大脑喘口气。" : locked ? "此刻，只做这一件事。" : "让世界安静一会儿。"}</h1>${locked ? `<div class="protected-clock clock">${time(remaining)}</div><p>${escape(awaitingUnlock ? `${rest!.name} · 已到结束时间` : rest?.name || (breakLock ? modeLabels[state.data.timer.mode] : state.data.tasks.find((t) => t.id === state.data.timer.taskId)?.title || "自由专注"))}</p><div class="protected-note">${icon("shield-check")} ${awaitingUnlock ? "点击下方「开始专注」解开全屏锁定并立即进入自由专注" : rest ? `预计 ${new Date(rest.endsAt * 1000).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} 自动解除${(state.data.lock.whitelist?.length || 0) > 0 ? ` · 允许使用 ${state.data.lock.whitelist.length} 个应用，其他应用会被切回` : ""} · 不计入专注时长` : breakLock ? "界面锁定中 · 其他应用会被自动切回，休息结束后自动解除" : p.mode === "lock" ? "其他应用会被自动切回这个专注空间" : `允许使用 ${p.whitelist.length} 个应用，其他应用会被切回`}</div><div class="subtle small" id="blocked-count"${blockedCount ? "" : " data-explanation"}>${blockedCount ? `已为你挡住 ${blockedCount} 次分心` : awaitingUnlock ? "自由专注 · 开启今天的第一段专注。" : rest || breakLock ? "放下屏幕，让眼睛和思绪一起休息。" : "你只需要照顾好眼前这一小段时间。"}</div><button class="text-button tomorrow-entry" data-action="focus-schedule">${icon("calendar-days")} 查看${focusSchedule().day}日程</button>${awaitingUnlock ? `<button class="button primary start-button" data-action="unlock-to-focus">${icon("play")} 开始专注</button>` : strictNow() ? '<p class="strict-status">严格执行中 · 到时自动解除</p>' : '<button class="text-button emergency" data-action="emergency">有急事，提前结束</button>'}` : timerContent()}${rest ? btwButton(true) : !breakLock ? `<div class="immersive-sound">${btwButton(false)}${backgroundSoundButton()}</div>` : ""}</section><footer data-explanation>${awaitingUnlock ? "迈出第一步，今天就已经开始了。" : rest ? "晚安，明天再慢慢向前。" : breakLock ? "起身活动一下，下一轮会更有精神。" : "呼吸，放松肩膀。你正在向前走。"}</footer></div>`;
   icons();
   updateClock();
 }
@@ -1725,6 +1919,7 @@ function datesForPrinting(
   start: string | null,
   end: string | null,
 ) {
+  if (!start && !end && rule.kind === "once") return [null];
   if (!start || !end || end < start) throw new Error("请选择有效的起止日期");
   if (rule.kind === "calendar") {
     const dates = [
@@ -1751,14 +1946,14 @@ function printDialog(id: string) {
   const template = state.data.templates.find((t) => t.id === id);
   if (!template) return;
   modal(
-    `${modalHeader("手动印刷", template.shape.title)}<form id="print-form"><div class="form-grid"><label class="form-field"><span>起始日期</span><input type="date" name="start" required value="${template.printing.kind === "calendar" ? template.printing.slots.flatMap((s) => s.dates).sort()[0] : state.today}"></label><label class="form-field"><span>结束日期</span><input type="date" name="end" required value="${
+    `${modalHeader("手动印刷", template.shape.title)}<form id="print-form"><div class="form-grid"><label class="form-field"><span>起始日期</span><input type="date" name="start" value="${template.printing.kind === "calendar" ? template.printing.slots.flatMap((s) => s.dates).sort()[0] : state.today}"></label><label class="form-field"><span>结束日期</span><input type="date" name="end" value="${
       template.printing.kind === "calendar"
         ? template.printing.slots
             .flatMap((s) => s.dates)
             .sort()
             .at(-1)
         : state.today
-    }"></label></div><p class="subtle small">重复模板会印出所选日期涉及的完整周（周一至周日）；日程表印出范围内全部日程。单次模板可用于其他日期；每次印刷都必须指定日期。已印日期自动跳过。</p><div class="modal-actions"><button type="button" class="button secondary" data-action="close-modal">取消</button><button class="button primary" type="submit">印刷全部实例</button></div></form>`,
+    }"></label></div><p class="subtle small">重复模板会印出所选日期涉及的完整周（周一至周日）；日程表印出范围内全部日程。单次模板可用于其他日期；不定时模板可留空，印出一个无日期实例。已印日期自动跳过。</p><div class="modal-actions"><button type="button" class="button secondary" data-action="close-modal">取消</button><button class="button primary" type="submit">印刷全部实例</button></div></form>`,
   );
   $("#print-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -1803,6 +1998,46 @@ function focusBudget(minutes: number, override: number | null) {
     blockMinutes,
   };
 }
+// WebKit2GTK keeps a stale invalid state after clearing <input type="date|time">
+// via `.value = ""` unless the shadow DOM is rebuilt through a type toggle.
+function clearPickerInput(el: HTMLInputElement) {
+  const kind = el.type;
+  el.type = "text";
+  el.value = "";
+  el.type = kind;
+}
+function repairClearedPicker(el: HTMLInputElement) {
+  if (
+    !el.value &&
+    !el.required &&
+    !el.validity.badInput &&
+    !el.checkValidity()
+  ) {
+    clearPickerInput(el);
+  }
+}
+function bindFormInvalidToast(form: HTMLFormElement) {
+  form.addEventListener(
+    "invalid",
+    (e) => {
+      const el = e.target as HTMLInputElement;
+      if (el !== form.querySelector(":invalid")) return;
+      if (el.name === "dueDate" && el.validity.badInput) {
+        toast("计划日期未填完整，请补全日期或点击「清空」设为无日期");
+      } else if (el.name === "dueDate" && el.validity.valueMissing) {
+        toast(
+          (form.elements.namedItem("reminderTime") as HTMLInputElement | null)
+            ?.value
+            ? "设置提醒时间时请先选择计划日期"
+            : "请填写计划日期",
+        );
+      } else if (el.validationMessage) {
+        toast(el.validationMessage);
+      }
+    },
+    true,
+  );
+}
 function templateDialog(
   id?: string,
   weekly = false,
@@ -1835,12 +2070,12 @@ function templateDialog(
   <form id="template-form">
     <label class="form-field"><span>这次想怎么创建？</span><select name="creationMode"><option value="instance" ${mode === "instance" ? "selected" : ""}>临时实例 · 只做这一次</option><option value="manual" ${mode === "manual" ? "selected" : ""}>手动模板 · 保留，以后再用</option><option value="automatic" ${mode === "automatic" ? "selected" : ""}>自动模板 · 按安排持续印刷</option></select></label><p id="creation-mode-hint" class="editor-hint"></p>
     <label class="form-field"><span>任务名称</span><input name="title" required maxlength="200" autofocus value="${escape(shape?.title)}" placeholder="你想完成什么？"></label>
+    <div class="form-grid"><label class="form-field"><span>所属项目</span><select name="projectId"><option value="">不分类</option>${state.data.projects.map((p) => `<option value="${p.id}" ${p.id === (shape?.projectId || (page.startsWith("project:") ? page.slice(8) : "")) ? "selected" : ""}>${escape(p.name)}</option>`).join("")}</select></label><label class="form-field"><span>优先级</span><select name="priority">${[0, 1, 2, 3].map((v) => `<option value="${v}" ${v === (shape?.priority ?? 0) ? "selected" : ""}>${["无", "低", "中", "高"][v]}</option>`).join("")}</select></label></div>
     <label class="form-field"><span>预计用时（分钟）</span><input name="durationMinutes" type="number" min="1" max="17820" required value="${(shape?.estimate ?? 1) * (shape?.focusMinutes ?? state.data.settings.focusMinutes)}"><small id="duration-preview"></small></label>
-    <div id="template-once" class="form-grid"><label class="form-field" id="instance-date-field"><span id="instance-date-label">计划日期</span><input name="dueDate" type="date" required value="${rule?.kind === "once" && rule.date ? rule.date : state.today}"></label><label class="form-field"><span>提醒时间（可选）</span><input name="reminderTime" type="time" value="${rule?.kind === "once" ? (rule.time ?? "") : ""}"></label></div>
+    <div id="template-once" class="form-grid"><div class="form-field" id="instance-date-field"><div class="field-label-row"><label for="template-due-date" id="instance-date-label">计划日期（可选）</label><button type="button" class="text-button field-clear" id="pick-today-due-date">今天</button><button type="button" class="text-button field-clear" id="clear-due-date">清空</button></div><input id="template-due-date" name="dueDate" type="date" value="${rule?.kind === "once" ? (rule.date ?? "") : ""}"></div><label class="form-field"><span>提醒时间（可选）</span><input name="reminderTime" type="time" value="${rule?.kind === "once" ? (rule.time ?? "") : ""}"></label></div>
     <button type="button" id="instance-more-dates" class="text-button">＋ 添加更多具体日程</button>
     <div id="template-calendar" class="form-field"><span>具体日程 <small data-explanation>一个开始时间对应多个日期；所有时段共用任务内容</small></span><div id="calendar-entries">${calendar.map((e) => calendarEntryHtml(e.dates, e.time ?? "")).join("")}</div><button type="button" id="calendar-add" class="text-button">＋ 添加另一开始时间</button></div>
     <details class="editor-details" ${shape?.notes || shape?.tags.length || shape?.subtasks.length ? "open" : ""}><summary>备注、标签与步骤 <small data-explanation>可选</small></summary><label class="form-field"><span>备注</span><textarea name="notes" rows="2" maxlength="15000">${escape(shape?.notes)}</textarea></label><label class="form-field"><span>标签（逗号分隔）</span><input name="tags" value="${escape(shape?.tags.join(", "))}"></label><label class="form-field"><span>子任务（每行一步）</span><textarea name="subtasks" rows="3">${escape(shape?.subtasks.map((s) => s.title).join("\n"))}</textarea></label></details>
-    <details class="editor-details" ${shape?.projectId ? "open" : ""}><summary>项目与优先级 <small data-explanation>可选</small></summary><div class="form-grid"><label class="form-field"><span>所属项目</span><select name="projectId"><option value="">不分类</option>${state.data.projects.map((p) => `<option value="${p.id}" ${p.id === (shape?.projectId || (page.startsWith("project:") ? page.slice(8) : "")) ? "selected" : ""}>${escape(p.name)}</option>`).join("")}</select></label><label class="form-field"><span>优先级</span><select name="priority">${[0, 1, 2, 3].map((v) => `<option value="${v}" ${v === (shape?.priority ?? 0) ? "selected" : ""}>${["无", "低", "中", "高"][v]}</option>`).join("")}</select></label></div></details>
     <details class="editor-details" ${shape?.focusMinutes || shape?.scrapMinutes ? "open" : ""}><summary>专注时段与补做 <small data-explanation>可选</small></summary><div class="form-grid"><label class="form-field"><span>每段专注时长（分钟）</span><input name="focusMinutes" type="number" min="1" max="180" value="${shape?.focusMinutes ?? ""}" placeholder="${state.data.settings.focusMinutes}，留空自动安排"></label><label class="form-field" id="repair-window-field"><span>重修窗口（分钟）</span><input name="scrapMinutes" type="number" min="0" max="10080" value="${shape?.scrapMinutes ?? 0}"><small>计划块结束后可补做的时间，仅当天有效。</small></label></div></details>
     <details class="editor-details" id="template-printing-options" ${mode === "automatic" || kind === "weekly" ? "open" : ""}><summary>印刷安排 <small id="printing-option-label" data-explanation>自动印刷时填写</small></summary><label class="form-field"><span>印刷规则</span><select name="printing"><option value="once" ${kind === "once" ? "selected" : ""}>不重复 · 按具体日期安排</option><option value="calendar" ${kind === "calendar" ? "selected" : ""}>不重复 · 分时日程表</option><option value="weekly" ${kind === "weekly" ? "selected" : ""}>重复 · 每周循环</option></select></label><div id="automatic-printing-options"><label class="form-field"><span>提前印出未来多少天？</span><input name="printAheadDays" type="number" min="0" max="90" value="${template?.printAheadDays ?? 7}"><small>默认提前 7 天；重复安排印完涉及的完整周。0 表示本周或当天日程，运行时补齐尚未报废的遗漏。</small></label></div><div id="template-weekly" class="form-field"><span>周期内时段 <small><span data-explanation>默认一周；一个开始时间对应多个星期单元，</span>每次印完完整周</small></span><div id="template-slots">${slots.map((s) => habitSlotHtml(s.days, s.time ?? "")).join("")}</div><button type="button" id="template-add-slot" class="text-button">${icon("plus")} 添加周期时段</button></div><div id="habit-group-field"><label class="form-field"><span>习惯分组</span><select name="habitId"><option value="">自动按任务名称创建</option>${state.data.habits.map((h) => `<option value="${escape(h.id)}" ${h.id === shape?.habitId ? "selected" : ""}>${escape(h.name)}</option>`).join("")}<option value="__new__">＋ 新建习惯组…</option></select></label><div id="habit-group-inline" class="inline-create" hidden><input name="newHabitName" maxlength="40" placeholder="习惯组名称"><button type="button" id="template-create-habit" class="button secondary">创建并选用</button></div></div></details>
     <div id="manual-printing-options"><label class="setting-row"><span><strong>保存时一起印刷</strong><small>关闭时只保留模板，需要时再手动印刷。</small></span><input name="printNow" class="switch" type="checkbox"></label><div class="form-grid" id="manual-print-range"><label class="form-field"><span>印刷起始日期</span><input name="printDate" type="date" value="${state.today}"></label><label class="form-field"><span>印刷结束日期</span><input name="printUntil" type="date" value="${state.today}"></label></div></div>
@@ -1872,12 +2107,15 @@ function templateDialog(
     $("#automatic-printing-options").hidden = !automatic;
     input("printAheadDays").disabled = !automatic;
     input("printing").disabled = false;
-    input("dueDate").disabled = calendar || weekly;
+    input("dueDate").disabled = mode === "manual" || calendar || weekly;
     input("printDate").disabled = !print || calendar;
     input("printUntil").disabled = !print || calendar;
     input("reminderTime").disabled = weekly || calendar;
     input("reminderTime").required = false;
-    input("dueDate").required = !weekly && !calendar;
+    input("dueDate").required =
+      !weekly &&
+      !calendar &&
+      (automatic || (mode !== "manual" && !!input("reminderTime").value));
     $("#template-calendar").hidden = !calendar;
     $("#instance-more-dates").hidden = retained || calendar;
     form
@@ -1898,10 +2136,16 @@ function templateDialog(
       : "可选，批量使用时再填写";
     $("#template-weekly").hidden = !weekly;
     $("#template-once").hidden = weekly || calendar;
-    $("#instance-date-field").hidden = false;
+    $("#instance-date-field").hidden = mode === "manual";
     $("#instance-date-label").textContent = automatic
       ? "自动印刷日期"
-      : "计划日期";
+      : "计划日期（可选）";
+    repairClearedPicker(input("dueDate"));
+    repairClearedPicker(input("reminderTime"));
+    const hasDueDate =
+      !!input("dueDate").value || input("dueDate").validity.badInput;
+    $("#pick-today-due-date").hidden = mode === "manual" || hasDueDate;
+    $("#clear-due-date").hidden = automatic || mode === "manual" || !hasDueDate;
     const timed = weekly
       ? [
           ...form.querySelectorAll<HTMLInputElement>(
@@ -1974,6 +2218,17 @@ function templateDialog(
     icons();
     update();
   };
+  $("#pick-today-due-date").onclick = () => {
+    input("dueDate").value = state.today;
+    update();
+  };
+  $("#clear-due-date").onclick = () => {
+    clearPickerInput(input("dueDate"));
+    if (input("reminderTime").value || input("reminderTime").validity.badInput)
+      clearPickerInput(input("reminderTime"));
+    update();
+  };
+  bindFormInvalidToast(form);
   $("#instance-more-dates").onclick = () => {
     const row = $("#calendar-entries [data-calendar-entry]");
     row.querySelector<HTMLInputElement>("input[type=date]")!.value =
@@ -2113,7 +2368,7 @@ function templateDialog(
         ? { kind: "calendar", slots: calendarSlots }
         : {
             kind: "once",
-            date: input("dueDate").value,
+            date: mode === "manual" ? null : date,
             time: input("reminderTime").value || null,
           };
     if (mode === "instance") {
@@ -2173,7 +2428,7 @@ function taskDialog(id?: string) {
   modal(
     `${modalHeader(task ? "编辑实例" : "直接创建实例", "日期、完成状态和专注记录属于这一次执行。", true)}
     <form id="task-form"><label class="form-field"><span>任务名称</span><input name="title" maxlength="200" required autofocus value="${escape(task?.title)}"></label>
-    <div class="form-grid"><label class="form-field"><span>所属项目</span><select name="projectId"><option value="">不分类</option>${state.data.projects.map((p) => `<option value="${p.id}" ${p.id === projectId ? "selected" : ""}>${escape(p.name)}</option>`).join("")}</select></label><label class="form-field"><span>计划日期</span><input name="dueDate" type="date" required value="${task ? task.dueDate || "" : state.today}"></label><label class="form-field"><span>提醒时间</span><input name="reminderTime" type="time" value="${escape(task?.reminderTime)}"></label><label class="form-field"><span>单次专注时长</span><input name="focusMinutes" type="number" min="1" max="180" value="${task?.focusMinutes ?? ""}" placeholder="${state.data.settings.focusMinutes}"></label><label class="form-field"><span>预计用时（分钟）</span><input name="durationMinutes" type="number" min="1" max="17820" required value="${(task?.estimate ?? 1) * (task?.focusMinutes ?? state.data.settings.focusMinutes)}"><small id="instance-duration-preview"></small></label><label class="form-field"><span>优先级</span><select name="priority">${[0, 1, 2, 3].map((v) => `<option value="${v}" ${v === (task?.priority ?? 0) ? "selected" : ""}>${["无", "低", "中", "高"][v]}</option>`).join("")}</select></label><label class="form-field"><span>重修窗口（分钟）</span><input name="scrapMinutes" type="number" min="0" max="10080" required value="${task?.scrapMinutes ?? 0}"></label></div>
+    <div class="form-grid"><label class="form-field"><span>所属项目</span><select name="projectId"><option value="">不分类</option>${state.data.projects.map((p) => `<option value="${p.id}" ${p.id === projectId ? "selected" : ""}>${escape(p.name)}</option>`).join("")}</select></label><div class="form-field"><div class="field-label-row"><label for="task-due-date">计划日期（可选）</label><button type="button" class="text-button field-clear" id="pick-today-task-due-date">今天</button><button type="button" class="text-button field-clear" id="clear-task-due-date">清空</button></div><input id="task-due-date" name="dueDate" type="date" value="${task?.dueDate || ""}"></div><label class="form-field"><span>提醒时间</span><input name="reminderTime" type="time" value="${escape(task?.reminderTime)}"></label><label class="form-field"><span>单次专注时长</span><input name="focusMinutes" type="number" min="1" max="180" value="${task?.focusMinutes ?? ""}" placeholder="${state.data.settings.focusMinutes}"></label><label class="form-field"><span>预计用时（分钟）</span><input name="durationMinutes" type="number" min="1" max="17820" required value="${(task?.estimate ?? 1) * (task?.focusMinutes ?? state.data.settings.focusMinutes)}"><small id="instance-duration-preview"></small></label><label class="form-field"><span>优先级</span><select name="priority">${[0, 1, 2, 3].map((v) => `<option value="${v}" ${v === (task?.priority ?? 0) ? "selected" : ""}>${["无", "低", "中", "高"][v]}</option>`).join("")}</select></label><label class="form-field"><span>重修窗口（分钟）</span><input name="scrapMinutes" type="number" min="0" max="10080" required value="${task?.scrapMinutes ?? 0}"></label></div>
     <p class="subtle small">普通实例在计划块结束后、当天内可重修；习惯不重修。<span data-explanation>重复安排请在模板编辑器中设置。</span></p><label class="form-field"><span>备注</span><textarea name="notes" rows="3" maxlength="15000">${escape(task?.notes)}</textarea></label><label class="form-field"><span>标签（逗号分隔）</span><input name="tags" value="${escape(task?.tags.join(", "))}"></label><div class="form-field"><span>子任务</span><div id="subtask-editor"></div><div class="subtask-add"><input id="subtask-input" maxlength="200" placeholder="添加一个子任务"><button type="button" class="icon-btn" id="add-subtask" aria-label="添加子任务">${icon("plus")}</button></div></div>
     <div class="modal-actions">${task ? `<button type="button" class="text-button danger-text" data-delete-task="${task.id}">删除任务</button>` : '<button type="button" class="text-button" data-action="new-task">使用模板编辑器</button>'}<div><button type="button" class="button secondary" data-action="close-modal">取消</button><button type="submit" class="button primary">${task ? "保存修改" : "创建任务"}</button></div></div></form>`,
     true,
@@ -2223,11 +2478,23 @@ function taskDialog(id?: string) {
   });
   draw();
   const taskForm = $<HTMLFormElement>("#task-form");
+  const dueDateInput = taskForm.elements.namedItem(
+    "dueDate",
+  ) as HTMLInputElement;
+  const reminderInput = taskForm.elements.namedItem(
+    "reminderTime",
+  ) as HTMLInputElement;
   const updateDuration = () => {
     const f = new FormData(taskForm);
     const duration = taskForm.elements.namedItem(
       "durationMinutes",
     ) as HTMLInputElement;
+    dueDateInput.required = !!reminderInput.value;
+    repairClearedPicker(dueDateInput);
+    repairClearedPicker(reminderInput);
+    const hasDueDate = !!dueDateInput.value || dueDateInput.validity.badInput;
+    $("#pick-today-task-due-date").hidden = hasDueDate;
+    $("#clear-task-due-date").hidden = !hasDueDate;
     try {
       const budget = focusBudget(
         Number(f.get("durationMinutes")),
@@ -2240,7 +2507,19 @@ function taskDialog(id?: string) {
       duration.setCustomValidity("请填写有效的预计用时");
     }
   };
+  $("#pick-today-task-due-date").onclick = () => {
+    dueDateInput.value = state.today;
+    updateDuration();
+  };
+  $("#clear-task-due-date").onclick = () => {
+    clearPickerInput(dueDateInput);
+    if (reminderInput.value || reminderInput.validity.badInput)
+      clearPickerInput(reminderInput);
+    updateDuration();
+  };
+  bindFormInvalidToast(taskForm);
   taskForm.addEventListener("input", updateDuration);
+  taskForm.addEventListener("change", updateDuration);
   updateDuration();
   $("#task-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -2484,8 +2763,9 @@ function emergencyDialog() {
     !state.data.lock.active &&
     state.data.timer.mode === "focus" &&
     state.data.timer.startedAt !== null;
+  const breakLock = !state.data.lock.active && breakProtectedNow();
   modal(
-    `${modalHeader(canComplete ? "要结束这一轮专注吗？" : "有更重要的事，需要现在处理？")}<p class="confirm-message">${canComplete ? "本轮已做完，可提前完成番茄并进入休息，专注时长按实际用时记录。任务仍需手动勾选完成。临时中断请选择「结束并解锁」，本轮不计为完整番茄。" : "提前结束会解除所有专注保护。已经投入的时间仍会保留，本轮不计为完整番茄。"}</p><label class="form-field"><span>输入「结束专注」以确认中断</span><input id="emergency-text" autocomplete="off" placeholder="结束专注" autofocus></label><div class="modal-actions">${canComplete ? '<button class="button secondary" id="complete-focus">提前完成</button>' : '<button class="button secondary" data-action="close-modal">继续休息</button>'}<button class="button danger" id="emergency-confirm" disabled>结束并解锁</button></div>`,
+    `${modalHeader(canComplete ? "要结束这一轮专注吗？" : "有更重要的事，需要现在处理？")}<p class="confirm-message">${canComplete ? "本轮已做完，可提前完成番茄并进入休息，专注时长按实际用时记录。任务仍需手动勾选完成。临时中断请选择「结束并解锁」，本轮不计为完整番茄。" : breakLock ? "提前结束会解除强制休息并返回专注待机。" : "提前结束会解除所有专注保护。已经投入的时间仍会保留，本轮不计为完整番茄。"}</p><label class="form-field"><span>输入「结束专注」以确认中断</span><input id="emergency-text" autocomplete="off" placeholder="结束专注" autofocus></label><div class="modal-actions">${canComplete ? '<button class="button secondary" id="complete-focus">提前完成</button>' : '<button class="button secondary" data-action="close-modal">继续休息</button>'}<button class="button danger" id="emergency-confirm" disabled>结束并解锁</button></div>`,
   );
   if (canComplete) {
     $("#complete-focus").onclick = async () => {
@@ -2580,7 +2860,7 @@ function bindForms() {
       }
       return;
     }
-    if (!input.name) return;
+    if (!input.name || input.dataset.appearance) return;
     settingsDirty = true;
     settingsRevision++;
     $("#settings-status").textContent =
@@ -2618,6 +2898,13 @@ function bindForms() {
       e.preventDefault();
       const f = new FormData(e.target as HTMLFormElement);
       await addWhitelist(String(f.get("appId")).trim());
+    });
+  document
+    .querySelector<HTMLFormElement>("#lock-whitelist-form")
+    ?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target as HTMLFormElement);
+      await addLockWhitelist(String(f.get("appId")).trim());
     });
   document
     .querySelector<HTMLFormElement>("#project-whitelist-form")
@@ -2659,6 +2946,22 @@ async function addWhitelist(app: string) {
       "已加入白名单",
     );
 }
+async function addLockWhitelist(app: string) {
+  if (!app) return;
+  const list = state.data.lock.whitelist ?? [];
+  if (!list.includes(app))
+    await act(
+      { type: "setLockWhitelist", whitelist: [...list, app] },
+      "已加入锁机白名单",
+    );
+}
+async function removeLockWhitelist(app: string) {
+  const list = state.data.lock.whitelist ?? [];
+  await act({
+    type: "setLockWhitelist",
+    whitelist: list.filter((a) => a !== app),
+  });
+}
 async function saveProjectWhitelist(
   id: string,
   whitelist: string[] | null,
@@ -2686,14 +2989,16 @@ async function removeProjectWhitelist(id: string, app: string) {
 async function toggleTimer() {
   if (
     !state.data.timer.running &&
-    state.data.timer.mode === "focus" &&
-    state.data.settings.protection.mode !== "off" &&
+    ((state.data.timer.mode === "focus" &&
+      state.data.settings.protection.mode !== "off") ||
+      (state.data.timer.mode !== "focus" && state.data.settings.forceBreak)) &&
     state.data.settings.protection.strict
   ) {
+    const isBreak = state.data.timer.mode !== "focus";
     confirmDialog(
-      "开始严格专注？",
-      `本轮剩余 ${time(state.remainingSecs)}，期间不能临时退出或更改白名单。到时自动解除。`,
-      "开始严格专注",
+      isBreak ? "开始严格休息？" : "开始严格专注？",
+      `本轮剩余 ${time(state.remainingSecs)}，期间不能临时退出或更改设置。到时自动解除。`,
+      isBreak ? "开始严格休息" : "开始严格专注",
       async () => {
         unlockAudio();
         await act({ type: "startTimer" });
@@ -2757,6 +3062,10 @@ document.addEventListener("click", async (e) => {
   const el = (e.target as Element).closest<HTMLElement>("button");
   if (!el || el.hasAttribute("disabled")) return;
   const d = el.dataset;
+  if (d.btwStatus) {
+    await act({ type: "setBtwStatus", id: d.btwId, status: d.btwStatus });
+    return;
+  }
   if (d.selectMode) {
     selectMode = d.selectMode === "on";
     selectedTaskIds.clear();
@@ -3041,6 +3350,14 @@ document.addEventListener("click", async (e) => {
     await addWhitelist(d.addApp);
     return;
   }
+  if (d.addLockApp) {
+    await addLockWhitelist(d.addLockApp);
+    return;
+  }
+  if (d.removeLockApp) {
+    await removeLockWhitelist(d.removeLockApp);
+    return;
+  }
   if (d.addProjectApp && d.guardProject) {
     await addProjectWhitelist(d.guardProject, d.addProjectApp);
     return;
@@ -3135,6 +3452,19 @@ document.addEventListener("click", async (e) => {
     case "new-habit":
       templateDialog(undefined, true);
       break;
+    case "btw-write":
+      await writeBtw();
+      break;
+    case "btw-review":
+      reviewBtw();
+      break;
+    case "btw-all":
+    case "btw-later":
+      showBtwNotes(d.action === "btw-later");
+      break;
+    case "btw-shortcut":
+      try { await enableBtwShortcut(); toast("已启用 Ctrl+Alt+B"); } catch (error) { toast(String(error)); }
+      break;
     case "focus-schedule":
       focusScheduleDialog();
       break;
@@ -3168,16 +3498,7 @@ document.addEventListener("click", async (e) => {
       render();
       break;
     case "theme":
-      await act({
-        type: "saveSettings",
-        settings: {
-          ...state.data.settings,
-          theme:
-            document.documentElement.dataset.theme === "dark"
-              ? "light"
-              : "dark",
-        },
-      });
+      modal(`${modalHeader("外观")}${appearanceControls()}`);
       break;
     case "help":
       helpDialog();
@@ -3214,6 +3535,14 @@ document.addEventListener("click", async (e) => {
       break;
     case "emergency":
       emergencyDialog();
+      break;
+    case "unlock-to-focus":
+      unlockAudio();
+      if (await act({ type: "unlockToFocus" }, "已解开锁机，开始自由专注")) {
+        immersive = false;
+        page = "focus";
+        render();
+      }
       break;
     case "export":
       try {
@@ -3294,7 +3623,7 @@ document.addEventListener("keydown", (e) => {
   if (modalOpen && e.key === "Tab") {
     const focusable = [
       ...document.querySelectorAll<HTMLElement>(
-        ".modal button:not([disabled]),.modal input,.modal textarea,.modal select",
+        ".modal button:not([disabled]),.modal input:not([data-appearance]),.modal input[data-appearance]:checked,.modal textarea,.modal select",
       ),
     ];
     const first = focusable[0],
@@ -3331,7 +3660,7 @@ document.addEventListener("keydown", (e) => {
     void toggleTimer();
   }
 });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+systemAppearance.addEventListener("change", () => {
   if (state) {
     applyTheme();
   }
@@ -3529,6 +3858,11 @@ async function boot() {
     bgmTrack = await loadBgm();
   } catch {
     toast("本地 BGM 读取失败，可在背景音中重新导入");
+  }
+  if (desktop) {
+    const capture = async () => { if (await takeBtwRequest()) await writeBtw(); };
+    await listen("btw-request", capture);
+    await capture();
   }
   if (native) {
     await listen("agent-wake", () => {

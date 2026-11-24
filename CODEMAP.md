@@ -29,7 +29,7 @@ Rust 驱动的 Linux 桌面番茄任务工具。当前目录使用 Git 管理，
 | 外部Agent接管与MCP工具/技能暴露 | 智能体 / 桥接 | crates/agent/src/external.rs、bridge.rs、agent/mcp.mjs | crates/agent/src/tools.rs、src/agent.ts、docs/AGENT.md、tests/external-control.mjs |
 | 项目资料搜索、大文件与失效维护 | 教学 / 文件 | src/resources.ts、crates/agent/src/resources.rs | core/src/education.rs的引用索引/清理、src-tauri/src/resources.rs、preview/src/main.rs的流式响应、tests/education.mjs |
 | 任务时间提醒与单次时长 | 业务核心 / 桌面 | crates/core/src/reminders.rs、src-tauri/src/desktop_app.rs | src/main.ts、src/types.ts、docs/PLAN_FORMAT.md、docs/HANDBOOK/12-课表与提醒.md |
-| 任务日期必填、周期星期与可选提醒 | 业务核心 / 界面 | crates/core/src/reminders.rs 的 validate、templates.rs 的 Printing/validate、src/main.ts 的 templateDialog/taskDialog | plan.rs、src/types.ts、助手 create_task、计划与备份 schema |
+| 无计划日期任务、周期星期与可选提醒 | 业务核心 / 界面 | crates/core/src/reminders.rs 的 validate、templates.rs 的 Printing/validate、src/main.ts 的 templateDialog/taskDialog | plan.rs、src/types.ts、助手 create_task、计划与备份 schema |
 | 永久 ID、任务恢复与本地 v3 升级 | 持久化 | crates/core/src/identities.rs、migration.rs、lib.rs 的 Engine | docs/HANDBOOK/15-任务身份.md、tests.rs、docs/BACKUP_FORMAT.md |
 | 习惯分组与周期印刷 | 业务核心 / 界面 | crates/core/src/templates.rs、src/main.ts 的 habitsTab | templates.rs 的 materialize_templates、src/types.ts、docs/BACKUP_FORMAT.md |
 | 愿景标记 | 业务核心 / 界面 | crates/core/src/lib.rs 的 Vision、src/main.ts 的 visionsTab | src/types.ts、docs/BACKUP_FORMAT.md |
@@ -49,6 +49,7 @@ Rust 驱动的 Linux 桌面番茄任务工具。当前目录使用 Git 管理，
 | 对话历史搜索/归档、思考展示、编辑重试、分支、附件与 Markdown | 智能体 / 界面 | crates/agent/src/CODEMAP.md、agent/CODEMAP.md、src/agent.ts、src/agent-chat.ts、src/agent-markdown.ts | src/api.ts、src-tauri/src/files.rs、tests/agent.mjs、docs/AGENT.md |
 | Codex CLI 登录与第三方模型配置 | 智能体 / 界面 | agent/codex-config.mjs、agent/worker.mjs | agent/session.mjs、agent/web.mjs、src/agent.ts、tests/agent.mjs、docs/AGENT.md、scripts/build-agent.mjs |
 | 代理设置、用量失败与对话上下文超限 | 智能体 / 界面 | agent/{worker,session,codex-config}.mjs、crates/agent/src/{worker,state,lib}.rs、src/agent.ts、src/main.ts 的偏好页 | tests/agent.mjs、docs/AGENT.md |
+| BTW 随手记与锁机回看 | 核心 / 桌面 / 界面 | crates/core/src/btw.rs、src/btw.ts、src-tauri/src/btw_overlay.rs | src/main.ts 的 writeBtw/reviewBtw、完整备份、tests/native.mjs |
 | 调整界面与配色 | 界面 | src/CODEMAP.md | 必要时 API 类型 |
 | 修复锁定或白名单 | 桌面 | crates/core/src/guard.rs、crates/core/src/guard_windows.rs、src-tauri/src/desktop_app.rs | crates/core/tests/guard_windows.rs、tests/windows.mjs、tests/native.mjs、src 的 guardPage |
 | 启动/打包/测试 | 构建 | README.md、CONTRIBUTING.md、package.json | src-tauri/tauri.conf.json、scripts/ |

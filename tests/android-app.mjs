@@ -292,7 +292,7 @@ try {
     { timeout: 60_000 },
   );
   await expect(
-    page.getByRole("heading", { name: "今天，也要慢慢向前。" }),
+    page.getByRole("heading", { name: /月.*日.*星期/ }),
   ).toBeVisible();
   await page.locator('[data-action="welcome-done"]').click();
   // The native WebView size must be usable without horizontally scrolling the app.
@@ -331,7 +331,7 @@ try {
   await expect(page.locator("html")).not.toHaveClass(/mobile-nav-open/);
   await back();
   await expect(
-    page.getByRole("heading", { name: "今天，也要慢慢向前。" }),
+    page.getByRole("heading", { name: /月.*日.*星期/ }),
   ).toBeVisible();
   await page.locator('[data-action="toggle-timer"]').click();
   await expect(page.locator('[data-action="toggle-timer"]')).toContainText(

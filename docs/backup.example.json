@@ -1,5 +1,6 @@
 {
   "version": 4,
+  "btwNotes": [{"id": "note-1", "text": "这两章的思路很相似。", "createdAt": 1791021600, "status": "note"}],
   "tasks": [],
   "projects": [
     {
@@ -18,11 +19,13 @@
     "longBreakEvery": 4,
     "dailyGoal": 8,
     "autoBreak": false,
+    "forceBreak": true,
     "autoFocus": false,
     "sound": true,
     "notifications": true,
     "alwaysOnTop": false,
     "theme": "light",
+    "accentColor": "sage",
     "personaBackdrop": false,
     "protection": {
       "mode": "off",

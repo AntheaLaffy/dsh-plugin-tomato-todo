@@ -3,10 +3,10 @@ use crate::{date_at, AppData, AppResult, Task};
 use chrono::{Local, TimeZone, Timelike};
 
 pub fn validate(task: &Task) -> AppResult<()> {
-    if task.due_date.as_ref().is_none_or(|date| {
+    if task.due_date.as_ref().is_some_and(|date| {
         date.len() != 10 || chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err()
     }) {
-        return Err("任务必须指定有效的计划日期".into());
+        return Err("无效的计划日期".into());
     }
     if task.focus_minutes.is_some_and(|m| !(1..=180).contains(&m)) {
         return Err("单次专注时长需为1—180分钟".into());

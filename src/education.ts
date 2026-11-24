@@ -523,15 +523,15 @@ function studentDashboard(
       (task) =>
         task.projectId === project.id &&
         !task.completed &&
-        task.dueDate <= snapshot.today,
+        (!task.dueDate || task.dueDate <= snapshot.today),
     )
     .sort(
       (a, b) =>
-        a.dueDate.localeCompare(b.dueDate) ||
+        (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31") ||
         (a.reminderTime || "99:99").localeCompare(b.reminderTime || "99:99"),
     )
     .slice(0, 4);
-  return `<section class="education-dashboard-project"><div class="education-dashboard-project-head"><div><span class="eyebrow">学习项目</span><h2>${esc(project.name)}</h2><p>${esc(study.target || "应试目标尚未填写")}</p></div>${dashboardProjectLink(project.id)}</div><section class="education-dashboard-today"><h3>今日学习任务</h3>${todayTasks.map((task) => `<article class="education-dashboard-row"><div><strong>${esc(task.title)}</strong><small>${task.dueDate < snapshot.today ? "逾期" : "今天"}${task.reminderTime ? ` · ${esc(task.reminderTime)}` : ""} · ${task.estimate} 个番茄</small></div><button class="button secondary small-button" data-focus-task="${esc(task.id)}">开始专注</button></article>`).join("") || `<p class="subtle">今天没有未完成的项目任务。</p>`}</section><div class="education-dashboard-columns"><section><h3>需要处理</h3>${
+  return `<section class="education-dashboard-project"><div class="education-dashboard-project-head"><div><span class="eyebrow">学习项目</span><h2>${esc(project.name)}</h2><p>${esc(study.target || "应试目标尚未填写")}</p></div>${dashboardProjectLink(project.id)}</div><section class="education-dashboard-today"><h3>今日学习任务</h3>${todayTasks.map((task) => `<article class="education-dashboard-row"><div><strong>${esc(task.title)}</strong><small>${!task.dueDate ? "无日期" : task.dueDate < snapshot.today ? "逾期" : "今天"}${task.reminderTime ? ` · ${esc(task.reminderTime)}` : ""} · ${task.estimate} 个番茄</small></div><button class="button secondary small-button" data-focus-task="${esc(task.id)}">开始专注</button></article>`).join("") || `<p class="subtle">今天没有未完成的项目任务。</p>`}</section><div class="education-dashboard-columns"><section><h3>需要处理</h3>${
     followups
       .slice(0, 4)
       .map((a) =>

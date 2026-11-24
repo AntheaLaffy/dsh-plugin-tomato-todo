@@ -65,7 +65,7 @@ export interface CalendarSlot {
   time: string | null;
 }
 export type Printing =
-  | { kind: "once"; date: string; time: string | null }
+  | { kind: "once"; date: string | null; time: string | null }
   | { kind: "calendar"; slots: CalendarSlot[] }
   | { kind: "weekly"; slots: { days: number[]; time: string | null }[] };
 export interface Template {
@@ -77,7 +77,7 @@ export interface Template {
 }
 export interface PrintRecord {
   templateId: string;
-  date: string;
+  date: string | null;
 }
 export interface Task {
   id: string;
@@ -88,7 +88,7 @@ export interface Task {
   notes: string;
   projectId: string | null;
   habitId: string | null;
-  dueDate: string;
+  dueDate: string | null;
   reminderTime: string | null;
   focusMinutes: number | null;
   reminderFired: boolean;
@@ -109,6 +109,7 @@ export interface Settings {
   longBreakEvery: number;
   dailyGoal: number;
   autoBreak: boolean;
+  forceBreak: boolean;
   autoFocus: boolean;
   autoStartTasks: boolean;
   sound: boolean;
@@ -116,6 +117,7 @@ export interface Settings {
   notifications: boolean;
   alwaysOnTop: boolean;
   theme: "light" | "dark" | "system";
+  accentColor: "tomato" | "sage" | "mistBlue";
   personaBackdrop: boolean;
   protection: { mode: GuardMode; whitelist: string[]; strict: boolean };
 }
@@ -135,8 +137,10 @@ export interface LockState {
     startedAt: number;
     endsAt: number;
     strict: boolean;
+    awaitingUnlock: boolean;
   } | null;
   suppressedUntil: number;
+  whitelist: string[];
 }
 export interface Timer {
   mode: Mode;
@@ -163,7 +167,15 @@ export interface Session {
   durationSecs: number;
   completed: boolean;
 }
+export type BtwStatus = "note" | "later" | "done";
+export interface BtwNote {
+  id: string;
+  text: string;
+  createdAt: number;
+  status: BtwStatus;
+}
 export interface AppData {
+  btwNotes: BtwNote[];
   education: import("./education").Education;
   identities: Identity[];
   version: number;
@@ -197,7 +209,7 @@ export interface PlanFile {
     scrapMinutes?: number;
     notes?: string;
     projectId?: string | null;
-    dueDate: string;
+    dueDate?: string | null;
     reminderTime?: string | null;
     focusMinutes?: number | null;
     priority?: number;
@@ -245,6 +257,7 @@ export interface GuardInfo {
   }[];
 }
 export interface DesktopStatus {
+  btwShortcutAvailable: boolean;
   autostart: boolean;
   closeToTray: boolean;
   trayAvailable: boolean;

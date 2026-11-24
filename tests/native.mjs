@@ -178,8 +178,8 @@ try {
   const config = join(dir, "niri.kdl");
   await writeFile(config, "animations { off; }\nprefer-no-csd\n");
   const compositor = start(
-    "dbus-run-session",
-    ["--", "niri", "-c", config],
+    "niri",
+    ["-c", config],
     xenv,
   );
   socket = await until(
@@ -197,6 +197,7 @@ try {
     ...xenv,
     WAYLAND_DISPLAY: wayland,
     NIRI_SOCKET: socket,
+    NIRI_CONFIG: config,
     GDK_BACKEND: "wayland",
     TOMATO_DATA_PATH: join(dir, "native.sqlite3"),
   };
@@ -365,6 +366,59 @@ try {
     (await niri("FocusedWindow")).FocusedWindow.id,
     allowed.id,
     "Whitelisted app must remain usable",
+  );
+  // Inject keyboard and pointer events into the private Xvfb-hosted compositor.
+  const xdo = (...args) =>
+    execFileSync("xdotool", args, { env: xenv, encoding: "utf8" }).trim();
+  const hasLayer = async (namespace) =>
+    (await niri("Layers")).Layers.some((layer) => layer.namespace === namespace);
+  const snapshot = async () => (await invoke("snapshot")).value.data;
+  const deadline = (await snapshot()).timer.deadline;
+  assert.ok((await invoke("enable_btw_shortcut")).error === undefined);
+  await until(() => hasLayer("tomato-btw-pen"), "Missing focus pencil");
+  const niriWindow = xdo("search", "--onlyvisible", "--name", "niri").split(
+    "\n",
+  )[0];
+  xdo("windowfocus", niriWindow);
+  await pause(500);
+  xdo("key", "ctrl+alt+b");
+  await until(
+    () => hasLayer("tomato-btw-editor"),
+    "Global BTW shortcut did not open the editor",
+  );
+  xdo("type", "A thought");
+  xdo("key", "Escape");
+  await until(() => hasLayer("tomato-btw-pen"), "Pencil did not return");
+  const geometry = Object.fromEntries(
+    xdo("getwindowgeometry", "--shell", niriWindow)
+      .split("\n")
+      .map((line) => line.split("=")),
+  );
+  xdo(
+    "mousemove",
+    "--window",
+    niriWindow,
+    String(Number(geometry.WIDTH) - 10),
+    String(Math.floor(Number(geometry.HEIGHT) / 2)),
+    "click",
+    "1",
+  );
+  await until(
+    () => hasLayer("tomato-btw-editor"),
+    "Mouse did not open the pencil",
+  );
+  xdo("key", "Return");
+  await until(
+    async () =>
+      (await snapshot()).btwNotes.some(
+        (n) => n.text === "A thought" && n.status === "note",
+      ),
+    "BTW draft lost on reopening",
+  );
+  assert.equal((await snapshot()).timer.deadline, deadline);
+  await until(
+    async () => (await niri("FocusedWindow")).FocusedWindow?.id === allowed.id,
+    "BTW did not restore focus",
   );
   await niri({ Action: { FocusWindow: { id: blocked.id } } });
   await until(
@@ -868,6 +922,19 @@ try {
   );
   assert.equal((await invoke("desktop_status")).value.trayAvailable, false);
   assert.match((await invoke("hide_to_tray")).error, /没有可用托盘/);
+  const night = await invoke("dispatch", { action: { type: "startQuickLock", minutes: 30, strict: false } });
+  assert.ok(night.value.data.lock.active);
+  await waitSelector('.sleep-space [data-action="btw-review"]');
+  await click('[data-action="btw-review"]');
+  await waitSelector(".sleep-preview .btw-note");
+  await click(".btw-note summary");
+  await click('[data-btw-status="later"]');
+  await waitSelector(".btw-note input");
+  await click(".btw-note input");
+  await until(async () => (await snapshot()).btwNotes.some(n => n.text === "A thought" && n.status === "done"), "Lock screen could not complete a note");
+  assert.ok((await snapshot()).lock.active);
+  await click('[data-action="close-modal"]');
+  await invoke("dispatch", { action: { type: "emergencyUnlock" } });
   console.log(
     "PASS: native WebKit, private real tray/menu, background launch, autostart toggles, close-to-tray timer, single instance, exit/fallback, whitelist, fullscreen lock and emergency recovery.",
   );

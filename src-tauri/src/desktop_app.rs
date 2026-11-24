@@ -6,6 +6,38 @@ use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 use tomato_core::{guard, now, Action, AppResult, Engine, GuardMode, Mode, Snapshot};
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static BTW_REQUEST: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+fn take_btw_request() -> bool {
+    BTW_REQUEST.swap(false, Ordering::AcqRel)
+}
+
+#[tauri::command]
+fn open_btw_overlay() -> bool {
+    #[cfg(target_os = "linux")]
+    { crate::btw_overlay::open() }
+    #[cfg(not(target_os = "linux"))]
+    false
+}
+
+#[tauri::command]
+fn enable_btw_shortcut() -> AppResult<()> {
+    #[cfg(target_os = "linux")]
+    { crate::btw_overlay::enable_shortcut() }
+    #[cfg(not(target_os = "linux"))]
+    Err("此快捷键由 niri 桌面管理".into())
+}
+
+fn request_btw(app: &tauri::AppHandle) {
+    if open_btw_overlay() { return; }
+    BTW_REQUEST.store(true, Ordering::Release);
+    desktop::activate(app);
+    let _ = app.emit("btw-request", ());
+}
+
 #[tauri::command]
 fn snapshot(engine: State<Shared>) -> AppResult<Snapshot> {
     engine.lock().map_err(|e| e.to_string())?.snapshot(now())
@@ -85,12 +117,18 @@ pub fn run() {
         std::env::set_var("GDK_BACKEND", "wayland,x11");
     }
     let background = std::env::args().any(|arg| arg == "--background");
+    let btw = std::env::args().any(|arg| arg == "--btw");
     let builder =
         tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, args, _| {
             if args.iter().any(|arg| arg == "--background") {
                 return;
             }
-            desktop::activate(app);
+            if args.iter().any(|arg| arg == "--btw") {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || request_btw(&handle));
+            } else {
+                desktop::activate(app);
+            }
         }));
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     let builder = builder.plugin(tauri_plugin_autostart::init(
@@ -139,12 +177,25 @@ pub fn run() {
             )
             .map_err(std::io::Error::other)?;
             app.manage(service.clone());
-            desktop::setup(app.handle(), background).map_err(std::io::Error::other)?;
+            #[cfg(target_os = "linux")]
+            let overlay = crate::btw_overlay::setup(app.handle());
+            #[cfg(target_os = "linux")]
+            let mut visibility = crate::btw_overlay::visibility(&initial.data);
+            #[cfg(target_os = "linux")]
+            crate::btw_overlay::sync(visibility.0, visibility.1);
+            desktop::setup(app.handle(), background || btw).map_err(std::io::Error::other)?;
+            if btw { request_btw(app.handle()); }
             let handle = app.handle().clone();
             let mut serial = initial.data.timer.completion_serial;
             let mut reminded: Option<String> = None;
             let mut locked = false;
             let mut was_protected = false;
+            let mut was_awaiting_unlock = initial
+                .data
+                .lock
+                .active
+                .as_ref()
+                .is_some_and(|a| a.awaiting_unlock);
             let mut stopped_exams = initial
                 .data
                 .education
@@ -159,6 +210,14 @@ pub fn run() {
                 let Some(s) = snapshot else {
                     continue;
                 };
+                #[cfg(target_os = "linux")]
+                if overlay {
+                    let next = crate::btw_overlay::visibility(&s.data);
+                    if next != visibility {
+                        visibility = next;
+                        let _ = handle.run_on_main_thread(move || crate::btw_overlay::sync(next.0, next.1));
+                    }
+                }
                 let _ = service.observe(&s);
                 for exam in s
                     .data
@@ -210,12 +269,36 @@ pub fn run() {
                 }
                 desktop::update_tray(&handle, &s);
                 let protect = s.data.protected();
+                let awaiting_unlock = s
+                    .data
+                    .lock
+                    .active
+                    .as_ref()
+                    .is_some_and(|a| a.awaiting_unlock);
                 let entering = protect && !was_protected;
+                let entering_wakeup = awaiting_unlock && !was_awaiting_unlock;
                 was_protected = protect;
-                if entering {
+                was_awaiting_unlock = awaiting_unlock;
+                if entering_wakeup {
+                    desktop::activate(&handle);
+                    if s.data.settings.notifications {
+                        let _ = handle
+                            .notification()
+                            .builder()
+                            .title("锁机已结束")
+                            .body("点击解开并开始第一段自由专注。")
+                            .show();
+                    }
+                } else if entering {
                     desktop::show(&handle);
                 }
-                let fullscreen = s.data.lock.active.is_some()
+                let fullscreen = s
+                    .data
+                    .lock
+                    .active
+                    .as_ref()
+                    .is_some_and(|a| a.awaiting_unlock || s.data.lock.whitelist.is_empty())
+                    || s.data.break_protected()
                     || (protect && s.data.settings.protection.mode == GuardMode::Lock);
                 if fullscreen != locked {
                     if let Some(w) = handle.get_webview_window("main") {
@@ -225,7 +308,20 @@ pub fn run() {
                 }
                 // Showing a tray window is asynchronous; give niri one tick to discover it.
                 if protect && !entering {
-                    let protection = if s.data.lock.active.is_some() {
+                    let protection = if let Some(active) = &s.data.lock.active {
+                        if active.awaiting_unlock || s.data.lock.whitelist.is_empty() {
+                            tomato_core::Protection {
+                                mode: GuardMode::Lock,
+                                ..Default::default()
+                            }
+                        } else {
+                            tomato_core::Protection {
+                                mode: GuardMode::Whitelist,
+                                whitelist: s.data.lock.whitelist.clone(),
+                                ..Default::default()
+                            }
+                        }
+                    } else if s.data.break_protected() {
                         tomato_core::Protection {
                             mode: GuardMode::Lock,
                             ..Default::default()
@@ -296,6 +392,9 @@ pub fn run() {
             agent_call,
             agent_open_login,
             guard_info,
+            open_btw_overlay,
+            take_btw_request,
+            enable_btw_shortcut,
             files::export_data,
             files::read_import,
             files::save_agent_file,

@@ -24,6 +24,8 @@ pub struct ActiveLock {
     pub started_at: i64,
     pub ends_at: i64,
     pub strict: bool,
+    #[serde(default)]
+    pub awaiting_unlock: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -35,6 +37,8 @@ pub struct LockState {
     pub active: Option<ActiveLock>,
     #[serde(default)]
     pub suppressed_until: i64,
+    #[serde(default)]
+    pub whitelist: Vec<String>,
 }
 
 fn parse_time(s: &str) -> Option<NaiveTime> {
@@ -95,6 +99,9 @@ impl LockState {
                 return Err("无效的锁机状态".into());
             }
         }
+        if !crate::valid_app_ids(&self.whitelist) {
+            return Err("无效的锁机应用白名单".into());
+        }
         Ok(())
     }
 
@@ -102,14 +109,22 @@ impl LockState {
         if at < self.suppressed_until {
             return None;
         }
+        self.matching_window_at(at, None)
+    }
+
+    pub fn has_other_schedule_at(&self, at: i64, exclude_id: &str) -> bool {
+        self.matching_window_at(at, Some(exclude_id)).is_some()
+    }
+
+    fn matching_window_at(&self, at: i64, exclude_id: Option<&str>) -> Option<ActiveLock> {
         let today = Local.timestamp_opt(at, 0).single()?.date_naive();
         let mut result: Option<ActiveLock> = None;
         for date in [today.pred_opt()?, today] {
-            for s in self
-                .schedules
-                .iter()
-                .filter(|s| s.enabled && s.days.contains(&date.weekday().number_from_monday()))
-            {
+            for s in self.schedules.iter().filter(|s| {
+                s.enabled
+                    && exclude_id.is_none_or(|id| s.id != id)
+                    && s.days.contains(&date.weekday().number_from_monday())
+            }) {
                 let start_time = parse_time(&s.start)?;
                 let end_time = parse_time(&s.end)?;
                 let end_date = if end_time <= start_time {
@@ -140,6 +155,7 @@ impl LockState {
                             started_at: start.timestamp(),
                             ends_at: end.timestamp(),
                             strict: s.strict,
+                            awaiting_unlock: false,
                         });
                     }
                 }

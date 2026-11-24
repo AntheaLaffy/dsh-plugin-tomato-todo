@@ -896,12 +896,15 @@ fn interactive_calls_can_configure_tasks_directly() {
         "工具未授权"
     );
     for args in [
-        json!({"title":"刷题"}),
-        json!({"title":"刷题","dueDate":null}),
         json!({"title":"刷题","dueDate":""}),
+        json!({"title":"刷题","dueDate":null,"reminderTime":"09:00"}),
     ] {
         assert!(agent.call("create_task", &args, false).is_err());
     }
+    let undated = agent
+        .call("create_task", &json!({"title":"无日期刷题"}), false)
+        .unwrap();
+    assert_eq!(undated["data"]["tasks"][0]["dueDate"], Value::Null);
     let created = agent
         .call(
             "create_task",
@@ -909,7 +912,12 @@ fn interactive_calls_can_configure_tasks_directly() {
             false,
         )
         .unwrap();
-    let id = created["data"]["tasks"][0]["id"]
+    let id = created["data"]["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["title"] == "刷题")
+        .unwrap()["id"]
         .as_str()
         .unwrap()
         .to_string();
@@ -920,11 +928,43 @@ fn interactive_calls_can_configure_tasks_directly() {
             false,
         )
         .unwrap();
-    assert_eq!(moved["data"]["tasks"][0]["dueDate"], "2026-10-13");
+    assert_eq!(
+        moved["data"]["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == id)
+            .unwrap()["dueDate"],
+        "2026-10-13"
+    );
+    let cleared = agent
+        .call(
+            "update_task",
+            &json!({"id":*id.clone(),"changes":{"dueDate":null}}),
+            false,
+        )
+        .unwrap();
+    assert_eq!(
+        cleared["data"]["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == id)
+            .unwrap()["dueDate"],
+        Value::Null
+    );
     let done = agent
         .call("complete_task", &json!({"id":*id.clone()}), false)
         .unwrap();
-    assert_eq!(done["data"]["tasks"][0]["completed"], true);
+    assert_eq!(
+        done["data"]["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == id)
+            .unwrap()["completed"],
+        true
+    );
 }
 #[test]
 fn user_skills_are_readable_from_the_agent_dir() {
@@ -1308,6 +1348,11 @@ fn completed_exam_study_task_wakes_the_assistant_for_homework_once() {
             .unwrap();
         engine.dispatch(action(json!({"type":"saveTask","task":{"title":"极限学习","projectId":project,"dueDate":"2026-10-12"}})), time()).unwrap();
         let id = engine.snapshot(time()).unwrap().data.tasks[0].id.clone();
+        let mut settings = engine.snapshot(time()).unwrap().data.settings;
+        settings.force_break = false;
+        engine
+            .dispatch(Action::SaveSettings { settings }, time())
+            .unwrap();
         engine
             .dispatch(
                 Action::SetMode {

@@ -3,12 +3,13 @@ mode: maintenance
 generated_at: 2026-10-10
 ---
 
-奶油白与番茄红的桌面界面；业务状态通过 Rust 命令更新。
+暖纸手帐风格的桌面界面；业务状态通过 Rust 命令更新。
 
 ## 任务指南
 
 | 任务                             | Domain    | Target                                                                                                                      | Also Check                                                                                                           |
 | -------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 外观与今日专注 | 界面 / 契约 | main.ts 的 appearanceControls/applyTheme/focusPage、style.css 的主题变量与 journal-heading | types.ts、Rust Settings、备份 Schema、tests/integration.mjs |
 | 偏好布局与保存时机               | 界面      | main.ts 的 settingsPage/savePreferences/navigate、style.css 的 settings-grid                                                | tests/integration.mjs 的失焦/离页/手动/失败与布局检查                                                                |
 | 简洁模式与说明显隐 | 界面 | compact.ts、main.ts 的 settingsPage/bindForms/ponderChip、taskDialog/templateDialog/statsPage/soundDialog/renderImmersive/boot、style.css 的 data-explanation | agent.ts 的欢迎页/输入提示/定时空状态/人格操作建议、agent-canvas.ts 的空状态、ponder.ts 的偏好讲解、tests/integration.mjs 的 compact mode、docs/DESIGN.md |
 | 调整页面布局                     | 界面      | main.ts.analysis.md、style.css.analysis.md                                                                                  | —                                                                                                                    |
@@ -38,6 +39,7 @@ generated_at: 2026-10-10
 
 | File            | Domain | Function                                                                            |
 | --------------- | ------ | ----------------------------------------------------------------------------------- |
+| btw.ts | 随手记 | 日期分组、普通笔记与稍后做的回看列表 |
 | compact.ts | 界面偏好 | 简洁模式的本机保存与根元素标记，默认展示完整说明；全局按 data-explanation 隐藏解释文字 |
 | scroll.ts | 界面 | 跨整体重绘保留标记过的滚动位置（`data-keep-scroll`）；main.ts 与 agent.ts 共用 |
 | education-index.ts | 教学索引 | 按Education对象缓存提交/批改/订正映射，复用最新版本与接受状态查询；WeakMap随快照释放 |

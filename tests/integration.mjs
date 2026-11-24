@@ -55,6 +55,14 @@ test("compact mode: global hiding, local persistence and important information",
         "required",
         "",
       );
+      await page.locator("#clear-task-due-date").click();
+      await expect(
+        page.locator('#task-form [name="dueDate"]'),
+      ).not.toHaveAttribute("required", "");
+      await expect(page.locator('#task-form [name="dueDate"]')).toHaveValue("");
+      await expect(
+        page.locator('#task-form [name="reminderTime"]'),
+      ).toHaveValue("");
       await expect(page.locator('#task-form [name="goalId"]')).toHaveCount(0);
       await explanation(
         page.getByText("重复安排请在模板编辑器中设置。", { exact: true }),
@@ -71,11 +79,13 @@ test("compact mode: global hiding, local persistence and important information",
         .getByRole("button", { name: "关闭对话框", exact: true })
         .click();
       await page.locator('[data-action="new-task"]').first().click();
-      for (const title of [
-        "备注、标签与步骤",
-        "项目与优先级",
-        "专注时段与补做",
-      ]) {
+      await expect(
+        page.locator('#template-form [name="projectId"]'),
+      ).toBeVisible();
+      await expect(
+        page.locator('#template-form [name="priority"]'),
+      ).toBeVisible();
+      for (const title of ["备注、标签与步骤", "专注时段与补做"]) {
         const summary = page.locator("#template-form summary", {
           hasText: title,
         });
@@ -166,17 +176,22 @@ test("compact mode: global hiding, local persistence and important information",
     await page.goto(url);
     await expect(page.locator(".welcome-card")).toBeVisible();
     await expect(page.locator(".brand small")).toBeVisible();
-    await expect(page.locator(".page-heading .eyebrow")).toBeVisible();
+    await expect(page.locator(".journal-heading h1")).toBeVisible();
     await page.locator('[data-action="new-task"]').first().click();
     await page
       .locator('#template-form [name="title"]')
       .fill("简洁模式验证任务");
     const taskDate = page.locator('#template-form [name="dueDate"]');
+    const taskReminder = page.locator('#template-form [name="reminderTime"]');
+    await expect(taskDate).toHaveValue("");
+    await expect(taskDate).not.toHaveAttribute("required", "");
+    await expect(taskReminder).not.toHaveAttribute("required", "");
+    await page.locator("#pick-today-due-date").click();
+    await expect(taskDate).not.toHaveValue("");
+    await page.locator("#clear-due-date").click();
+    await expect(taskDate).toHaveValue("");
+    await taskReminder.fill("13:45");
     await expect(taskDate).toHaveAttribute("required", "");
-    await expect(
-      page.locator('#template-form [name="reminderTime"]'),
-    ).not.toHaveAttribute("required", "");
-    await taskDate.fill("");
     await page.locator("#create-from-editor").click();
     await expect(page.locator("#template-form")).toBeVisible();
     assert.equal(
@@ -184,9 +199,19 @@ test("compact mode: global hiding, local persistence and important information",
       true,
     );
     await taskDate.fill("2099-12-31");
-    await page.locator('#template-form [name="reminderTime"]').fill("13:45");
     await page.locator("#create-from-editor").click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    // Undated task creation by default and display in the focus page's undated section.
+    await page.locator('[data-action="new-task"]').first().click();
+    await expect(page.locator('#template-form [name="dueDate"]')).toHaveValue(
+      "",
+    );
+    await page.locator('#template-form [name="title"]').fill("随时可做的阅读");
+    await page.locator("#create-from-editor").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator("#today-undated-tasks")).toContainText(
+      "随时可做的阅读",
+    );
     await page.locator('[data-page="settings"]').click();
     const toggle = page.getByRole("checkbox", { name: "简洁模式" });
     await expect(toggle).not.toBeChecked();
@@ -222,8 +247,8 @@ test("compact mode: global hiding, local persistence and important information",
     await expect(page.locator(".quote-card")).toBeHidden();
     await expect(page.locator(".brand small")).toBeHidden();
     await expect(page.locator(".clock")).toHaveText("31:00");
-    await expect(page.locator(".page-heading p")).toBeVisible();
-    await expect(page.locator(".metric-value small").first()).toBeVisible();
+    await expect(page.locator(".journal-heading h1")).toBeVisible();
+    await expect(page.locator(".journal-summary small").first()).toBeVisible();
     await expect(page.locator("#connection")).toBeVisible();
     await page.screenshot({
       path: join(dir, "compact-focus.png"),
@@ -596,7 +621,7 @@ test(
       });
       await page.goto(url);
       await expect(
-        page.getByRole("heading", { name: "今天，也要慢慢向前。" }),
+        page.getByRole("heading", { name: /月.*日.*星期/ }),
       ).toBeVisible();
       // 首次打开先说清「只有两件事」，点过之后不再出现。
       await expect(page.locator(".welcome-card")).toContainText(
@@ -609,7 +634,7 @@ test(
       await expect(page.locator(".welcome-card")).toHaveCount(0);
       await page.reload();
       await expect(
-        page.getByRole("heading", { name: "今天，也要慢慢向前。" }),
+        page.getByRole("heading", { name: /月.*日.*星期/ }),
       ).toBeVisible();
       await expect(page.locator(".welcome-card")).toHaveCount(0);
       await expect(page.locator('[data-page="goals"]')).toHaveCount(0);
@@ -739,7 +764,6 @@ test(
         .locator("summary")
         .filter({ hasText: "备注、标签与步骤" })
         .click();
-      await page.locator("summary").filter({ hasText: "项目与优先级" }).click();
       await page.locator("summary").filter({ hasText: "印刷安排" }).click();
       await page.locator("[name=printNow]").check();
       await page.locator("[name=title]").fill("学习 Rust 的所有权");
@@ -805,9 +829,9 @@ test(
       assert.ok(snap.data.tasks.find((t) => !t.completed).dueDate > snap.today);
       await expect(
         page
-          .locator(".metric")
+          .locator(".journal-summary > div")
           .filter({ hasText: "完成任务" })
-          .locator(".metric-value"),
+          .locator("dd"),
       ).toHaveText("1项");
       await page.keyboard.press("Control+k");
       await page.locator("#global-search-input").fill("所有权");
@@ -875,6 +899,21 @@ test(
       await page.waitForTimeout(1100);
       const beforeLeave = (await (await fetch(`${url}/api/snapshot`)).json())
         .data.settings;
+      await page.getByRole("radio", { name: "雾蓝" }).check();
+      await expect(page.locator("html")).toHaveAttribute("data-accent", "mistBlue");
+      await page.getByRole("button", { name: "外观", exact: true }).click();
+      const appearance = page.getByRole("dialog", { name: "外观" });
+      await expect(appearance.getByRole("radio", { name: "雾蓝" })).toBeChecked();
+      await appearance.getByRole("radio", { name: "跟随系统" }).check();
+      for (const colorScheme of ["dark", "light"]) {
+        await page.emulateMedia({ colorScheme });
+        await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+        await expect(page.locator("html")).toHaveAttribute("data-accent", "mistBlue");
+      }
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("radio", { name: "跟随系统" })).toBeChecked();
+      await expect(page.locator("[name=focusMinutes]")).toHaveValue("30");
+      assert.equal((await (await fetch(`${url}/api/snapshot`)).json()).data.settings.focusMinutes, 25);
       assert.equal(beforeLeave.focusMinutes, 25);
       assert.equal(beforeLeave.soundVolume, 100);
       assert.equal(await volumeField.evaluate((el) => el.isConnected), true);
@@ -984,6 +1023,7 @@ test(
       });
       await page.reload();
       await expect(page.locator(".clock")).toHaveText("30:00");
+      await expect(page.locator("html")).toHaveAttribute("data-accent", "mistBlue");
       assert.equal(await page.evaluate(() => window.audioNotes), 0);
       await page.getByRole("button", { name: "开始专注", exact: true }).click();
       await expect(
@@ -998,13 +1038,12 @@ test(
       await page.getByRole("button", { name: "重置计时", exact: true }).click();
       await page.locator("#confirm-button").click();
       await expect(page.locator(".clock")).toHaveText("30:00");
-      await page
-        .getByRole("button", { name: "切换明暗主题", exact: true })
-        .click();
+      await page.getByRole("button", { name: "外观", exact: true }).click();
+      await page.getByRole("radio", { name: "深色", exact: true }).check();
       await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-      await page
-        .getByRole("button", { name: "切换明暗主题", exact: true })
-        .click();
+      await page.getByRole("radio", { name: "浅色", exact: true }).check();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+      await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "数据统计", exact: true }).click();
       await expect(page.locator(".history-row")).toHaveCount(3);
       await expect(
@@ -1155,6 +1194,7 @@ test(
       const reminderAt = `${String(now.getHours()).padStart(2, "0")}:${String(
         now.getMinutes(),
       ).padStart(2, "0")}`;
+      await page.locator("#pick-today-due-date").click();
       await page.locator("[name=reminderTime]").fill(reminderAt);
       await page.getByRole("button", { name: "创建任务", exact: true }).click();
       const reminder = page.getByRole("region", { name: "任务时间提醒" });
@@ -2265,8 +2305,10 @@ test(
         page
           .locator(".today-list")
           .evaluate((el) => el.scrollHeight - el.clientHeight);
-      // 改主题会触发一次整体重绘；位置必须被搬回去（内容变矮时允许被夹到新的底部）。
+      // 切换外观后继续从原来的位置看今日待办。
       await page.locator('[data-action="theme"]').click();
+      await page.getByRole("radio", { name: "深色" }).check();
+      await page.keyboard.press("Escape");
       await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
       await expect
         .poll(

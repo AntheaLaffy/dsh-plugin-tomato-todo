@@ -40,6 +40,7 @@ pub struct Status {
     pub autostart: bool,
     pub close_to_tray: bool,
     pub tray_available: bool,
+    pub btw_shortcut_available: bool,
 }
 struct TrayItems {
     status: MenuItem<tauri::Wry>,
@@ -223,6 +224,7 @@ pub fn desktop_status(app: tauri::AppHandle) -> AppResult<Status> {
         autostart: autostart_enabled(&app)?,
         close_to_tray,
         tray_available: tray_available(&app),
+        btw_shortcut_available: cfg!(target_os = "linux") && std::env::var_os("NIRI_SOCKET").is_some(),
     })
 }
 #[tauri::command]

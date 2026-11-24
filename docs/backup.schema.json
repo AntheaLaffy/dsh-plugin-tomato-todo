@@ -6,6 +6,21 @@
     "version": {
       "const": 4
     },
+    "btwNotes": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "createdAt", "status"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "pattern": "\\S" },
+          "createdAt": { "type": "integer" },
+          "status": { "enum": ["note", "later", "done"] }
+        }
+      }
+    },
     "projects": {
       "type": "array",
       "items": {
@@ -243,8 +258,7 @@
         "completed",
         "createdAt",
         "tags",
-        "subtasks",
-        "dueDate"
+        "subtasks"
       ],
       "properties": {
         "id": {
@@ -281,9 +295,17 @@
           "minLength": 1
         },
         "dueDate": {
-          "type": "string",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-          "format": "date"
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "priority": {
           "type": "integer",
@@ -456,6 +478,11 @@
         "autoBreak": {
           "type": "boolean"
         },
+        "forceBreak": {
+          "type": "boolean",
+          "default": true,
+          "description": "休息计时期间默认启用界面锁定；缺省 true"
+        },
         "autoFocus": {
           "type": "boolean"
         },
@@ -474,6 +501,10 @@
             "dark",
             "system"
           ]
+        },
+        "accentColor": {
+          "enum": ["tomato", "sage", "mistBlue"],
+          "default": "tomato"
         },
         "personaBackdrop": {
           "type": "boolean",
@@ -764,6 +795,17 @@
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
+        },
+        "whitelist": {
+          "type": "array",
+          "maxItems": 100,
+          "default": [],
+          "description": "定时锁机与快速锁机期间允许使用的应用 ID（精确匹配），留空时全屏锁定。",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32768
+          }
         }
       },
       "required": []
@@ -838,6 +880,11 @@
         },
         "strict": {
           "type": "boolean"
+        },
+        "awaitingUnlock": {
+          "type": "boolean",
+          "default": false,
+          "description": "锁机到时后保持全屏锁定，等待用户点击开始自由专注"
         }
       },
       "required": [
@@ -933,17 +980,24 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "kind",
-            "date"
+            "kind"
           ],
           "properties": {
             "kind": {
               "const": "once"
             },
             "date": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-              "format": "date"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
             },
             "time": {
               "type": [
@@ -1053,8 +1107,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "templateId",
-        "date"
+        "templateId"
       ],
       "properties": {
         "templateId": {
@@ -1062,9 +1115,16 @@
           "minLength": 1
         },
         "date": {
-          "type": "string",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-          "format": "date"
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
